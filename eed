@@ -1,0 +1,286 @@
+#!/bin/bash
+# Enhanced ed wrapper with Modify-Preview-Confirm workflow
+# Usage: eed [--debug] [--force] [--disable-auto-reorder] <file> <ed_commands...>
+#
+# Options:
+#   --debug    Enable debug mode (preserve temp files, show ed output)
+#   --force    Skip preview-confirm workflow, edit file directly
+#   --disable-auto-reorder  Disable automatic script reordering
+#
+# Examples:
+#   eed file.txt "5d"                           # Delete line 5 (with preview)
+#   eed --force file.txt "5d"                   # Delete line 5 (direct edit)
+#   eed file.txt "3c" "new content" "."         # Replace line 3
+#   eed file.txt "5a" "new line" "."            # Insert after line 5
+#   eed file.txt "1,3d"                         # Delete lines 1-3
+#   eed file.txt "s/old/new/g"                  # Replace all 'old' with 'new' on current line
+#   eed file.txt "1,\$s/old/new/g"              # Replace all 'old' with 'new' in entire file
+
+# Disable history expansion to prevent ! character escaping
+set +H
+
+# Load library functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/eed_common.sh"
+source "$SCRIPT_DIR/lib/eed_validator.sh"
+
+# --- Argument Parsing & Mode Handling ---
+DEBUG_MODE=false
+FORCE_MODE=false
+DISABLE_AUTO_REORDER=false
+
+# Parse flags with proper argument handling
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --debug)
+            DEBUG_MODE=true
+            shift
+            ;;
+        --force)
+            FORCE_MODE=true
+            shift
+            ;;
+        --disable-auto-reorder)
+            DISABLE_AUTO_REORDER=true
+            shift
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            exit 1
+            ;;
+        *)
+            # Break the loop once we hit non-flag arguments
+            break
+            ;;
+    esac
+done
+
+# Enforce single parameter mode after parsing flags
+if [ $# -ne 2 ]; then
+    echo "Usage: eed [--debug] [--force] [--disable-auto-reorder] <file> <ed_script>" >&2
+    echo "" >&2
+    echo "Options:" >&2
+    echo "  --debug    Enable debug mode (preserve temp files, show ed output)" >&2
+    echo "  --force    Skip preview-confirm workflow, edit file directly" >&2
+    echo "  --disable-auto-reorder  Disable automatic script reordering" >&2
+    echo "" >&2
+    echo "Use a quoted heredoc to pass complex ed scripts without shell expansion." >&2
+    echo "Example (quoted heredoc prevents variable/backslash expansion):" >&2
+    echo "eed file.txt \"\$(cat <<'EOF_EXAMPLE'" >&2
+    echo "3c" >&2
+    echo "new content" >&2
+    echo "." >&2
+    echo "w" >&2
+    echo "q" >&2
+    echo "EOF_EXAMPLE" >&2
+    echo '")' >&2
+    exit 1
+fi
+
+FILE="$1"
+ED_SCRIPT="$2"
+
+# --- Pre-processor Validation ---
+validation_result=$(validate_ed_script "$ED_SCRIPT")
+validation_code=$?
+echo "$validation_result" >&2
+
+if [ $validation_code -ne 0 ]; then
+    exit 1
+fi
+
+# Handle empty script case
+if [ -z "$ED_SCRIPT" ] || [ "$ED_SCRIPT" = "" ]; then
+    echo "✓ No operations performed (empty script)"
+    exit 0
+fi
+
+# --- Dot Trap Detection and Guidance ---
+if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
+    # Potential dot trap detected, provide guidance
+    suggest_dot_fix "$ED_SCRIPT"
+fi
+
+# --- Log Commands for Analysis ---
+log_ed_commands "$ED_SCRIPT"
+
+# --- Automatic Script Reordering for Line Number Safety ---
+# Get potentially reordered script to prevent line numbering conflicts
+if [ "$DISABLE_AUTO_REORDER" = "false" ]; then
+    REORDERED_SCRIPT=$(reorder_script_if_needed "$ED_SCRIPT")
+    if [ $? -eq 1 ]; then
+        # Reordering was performed, use the reordered script
+        ED_SCRIPT="$REORDERED_SCRIPT"
+    fi
+fi
+
+# Check if file exists, create if needed
+if [ ! -f "$FILE" ]; then
+    echo "Creating new file: $FILE"
+    echo > "$FILE"  # Create file with one empty line instead of zero bytes
+fi
+
+# --- Core Execution Logic with Preview-Confirm ---
+
+# 1. Classify script to determine workflow
+SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
+
+# 2. Handle invalid commands before executing ed
+if [ "$SCRIPT_TYPE" = "invalid_command" ]; then
+    echo "✗ Error: Invalid ed command detected" >&2
+    echo "Script contains unrecognized commands:" >&2
+    echo "$ED_SCRIPT" >&2
+    exit 1
+fi
+
+# 3. Handle view-only scripts (no changes, simple execution)
+if [ "$SCRIPT_TYPE" = "view_only" ]; then
+    # Create secure temporary command file
+    TEMP_CMD_FILE=$(mktemp)
+    cleanup() {
+        if [ "$DEBUG_MODE" = false ]; then
+            rm -f "$TEMP_CMD_FILE"
+        else
+            echo "Debug mode: temporary file preserved at $TEMP_CMD_FILE" >&2
+        fi
+    }
+    trap cleanup EXIT
+
+    # Write the complete ed script to temp file
+    printf '%s\n' "$ED_SCRIPT" >> "$TEMP_CMD_FILE"
+
+    # Execute ed with error handling
+    if [ "$DEBUG_MODE" = true ]; then
+        echo "Debug mode: executing ed with commands from $TEMP_CMD_FILE" >&2
+        echo "Debug mode: ed command file contents:" >&2
+        cat -n "$TEMP_CMD_FILE" >&2
+        echo "Debug mode: ed output:" >&2
+        ed -s "$FILE" < "$TEMP_CMD_FILE"
+        ED_EXIT_CODE=$?
+    else
+        ed -s "$FILE" < "$TEMP_CMD_FILE"
+        ED_EXIT_CODE=$?
+    fi
+
+    # Handle ed result for view operations
+    case $ED_EXIT_CODE in
+        0)
+            echo "✓ Successfully processed $FILE"
+            ;;
+        1)
+            echo "✓ View operation completed (no matches found)"
+            exit 0
+            ;;
+        2)
+            echo "✗ File I/O error" >&2
+            exit 2
+            ;;
+        3)
+            echo "✗ Internal ed error" >&2
+            exit 3
+            ;;
+    esac
+    exit $ED_EXIT_CODE
+fi
+
+# 4. Handle modifying scripts with the new preview-confirm workflow
+if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
+    TARGET_FILE="$FILE"
+    BACKUP_FILE="$FILE.eed.bak"
+
+    # Decide on editing mode
+    if [ "$FORCE_MODE" = true ]; then
+        echo "Note: --force mode enabled. Editing file directly." >&2
+        cp "$TARGET_FILE" "$BACKUP_FILE"
+        ED_TARGET="$TARGET_FILE"
+        BACKUP_CREATED=true
+    else
+        # DEFAULT BEHAVIOR: Work on a copy, leave original untouched
+        cp "$TARGET_FILE" "$BACKUP_FILE"
+        ED_TARGET="$BACKUP_FILE" # ed will edit the backup file!
+        BACKUP_CREATED=false  # In preview mode, backup is the working copy
+    fi
+
+    # Create and prepare the temp command file
+    TEMP_CMD_FILE=$(mktemp)
+    cleanup() {
+        if [ "$DEBUG_MODE" = false ]; then
+            rm -f "$TEMP_CMD_FILE"
+        else
+            echo "Debug mode: temporary file preserved at $TEMP_CMD_FILE" >&2
+        fi
+    }
+    trap cleanup EXIT
+
+    printf '%s\n' "$ED_SCRIPT" > "$TEMP_CMD_FILE"
+
+    # Execute ed on the chosen target (original or backup)
+    if [ "$DEBUG_MODE" = true ]; then
+        echo "Debug mode: executing ed with commands from $TEMP_CMD_FILE" >&2
+        echo "Debug mode: ed command file contents:" >&2
+        cat -n "$TEMP_CMD_FILE" >&2
+        echo "Debug mode: ed output:" >&2
+        ed -s "$ED_TARGET" < "$TEMP_CMD_FILE"
+        ED_EXIT_CODE=$?
+    else
+        ed -s "$ED_TARGET" < "$TEMP_CMD_FILE"
+        ED_EXIT_CODE=$?
+    fi
+
+    # Handle ed's result
+    if [ $ED_EXIT_CODE -ne 0 ]; then
+        case $ED_EXIT_CODE in
+            1)
+                if [ "$FORCE_MODE" = true ]; then
+                    echo "✗ Edit command failed, restoring backup" >&2
+                    if [ "$BACKUP_CREATED" = true ]; then
+                        mv "$BACKUP_FILE" "$FILE"
+                    fi
+                else
+                    echo "✗ Edit command failed" >&2
+                    echo "  No changes were made to the original file." >&2
+                    rm -f "$BACKUP_FILE"
+                fi
+                ;;
+            2)
+                echo "✗ File I/O error" >&2
+                if [ "$FORCE_MODE" = true ] && [ "$BACKUP_CREATED" = true ]; then
+                    mv "$BACKUP_FILE" "$FILE"
+                else
+                    rm -f "$BACKUP_FILE"
+                fi
+                ;;
+            3)
+                echo "✗ Internal ed error" >&2
+                if [ "$FORCE_MODE" = true ] && [ "$BACKUP_CREATED" = true ]; then
+                    mv "$BACKUP_FILE" "$FILE"
+                else
+                    rm -f "$BACKUP_FILE"
+                fi
+                ;;
+        esac
+        echo "Commands attempted:" >&2
+        cat "$TEMP_CMD_FILE" >&2
+        exit $ED_EXIT_CODE
+    fi
+
+    # --- Success Path ---
+    if [ "$FORCE_MODE" = true ]; then
+        echo "✓ Successfully edited $FILE directly."
+        rm -f "$BACKUP_FILE"
+    else
+        # The "Preview and Confirm" magic happens here
+        echo "✓ Edits applied to a temporary backup. Review the changes below:"
+        echo ""
+
+        # Generate and print the diff
+        diff -u --color=auto "$FILE" "$BACKUP_FILE" || true
+
+        echo ""
+        echo "To apply these changes, run:"
+        echo "  mv '$BACKUP_FILE' '$FILE'"
+        echo ""
+        echo "To discard these changes, run:"
+        echo "  rm '$BACKUP_FILE'"
+    fi
+fi

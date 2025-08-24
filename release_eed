@@ -1,0 +1,5 @@
+cp -v eed ~/bin
+cp -v lib/eed* ~/bin/lib
+cp -v tests/*eed* ~/bin/tests
+chmod  +x ~/bin/eed
+
