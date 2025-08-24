@@ -1,6 +1,6 @@
 # eed — Enhanced ed with Preview-Confirm workflow
 
-eed is a non-interactive wrapper around the traditional Unix `ed` editor that makes programmatic edits safe: preview diffs, automatic backups, and atomic apply semantics.
+eed is an AI-oriented text editor designed for programmatic collaboration with AI: preview diffs, automatic backups, and atomic apply semantics.
 
 Key features
 - Preview-confirm workflow (default): edits are written to `<file>.eed.bak` for review; use `--force` to edit in-place.
