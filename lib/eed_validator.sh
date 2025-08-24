@@ -6,6 +6,9 @@ if [ "${EED_VALIDATOR_LOADED:-}" = "1" ]; then
     return 0
 fi
 EED_VALIDATOR_LOADED=1
+# Source the shared regex patterns
+source "$(dirname "${BASH_SOURCE[0]}")/eed_regex_patterns.sh"
+
 
 # Disable history expansion to prevent ! character escaping
 set +H
@@ -170,19 +173,19 @@ detect_complex_patterns() {
         [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
 
         # Detect g/v blocks with modifying commands
-        if [[ "$line" =~ ^[[:space:]]*[gvGV]/.*[/][dDcCbBiIaAsSjJmMtT]$ ]]; then
+        if [[ "$line" =~ $EED_REGEX_GV_MODIFYING ]]; then
             echo "COMPLEX: g/v block with modifying command detected: $line" >&2
             return 1
         fi
 
         # Detect non-numeric addresses with modifying commands
-        if [[ "$line" =~ ^[[:space:]]*[\./\?].*[dDcCbBiIaAsSjJmMtT]$ ]]; then
+        if [[ "$line" =~ $EED_REGEX_NON_NUMERIC_MODIFYING ]]; then
             echo "COMPLEX: Non-numeric address with modifying command detected: $line" >&2
             return 1
         fi
 
         # Detect offset addresses with modifying commands
-        if [[ "$line" =~ ^[[:space:]]*[\.\$][+-][0-9].*[dDcCbBiIaAsSjJmMtT]$ ]]; then
+        if [[ "$line" =~ $EED_REGEX_OFFSET_MODIFYING ]]; then
             echo "COMPLEX: Offset address with modifying command detected: $line" >&2
             return 1
         fi

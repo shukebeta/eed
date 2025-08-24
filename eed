@@ -267,6 +267,7 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
     # --- Success Path ---
     if [ "$FORCE_MODE" = true ]; then
         echo "✓ Successfully edited $FILE directly."
+        echo "💡 Recommended: git add '$FILE'"
         rm -f "$BACKUP_FILE"
     else
         # The "Preview and Confirm" magic happens here
