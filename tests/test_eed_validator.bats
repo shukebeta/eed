@@ -692,6 +692,6 @@ new content
 w
 q"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Edits applied to a temporary backup"* ]]
+    [[ "$output" == *"Edits applied to a temporary preview"* ]]
     [[ "$output" != *"Recommended: git add"* ]]
 }

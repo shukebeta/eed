@@ -7,7 +7,7 @@ setup() {
     TEST_DIR="$(mktemp -d)"
     cd "$TEST_DIR"
     export PATH="/home/davidwei/Projects/pkb/bin:$PATH"
-    
+
     # Prevent logging during tests
     export EED_TESTING=1
 
@@ -64,7 +64,7 @@ q"
     [[ "$output" == *"line2"* ]]
     [[ "$output" == *"line3"* ]]
 
-    # Should not create backup file
+    # Should not create preview file
     [ ! -f sample.txt.eed.bak ]
 
     # Should not show diff or instructions
@@ -92,7 +92,7 @@ q"
     # File should be modified directly
     [[ "$(cat sample.txt)" == $'line1\nnew line2\nline3' ]]
 
-    # Should not leave backup file
+    # Should not leave preview file
     [ ! -f sample.txt.eed.bak ]
 }
 
@@ -107,7 +107,7 @@ q"
     [[ "$output" == *"line2"* ]]
     [[ "$output" == *"line3"* ]]
 
-    # Should not create backup
+    # Should not create preview
     [ ! -f sample.txt.eed.bak ]
 }
 
@@ -122,11 +122,11 @@ q"
     # Original file should be unchanged
     [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
 
-    # Should not create backup file
+    # Should not create preview file
     [ ! -f sample.txt.eed.bak ]
 }
 
-@test "force mode - error handling restores backup" {
+@test "force mode - error handling restores preview" {
     # Create a scenario where ed fails in force mode
     # Use a command that will fail after modification
     run /home/davidwei/Projects/pkb/bin/eed --force sample.txt "2c
@@ -137,7 +137,7 @@ q"
     [ "$status" -ne 0 ]
 
     # Should show error and restoration message
-    [[ "$output" == *"Edit command failed, restoring backup"* ]]
+    [[ "$output" == *"Edit command failed, restoring preview"* ]]
 
     # Original file should be restored (unchanged)
     [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
@@ -152,7 +152,7 @@ w
 q"
     [ "$status" -eq 0 ]
 
-    # Should create backup with changes
+    # Should create preview with changes
     [ -f sample.txt.eed.bak ]
     [[ "$(cat sample.txt.eed.bak)" == $'modified line1\nline2\nline3' ]]
 
@@ -176,7 +176,7 @@ w
 q"
     [ "$status" -eq 0 ]
 
-    # Should create backup with changes
+    # Should create preview with changes
     [ -f sample.txt.eed.bak ]
 
     # Discard the changes using the provided command
@@ -248,7 +248,7 @@ EOF
 q"
     [ "$status" -eq 0 ]
 
-    # Should still create backup and show diff (even if empty)
+    # Should still create preview and show diff (even if empty)
     [ -f sample.txt.eed.bak ]
 
     # Diff should be empty or minimal

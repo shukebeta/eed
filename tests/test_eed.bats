@@ -7,7 +7,7 @@
 # - Basic functionality (insert, delete, replace)
 # - Special character handling (quotes, dollar signs)
 # - Windows path compatibility
-# - Error handling and backup/restore
+# - Error handling and preview/restore
 # - Complex multi-command operations
 # - Security validation (command injection prevention)
 
@@ -18,7 +18,7 @@ setup() {
 
     # Ensure we're using the local eed from bin/
     export PATH="/home/davidwei/Projects/pkb/bin:$PATH"
-    
+
     # Prevent logging during tests
     export EED_TESTING=1
 }

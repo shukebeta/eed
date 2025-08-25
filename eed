@@ -186,19 +186,19 @@ fi
 # 4. Handle modifying scripts with the new preview-confirm workflow
 if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
     TARGET_FILE="$FILE"
-    BACKUP_FILE="$FILE.eed.bak"
+    PREVIEW_FILE="$FILE.eed.preview"
 
     # Decide on editing mode
     if [ "$FORCE_MODE" = true ]; then
-        echo "Note: --force mode enabled. Editing backup file, will apply directly." >&2
-        cp "$TARGET_FILE" "$BACKUP_FILE"
-        ED_TARGET="$BACKUP_FILE"  # Always edit backup file
+        echo "Note: --force mode enabled. Editing preview file, will apply directly." >&2
+        cp "$TARGET_FILE" "$PREVIEW_FILE"
+        ED_TARGET="$PREVIEW_FILE"  # Always edit preview file
         BACKUP_CREATED=true
     else
         # DEFAULT BEHAVIOR: Work on a copy, leave original untouched
-        cp "$TARGET_FILE" "$BACKUP_FILE"
-        ED_TARGET="$BACKUP_FILE" # ed will edit the backup file!
-        BACKUP_CREATED=false  # In preview mode, backup is the working copy
+        cp "$TARGET_FILE" "$PREVIEW_FILE"
+        ED_TARGET="$PREVIEW_FILE" # ed will edit the preview file\!
+        BACKUP_CREATED=false  # In preview mode, preview is the working copy
     fi
 
     # Create and prepare the temp command file
@@ -214,7 +214,7 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
 
     printf '%s\n' "$ED_SCRIPT" > "$TEMP_CMD_FILE"
 
-    # Execute ed on the chosen target (original or backup)
+    # Execute ed on the chosen target (original or preview)
     if [ "$DEBUG_MODE" = true ]; then
         echo "Debug mode: executing ed with commands from $TEMP_CMD_FILE" >&2
         echo "Debug mode: ed command file contents:" >&2
@@ -232,30 +232,30 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
         case $ED_EXIT_CODE in
             1)
                 if [ "$FORCE_MODE" = true ]; then
-                    echo "✗ Edit command failed, restoring backup" >&2
+                    echo "✗ Edit command failed, restoring preview" >&2
                     if [ "$BACKUP_CREATED" = true ]; then
-                        mv "$BACKUP_FILE" "$FILE"
+                        mv "$PREVIEW_FILE" "$FILE"
                     fi
                 else
                     echo "✗ Edit command failed" >&2
                     echo "  No changes were made to the original file." >&2
-                    rm -f "$BACKUP_FILE"
+                    rm -f "$PREVIEW_FILE"
                 fi
                 ;;
             2)
                 echo "✗ File I/O error" >&2
                 if [ "$FORCE_MODE" = true ] && [ "$BACKUP_CREATED" = true ]; then
-                    mv "$BACKUP_FILE" "$FILE"
+                    mv "$PREVIEW_FILE" "$FILE"
                 else
-                    rm -f "$BACKUP_FILE"
+                    rm -f "$PREVIEW_FILE"
                 fi
                 ;;
             3)
                 echo "✗ Internal ed error" >&2
                 if [ "$FORCE_MODE" = true ] && [ "$BACKUP_CREATED" = true ]; then
-                    mv "$BACKUP_FILE" "$FILE"
+                    mv "$PREVIEW_FILE" "$FILE"
                 else
-                    rm -f "$BACKUP_FILE"
+                    rm -f "$PREVIEW_FILE"
                 fi
                 ;;
         esac
@@ -266,23 +266,31 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
 
     # --- Success Path ---
     if [ "$FORCE_MODE" = true ]; then
-        echo "✓ Successfully edited backup file."
-        echo "💡 Applying changes: mv '$BACKUP_FILE' '$FILE'"
-        mv "$BACKUP_FILE" "$FILE"
-        echo "💡 Recommended: git add '$FILE'"
+        echo "✓ Successfully edited preview file."
+        echo "💡 Applying changes: mv '$PREVIEW_FILE' '$FILE'"
+        mv "$PREVIEW_FILE" "$FILE"
+        # Check if inside a Git repository before giving the tip
+        if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+            echo "💡 Next, stage your changes: git add '$FILE'"
+        fi
     else
         # The "Preview and Confirm" magic happens here
-        echo "✓ Edits applied to a temporary backup. Review the changes below:"
+        echo "✓ Edits applied to a temporary preview. Review the changes below:"
         echo ""
-
-        # Generate and print the diff
-        diff -u --color=auto "$FILE" "$BACKUP_FILE" || true
+        # Generate and print intelligent diff
+        if command -v git >/dev/null 2>&1; then
+            git diff --no-index --color=auto "$FILE" "$PREVIEW_FILE" || true
+        elif command -v delta >/dev/null 2>&1; then
+            delta "$FILE" "$PREVIEW_FILE" || true
+        else
+            diff -u --color=auto "$FILE" "$PREVIEW_FILE" || true
+        fi
 
         echo ""
         echo "To apply these changes, run:"
-        echo "  mv '$BACKUP_FILE' '$FILE'"
+        echo "  mv '$PREVIEW_FILE' '$FILE'"
         echo ""
         echo "To discard these changes, run:"
-        echo "  rm '$BACKUP_FILE'"
+        echo "  rm '$PREVIEW_FILE'"
     fi
 fi

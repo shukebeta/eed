@@ -306,7 +306,7 @@ eed uses a small set of exit codes useful for automation:
 If something goes wrong:
 
 ```bash
-# Check for backup
+# Check for preview
 ls -la yourfile.eed.bak
 
 # Restore if needed
@@ -352,7 +352,7 @@ git diff file.txt
 
 - **Atomic Operations** - All changes succeed or all fail
 - **Intelligent Safety** - Auto-reordering + complex pattern detection
-- **Built-in Backup** - Automatic backup and restore
+- **Built-in Backup** - Automatic preview and restore
 - **Preview Changes** - See before you commit
 - **Shell Integration** - Works with any text processing pipeline
 - **Reliable** - Based on proven ed editor with modern enhancements
