@@ -12,13 +12,26 @@
 # - Security validation (command injection prevention)
 
 setup() {
-    # Create unique test directory for this test run
+    # Determine repository root before changing to a temporary working directory.
+    # Prefer BATS_TEST_DIRNAME (set by bats). If not present, fall back to script heuristics.
+    if [ -n "${BATS_TEST_DIRNAME:-}" ]; then
+        REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+    else
+        # Fallback: derive from this test file's location
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+    fi
+
+    # Create unique test directory for this test run and switch into it
     TEST_DIR="$(mktemp -d)"
     cd "$TEST_DIR"
 
-    # Ensure we're using the local eed from bin/
-    SCRIPT_UNDER_TEST="/../eed"
-    # export PATH="/home/davidwei/Projects/pkb/bin:$PATH"
+    # Use the repository eed executable directly (ensures libs resolve correctly)
+    SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
+    chmod +x "$SCRIPT_UNDER_TEST" 2>/dev/null || truet st -s
+
+    # Expose repo root on PATH for helper tools
+    export PATH="$REPO_ROOT:$PATH"
 
     # Prevent logging during tests
     export EED_TESTING=1

@@ -66,37 +66,35 @@ classify_ed_script() {
         fi
 
         # Check for modifying commands (append, change, insert)
-        if [[ "$line" =~ ^(\.|[0-9]+|\$)?,?(\.|[0-9]+|\$)?[aAcCiI]$ ]]; then
+        if is_input_command "$line"; then
             parsing_stack+=("INPUT")
             echo "has_modifying"
             return 0
         fi
 
         # Other modifying commands (delete, move, etc)
-        if [[ "$line" =~ ^(\.|[0-9]+|\$)?,?(\.|[0-9]+|\$)?[dDmMtTjJsSuU] ]]; then
+        if is_modifying_command "$line"; then
             echo "has_modifying"
             return 0
         fi
 
         # Substitute command: [range]s/pattern/replacement/[flags]
-        if [[ "$line" =~ ^(\.|[0-9]+|\$)?,?(\.|[0-9]+|\$)?s/.*/.*/ ]]; then
+        if is_substitute_command "$line"; then
             echo "has_modifying"
             return 0
         fi
 
-        if [[ "$line" =~ ^w ]]; then
+        if is_write_command "$line"; then
             echo "has_modifying"
             return 0
         fi
 
         # Check for valid view commands
-        if [[ "$line" =~ ^(\.|[0-9]+|\$)?,?(\.|[0-9]+|\$)?[pPnNlL=]$ ]] || \
-           [[ "$line" =~ ^[qQ]$ ]] || \
-           [[ "$line" =~ ^(\.|[0-9]+|\$)$ ]] || \
-           [[ "$line" =~ ^g/.*/[pPnNdDsS]?$ ]] || \
-           [[ "$line" =~ ^/[^/]*/[pPnNlL=]?$ ]] || \
-           [[ "$line" =~ ^/.*/([+-][0-9]+)?,/.*/([+-][0-9]+)?[pP]?$ ]] || \
-           [[ "$line" =~ ^\?.*\?[pP]?$ ]]; then
+        if is_view_command "$line" || \
+           is_quit_command "$line" || \
+           is_address_only "$line" || \
+           is_global_command "$line" || \
+           is_search_command "$line"; then
             continue  # Valid view command, keep checking
         else
             # Invalid command found

@@ -8,7 +8,7 @@ setup() {
     TEST_DIR="$(mktemp -d)"
     cd "$TEST_DIR"
     SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../eed"
-    
+
     # Prevent logging during tests
     export EED_TESTING=1
 

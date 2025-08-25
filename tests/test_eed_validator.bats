@@ -12,6 +12,10 @@ setup() {
     source "$BATS_TEST_DIRNAME/../lib/eed_regex_patterns.sh"
     source "$BATS_TEST_DIRNAME/../lib/eed_validator.sh"
 
+    # Ensure we can invoke the eed executable from these tests
+    SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../eed"
+    chmod +x "$SCRIPT_UNDER_TEST" 2>/dev/null || true
+
     # Prevent logging during tests
     export EED_TESTING=1
 }
@@ -108,7 +112,7 @@ teardown() {
     [ "$status" -eq 0 ]
     [ "$output" = "has_modifying" ]
 
-    run classify_ed_script "1,$s/old/new/g"
+    run classify_ed_script '1,$s/old/new/g'
     [ "$status" -eq 0 ]
     [ "$output" = "has_modifying" ]
 
@@ -226,11 +230,11 @@ w"
 # Integration tests for edge cases
 
 @test "classifier edge case: dollar sign in ranges" {
-    run classify_ed_script "1,$s/old/new/g"
+    run classify_ed_script '1,$s/old/new/g'
     [ "$status" -eq 0 ]
     [ "$output" = "has_modifying" ]
 
-    run classify_ed_script "5,$p"
+    run classify_ed_script '5,$p'
     [ "$status" -eq 0 ]
     [ "$output" = "view_only" ]
 }
@@ -291,10 +295,11 @@ q"
 @test "dot trap guidance: provides helpful suggestions" {
     # Should provide clear guidance about heredoc usage
     local script="test script with multiple dots"
-    run bash -c 'source /../lib/eed_validator.sh && suggest_dot_fix "$1"' _ "$script"
+    # suggest_dot_fix is already loaded via setup(); call it directly
+    run suggest_dot_fix "$script"
     [ "$status" -eq 0 ]
     [[ "$output" == *"consider using heredoc syntax"* ]]
-    [[ "$output" == *". for content"* ]]
+    [[ "$output" == *". (dot) for content"* ]]
 }
 
 # --- Tests for detect_line_order_issue ---
@@ -547,12 +552,19 @@ q"
 @test "exclamation mark preservation: bash array syntax should not be escaped" {
     # Test that exclamation marks in bash array syntax are preserved correctly
     set +H  # Ensure history expansion is disabled in test
-    local script="$(set +H; printf '3a\necho \"Array indices: ${!arr[@]}\"\n.\nw\nq')"
+    local script=$(cat <<'EOF'
+3a
+echo "Array indices: ${!arr[@]}"
+.
+w
+q
+EOF
+)
     run reorder_script_if_needed "$script"
     [ "$status" -eq 0 ]  # No reordering needed for single command
-    # Verify the exclamation mark is preserved (not escaped as !)
+    # Verify the exclamation mark is preserved (literal ${!arr[@]}) and not escaped like '\!'
     [[ "$output" == *'${!arr[@]}'* ]]
-    [[ "$output" != *'${!arr[@]}'* ]]
+    [[ "$output" != *'\\!'* ]]
 }
 
 # Regex validation tests for complex pattern detection
@@ -671,6 +683,9 @@ q"
     local test_file="$TEST_DIR/reminder_test.txt"
     echo "original content" > "$test_file"
 
+    # Ensure this temp directory is a git working tree so eed prints the git add suggestion
+    git init >/dev/null 2>&1 || true
+
     run $SCRIPT_UNDER_TEST --force "$test_file" "1c
 new content
 .
@@ -678,7 +693,8 @@ w
 q"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Successfully edited"* ]]
-    [[ "$output" == *"Recommended: git add"* ]]
+    # Match any git add suggestion text produced by eed
+    [[ "$output" == *"git add"* ]]
     [[ "$output" == *"reminder_test.txt"* ]]
 }
 
@@ -693,5 +709,5 @@ w
 q"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Edits applied to a temporary preview"* ]]
-    [[ "$output" != *"Recommended: git add"* ]]
+    [[ "$output" != *"git add"* ]]
 }

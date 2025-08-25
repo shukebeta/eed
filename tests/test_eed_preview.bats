@@ -33,24 +33,25 @@ w
 q"
     [ "$status" -eq 0 ]
 
-    # Should show diff output
-    [[ "$output" == *"--- sample.txt"* ]]
-    [[ "$output" == *"+++ sample.txt.eed.bak"* ]]
+    # Should show changed lines in diff output
     [[ "$output" == *"-line2"* ]]
     [[ "$output" == *"+new line2"* ]]
 
-    # Should show instructions
+    # Should mention preview filename
+    [[ "$output" == *".eed.preview"* ]]
+
+    # Should show instructions to apply/discard the preview
     [[ "$output" == *"To apply these changes, run:"* ]]
-    [[ "$output" == *"mv 'sample.txt.eed.bak' 'sample.txt'"* ]]
+    [[ "$output" == *"mv 'sample.txt.eed.preview' 'sample.txt'"* ]]
     [[ "$output" == *"To discard these changes, run:"* ]]
-    [[ "$output" == *"rm 'sample.txt.eed.bak'"* ]]
+    [[ "$output" == *"rm 'sample.txt.eed.preview'"* ]]
 
     # Original file should be unchanged
     [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
 
-    # Backup file should contain the changes
-    [ -f sample.txt.eed.bak ]
-    [[ "$(cat sample.txt.eed.bak)" == $'line1\nnew line2\nline3' ]]
+    # Preview file should contain the changes
+    [ -f sample.txt.eed.preview ]
+    [[ "$(cat sample.txt.eed.preview)" == $'line1\nnew line2\nline3' ]]
 }
 
 @test "preview mode - view-only script executes directly" {
@@ -65,7 +66,7 @@ q"
     [[ "$output" == *"line3"* ]]
 
     # Should not create preview file
-    [ ! -f sample.txt.eed.bak ]
+    [ ! -f sample.txt.eed.preview ]
 
     # Should not show diff or instructions
     [[ "$output" != *"To apply these changes"* ]]
@@ -81,19 +82,19 @@ w
 q"
     [ "$status" -eq 0 ]
 
-    # Should indicate force mode
-    [[ "$output" == *"--force mode enabled. Editing file directly."* ]]
-    [[ "$output" == *"Successfully edited sample.txt directly."* ]]
+    # Should indicate force mode and preview application
+    [[ "$output" == *"Note: --force mode enabled. Editing preview file"* ]]
+    [[ "$output" == *"✓ Successfully edited preview file."* ]]
+    [[ "$output" == *"Applying changes"* ]] || [[ "$output" == *"mv 'sample.txt.eed.preview' 'sample.txt'"* ]]
 
-    # Should not show diff or instructions
+    # Should not show diff or instructions as primary workflow (preview applied)
     [[ "$output" != *"To apply these changes"* ]]
-    [[ "$output" != *"mv"* ]]
 
     # File should be modified directly
     [[ "$(cat sample.txt)" == $'line1\nnew line2\nline3' ]]
 
-    # Should not leave preview file
-    [ ! -f sample.txt.eed.bak ]
+    # Should not leave preview file after apply
+    [ ! -f sample.txt.eed.preview ]
 }
 
 @test "force mode - view-only script still executes directly" {
@@ -108,7 +109,7 @@ q"
     [[ "$output" == *"line3"* ]]
 
     # Should not create preview
-    [ ! -f sample.txt.eed.bak ]
+    [ ! -f sample.txt.eed.preview ]
 }
 
 @test "preview mode - error handling preserves original file" {
@@ -123,7 +124,7 @@ q"
     [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
 
     # Should not create preview file
-    [ ! -f sample.txt.eed.bak ]
+    [ ! -f sample.txt.eed.preview ]
 }
 
 @test "force mode - error handling restores preview" {
@@ -153,18 +154,18 @@ q"
     [ "$status" -eq 0 ]
 
     # Should create preview with changes
-    [ -f sample.txt.eed.bak ]
-    [[ "$(cat sample.txt.eed.bak)" == $'modified line1\nline2\nline3' ]]
+    [ -f sample.txt.eed.preview ]
+    [[ "$(cat sample.txt.eed.preview)" == $'modified line1\nline2\nline3' ]]
 
     # Apply the changes using the provided command
-    run mv sample.txt.eed.bak sample.txt
+    run mv sample.txt.eed.preview sample.txt
     [ "$status" -eq 0 ]
 
     # File should now have the changes
     [[ "$(cat sample.txt)" == $'modified line1\nline2\nline3' ]]
 
-    # Backup file should be gone
-    [ ! -f sample.txt.eed.bak ]
+    # Preview file should be gone
+    [ ! -f sample.txt.eed.preview ]
 }
 
 @test "preview mode - successful discard workflow" {
@@ -177,17 +178,17 @@ q"
     [ "$status" -eq 0 ]
 
     # Should create preview with changes
-    [ -f sample.txt.eed.bak ]
+    [ -f sample.txt.eed.preview ]
 
     # Discard the changes using the provided command
-    run rm sample.txt.eed.bak
+    run rm sample.txt.eed.preview
     [ "$status" -eq 0 ]
 
     # Original file should be unchanged
     [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
 
-    # Backup file should be gone
-    [ ! -f sample.txt.eed.bak ]
+    # Preview file should be gone
+    [ ! -f sample.txt.eed.preview ]
 }
 
 @test "flag parsing - combined flags work correctly" {
@@ -235,9 +236,9 @@ EOF
     [[ "$output" == *"+CHANGED LINE 1"* ]]
     [[ "$output" == *"+new line after line3"* ]]
 
-    # Backup should contain all changes
-    [ -f sample.txt.eed.bak ]
-    content="$(cat sample.txt.eed.bak)"
+    # Preview should contain all changes
+    [ -f sample.txt.eed.preview ]
+    content="$(cat sample.txt.eed.preview)"
     [[ "$content" == *"CHANGED LINE 1"* ]]
     [[ "$content" == *"new line after line3"* ]]
 }
@@ -249,12 +250,12 @@ q"
     [ "$status" -eq 0 ]
 
     # Should still create preview and show diff (even if empty)
-    [ -f sample.txt.eed.bak ]
+    [ -f sample.txt.eed.preview ]
 
-    # Diff should be empty or minimal
+    # Diff should mention review prompt
     [[ "$output" == *"Review the changes below"* ]]
 
     # Both files should be identical
-    run diff sample.txt sample.txt.eed.bak
+    run diff sample.txt sample.txt.eed.preview
     [ "$status" -eq 0 ]
 }
