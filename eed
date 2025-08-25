@@ -190,9 +190,9 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
 
     # Decide on editing mode
     if [ "$FORCE_MODE" = true ]; then
-        echo "Note: --force mode enabled. Editing file directly." >&2
+        echo "Note: --force mode enabled. Editing backup file, will apply directly." >&2
         cp "$TARGET_FILE" "$BACKUP_FILE"
-        ED_TARGET="$TARGET_FILE"
+        ED_TARGET="$BACKUP_FILE"  # Always edit backup file
         BACKUP_CREATED=true
     else
         # DEFAULT BEHAVIOR: Work on a copy, leave original untouched
@@ -266,9 +266,10 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
 
     # --- Success Path ---
     if [ "$FORCE_MODE" = true ]; then
-        echo "✓ Successfully edited $FILE directly."
+        echo "✓ Successfully edited backup file."
+        echo "💡 Applying changes: mv '$BACKUP_FILE' '$FILE'"
+        mv "$BACKUP_FILE" "$FILE"
         echo "💡 Recommended: git add '$FILE'"
-        rm -f "$BACKUP_FILE"
     else
         # The "Preview and Confirm" magic happens here
         echo "✓ Edits applied to a temporary backup. Review the changes below:"

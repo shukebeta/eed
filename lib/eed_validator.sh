@@ -151,7 +151,7 @@ suggest_dot_fix() {
     echo "   If you're using complex ed commands, consider using heredoc syntax:" >&2
     echo "   eed file.txt \"\$(cat <<'EOF'" >&2
     echo "   your ed commands here" >&2
-    echo "   use [DOT] for content, actual . for ed commands" >&2
+    echo "   use actual . (dot) for content termination in ed commands" >&2
     echo "   EOF" >&2
     echo "   )\"" >&2
     echo "" >&2
