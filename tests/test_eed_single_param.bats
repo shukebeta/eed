@@ -7,8 +7,7 @@
 setup() {
     TEST_DIR="$(mktemp -d)"
     cd "$TEST_DIR"
-    export PATH="/home/davidwei/Projects/pkb/bin:$PATH"
-    EED_PATH="/home/davidwei/Projects/pkb/b"
+    SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../eed"
     
     # Prevent logging during tests
     export EED_TESTING=1
@@ -27,7 +26,7 @@ line3
 EOF
 
     # Single parameter containing complete ed script
-    run /home/davidwei/Projects/pkb/bin/eed --force test.txt "3a
+    run $SCRIPT_UNDER_TEST --force test.txt "3a
 new line
 .
 w
@@ -45,7 +44,7 @@ line3
 EOF
 
     # Test heredoc integration
-    run /home/davidwei/Projects/pkb/bin/eed --force test.txt "$(cat <<'EOF'
+    run $SCRIPT_UNDER_TEST --force test.txt "$(cat <<'EOF'
 2c
 replaced line
 .
@@ -66,7 +65,7 @@ original
 EOF
 
     # User manually controls w/q
-    run /home/davidwei/Projects/pkb/bin/eed --force test.txt "1c
+    run $SCRIPT_UNDER_TEST --force test.txt "1c
 modified
 .
 w
@@ -84,7 +83,7 @@ line3
 EOF
 
     # Multi-step workflow with intermediate save
-    run /home/davidwei/Projects/pkb/bin/eed --force test.txt "1c
+    run $SCRIPT_UNDER_TEST --force test.txt "1c
 changed1
 .
 w
@@ -106,7 +105,7 @@ original
 EOF
 
     # Script without w should warn but not fail
-    run /home/davidwei/Projects/pkb/bin/eed --force test.txt "1c
+    run $SCRIPT_UNDER_TEST --force test.txt "1c
 modified
 .
 Q"
@@ -125,7 +124,7 @@ original
 EOF
 
     # Script without q should still complete
-    run /home/davidwei/Projects/pkb/bin/eed --force test.txt "1c
+    run $SCRIPT_UNDER_TEST --force test.txt "1c
 modified
 .
 w"
@@ -140,7 +139,7 @@ placeholder
 EOF
 
     # Test complex content with quotes and special characters
-    run /home/davidwei/Projects/pkb/bin/eed --force test.txt "$(cat <<'OUTER'
+    run $SCRIPT_UNDER_TEST --force test.txt "$(cat <<'OUTER'
 1c
 Content with 'single' and "double" quotes
 Line with $dollar and `backticks`
@@ -165,7 +164,7 @@ original
 EOF
 
     # Old multi-parameter syntax should fail with helpful error
-    run /home/davidwei/Projects/pkb/bin/eed --force test.txt "1c" "new content" "."
+    run $SCRIPT_UNDER_TEST --force test.txt "1c" "new content" "."
     [ "$status" -ne 0 ]
     [[ "$output" == *"single parameter"* ]] || [[ "$output" == *"heredoc"* ]]
 }
@@ -176,7 +175,7 @@ original content
 EOF
 
     # Empty ed script should do nothing
-    run /home/davidwei/Projects/pkb/bin/eed --force test.txt ""
+    run $SCRIPT_UNDER_TEST --force test.txt ""
     [ "$status" -eq 0 ]
     run grep -q "original content" test.txt
     [ "$status" -eq 0 ]

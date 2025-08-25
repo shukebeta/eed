@@ -6,7 +6,7 @@
 setup() {
     TEST_DIR="$(mktemp -d)"
     cd "$TEST_DIR"
-    export PATH="/home/davidwei/Projects/pkb/bin:$PATH"
+    SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../eed"
 
     # Prevent logging during tests
     export EED_TESTING=1
@@ -26,7 +26,7 @@ teardown() {
 
 @test "preview mode - modifying script shows diff and instructions" {
     # Test default preview mode behavior
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "2c
+    run $SCRIPT_UNDER_TEST sample.txt "2c
 new line2
 .
 w
@@ -55,7 +55,7 @@ q"
 
 @test "preview mode - view-only script executes directly" {
     # View-only scripts should not use preview mode
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt ",p
+    run $SCRIPT_UNDER_TEST sample.txt ",p
 q"
     [ "$status" -eq 0 ]
 
@@ -74,7 +74,7 @@ q"
 
 @test "force mode - modifying script edits directly" {
     # Test --force flag behavior
-    run /home/davidwei/Projects/pkb/bin/eed --force sample.txt "2c
+    run $SCRIPT_UNDER_TEST --force sample.txt "2c
 new line2
 .
 w
@@ -98,7 +98,7 @@ q"
 
 @test "force mode - view-only script still executes directly" {
     # View-only should behave same in force mode
-    run /home/davidwei/Projects/pkb/bin/eed --force sample.txt ",p
+    run $SCRIPT_UNDER_TEST --force sample.txt ",p
 q"
     [ "$status" -eq 0 ]
 
@@ -113,7 +113,7 @@ q"
 
 @test "preview mode - error handling preserves original file" {
     # Test error in preview mode
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "invalid_command"
+    run $SCRIPT_UNDER_TEST sample.txt "invalid_command"
     [ "$status" -ne 0 ]
 
     # Should show error message
@@ -129,7 +129,7 @@ q"
 @test "force mode - error handling restores preview" {
     # Create a scenario where ed fails in force mode
     # Use a command that will fail after modification
-    run /home/davidwei/Projects/pkb/bin/eed --force sample.txt "2c
+    run $SCRIPT_UNDER_TEST --force sample.txt "2c
 new line2
 .
 999p
@@ -145,7 +145,7 @@ q"
 
 @test "preview mode - successful apply workflow" {
     # Test the complete workflow: preview then apply
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "1c
+    run $SCRIPT_UNDER_TEST sample.txt "1c
 modified line1
 .
 w
@@ -169,7 +169,7 @@ q"
 
 @test "preview mode - successful discard workflow" {
     # Test the complete workflow: preview then discard
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "1c
+    run $SCRIPT_UNDER_TEST sample.txt "1c
 modified line1
 .
 w
@@ -192,7 +192,7 @@ q"
 
 @test "flag parsing - combined flags work correctly" {
     # Test --debug --force combination
-    run /home/davidwei/Projects/pkb/bin/eed --debug --force sample.txt "2c
+    run $SCRIPT_UNDER_TEST --debug --force sample.txt "2c
 debug test
 .
 w
@@ -209,7 +209,7 @@ q"
 
 @test "flag parsing - unknown flag rejected" {
     # Test unknown flag handling
-    run /home/davidwei/Projects/pkb/bin/eed --unknown sample.txt "p"
+    run $SCRIPT_UNDER_TEST --unknown sample.txt "p"
     [ "$status" -ne 0 ]
 
     [[ "$output" == *"Error: Unknown option --unknown"* ]]
@@ -217,7 +217,7 @@ q"
 
 @test "preview mode - complex diff shows properly" {
     # Create a more complex change to test diff output
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "$(cat <<'EOF'
+    run $SCRIPT_UNDER_TEST sample.txt "$(cat <<'EOF'
 1c
 CHANGED LINE 1
 .
@@ -244,7 +244,7 @@ EOF
 
 @test "preview mode - no changes results in empty diff" {
     # Test script that makes no actual changes
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "w
+    run $SCRIPT_UNDER_TEST sample.txt "w
 q"
     [ "$status" -eq 0 ]
 

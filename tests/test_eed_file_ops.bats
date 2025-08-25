@@ -7,7 +7,7 @@
 setup() {
     TEST_DIR="$(mktemp -d)"
     cd "$TEST_DIR"
-    export PATH="/home/davidwei/Projects/pkb/bin:$PATH"
+    SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../eed"
     
     # Prevent logging during tests
     export EED_TESTING=1
@@ -29,7 +29,7 @@ teardown() {
 
 @test "file viewing - display entire file (replaces cat)" {
     # View entire file without modification
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt ",p
+    run $SCRIPT_UNDER_TEST sample.txt ",p
 q"
     [ "$status" -eq 0 ]
     [[ "$output" == *"first line"* ]]
@@ -43,7 +43,7 @@ q"
 
 @test "file viewing - display with line numbers (replaces cat -n)" {
     # View with line numbers
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt ",n
+    run $SCRIPT_UNDER_TEST sample.txt ",n
 q"
     [ "$status" -eq 0 ]
     [[ "$output" == *"1"*"first line"* ]]
@@ -52,7 +52,7 @@ q"
 
 @test "file viewing - display specific line range (replaces sed -n)" {
     # View lines 2-4 only
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "2,4p
+    run $SCRIPT_UNDER_TEST sample.txt "2,4p
 q"
     [ "$status" -eq 0 ]
     [[ "$output" == *"second line"* ]]
@@ -65,7 +65,7 @@ q"
 
 @test "file viewing - search and display (replaces grep)" {
     # Find and display lines containing pattern
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "g/pattern/p
+    run $SCRIPT_UNDER_TEST sample.txt "g/pattern/p
 q"
     [ "$status" -eq 0 ]
     [[ "$output" == *"second line with pattern"* ]]
@@ -78,7 +78,7 @@ q"
 
 @test "file viewing - search with context display" {
     # Display pattern line plus one line before and after
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "/second/-1,/second/+1p
+    run $SCRIPT_UNDER_TEST sample.txt "/second/-1,/second/+1p
 q"
     [ "$status" -eq 0 ]
     [[ "$output" == *"first line"* ]]
@@ -88,7 +88,7 @@ q"
 
 @test "mixed workflow - view then edit then verify" {
     # Complex workflow: search, edit, verify, save
-    run /home/davidwei/Projects/pkb/bin/eed --force sample.txt "$(cat <<'EOF'
+    run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
 /pattern/p
 .c
 replaced pattern line
@@ -114,7 +114,7 @@ EOF
 
 @test "mixed workflow - conditional save based on verification" {
     # Edit, verify, decide whether to save
-    run /home/davidwei/Projects/pkb/bin/eed --force sample.txt "$(cat <<'EOF'
+    run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
 1c
 TEST CHANGE
 .
@@ -140,7 +140,7 @@ EOF
 
 @test "file inspection - count lines and patterns" {
     # Show file statistics
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "=
+    run $SCRIPT_UNDER_TEST sample.txt "=
 g/pattern/n
 q"
     [ "$status" -eq 0 ]
@@ -155,7 +155,7 @@ q"
     # Multiple read operations should not change file
     original_content=$(cat sample.txt)
 
-    run /home/davidwei/Projects/pkb/bin/eed sample.txt "$(cat <<'EOF'
+    run $SCRIPT_UNDER_TEST sample.txt "$(cat <<'EOF'
 ,p
 1,3n
 /pattern/p
@@ -172,7 +172,7 @@ EOF
 
 @test "error handling - graceful handling of search failures" {
     # Search for non-existent pattern should not crash
-    run /home/davidwei/Projects/pkb/bin/eed --force sample.txt "$(cat <<'EOF'
+    run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
 /nonexistent/p
 q
 EOF
@@ -183,7 +183,7 @@ EOF
 
 @test "advanced viewing - multiple pattern searches" {
     # Search for multiple patterns in sequence
-    run /home/davidwei/Projects/pkb/bin/eed --force sample.txt "$(cat <<'EOF'
+    run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
 /first/p
 g/pattern/p
 q

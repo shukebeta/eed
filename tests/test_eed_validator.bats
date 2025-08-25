@@ -9,8 +9,8 @@ setup() {
 
     # Load validator functions
     # Load shared regex patterns
-    source "/home/davidwei/Projects/pkb/bin/lib/eed_regex_patterns.sh"
-    source "/home/davidwei/Projects/pkb/bin/lib/eed_validator.sh"
+    source "$BATS_TEST_DIRNAME/../lib/eed_regex_patterns.sh"
+    source "$BATS_TEST_DIRNAME/../lib/eed_validator.sh"
 
     # Prevent logging during tests
     export EED_TESTING=1
@@ -291,7 +291,7 @@ q"
 @test "dot trap guidance: provides helpful suggestions" {
     # Should provide clear guidance about heredoc usage
     local script="test script with multiple dots"
-    run bash -c 'source /home/davidwei/Projects/pkb/bin/lib/eed_validator.sh && suggest_dot_fix "$1"' _ "$script"
+    run bash -c 'source /../lib/eed_validator.sh && suggest_dot_fix "$1"' _ "$script"
     [ "$status" -eq 0 ]
     [[ "$output" == *"consider using heredoc syntax"* ]]
     [[ "$output" == *". for content"* ]]
@@ -671,7 +671,7 @@ q"
     local test_file="$TEST_DIR/reminder_test.txt"
     echo "original content" > "$test_file"
 
-    run /home/davidwei/Projects/pkb/bin/eed --force "$test_file" "1c
+    run $SCRIPT_UNDER_TEST --force "$test_file" "1c
 new content
 .
 w
@@ -686,7 +686,7 @@ q"
     local test_file="$TEST_DIR/preview_test.txt"
     echo "original content" > "$test_file"
 
-    run /home/davidwei/Projects/pkb/bin/eed "$test_file" "1c
+    run $SCRIPT_UNDER_TEST "$test_file" "1c
 new content
 .
 w
