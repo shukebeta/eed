@@ -1,6 +1,9 @@
 #!/bin/bash
 # eed_regex_patterns.sh - Shared regex constants for eed complex pattern detection
 
+# Disable history expansion to prevent ! from causing issues
+set +H
+
 # Source guard to prevent multiple inclusion
 if [ "${EED_REGEX_PATTERNS_LOADED:-}" = "1" ]; then
     return 0
@@ -17,40 +20,73 @@ readonly EED_MODIFYING_COMMAND_CHARS='[dDcCbBiIaAsSjJmMtT]'
 # Example non-matches: g/pattern/p, g/test/n
 readonly EED_REGEX_GV_MODIFYING="^[[:space:]]*[gvGV]/.*[/]${EED_MODIFYING_COMMAND_CHARS}$"
 
-# Detects non-numeric addresses (/, ?, .) combined with a modifying command  
+# Detects non-numeric addresses (/, ?, .) combined with a modifying command
 # Example matches: /pattern/d, .s/old/new/
 # Example non-matches: /pattern/p, .p
 readonly EED_REGEX_NON_NUMERIC_MODIFYING="^[[:space:]]*[\./\?].*${EED_MODIFYING_COMMAND_CHARS}$"
 
 # Detects offset addresses (., $ combined with +/-) with a modifying command
-# Example matches: .-5d, $+3c, .-2,.+2s  
+# Example matches: .-5d, $+3c, .-2,.+2s
 # Example non-matches: .-5p, $-3,$p, .+5
 readonly EED_REGEX_OFFSET_MODIFYING="^[[:space:]]*[\.\$][+-][0-9].*${EED_MODIFYING_COMMAND_CHARS}$"
 
 # --- BASIC PATTERNS ---
 
-# Address patterns
-readonly EED_ADDR='(\.|[0-9]+|\$)'
+# Address patterns - clean separation between raw patterns and grouped versions
+readonly EED_ADDR_RAW='\.|[0-9]+|\$'
+readonly EED_ADDR="(${EED_ADDR_RAW})"
 readonly EED_RANGE="${EED_ADDR},${EED_ADDR}"
 
-# Command character classes
-readonly EED_VIEW_CMDS='[pPnNlL=]'
-readonly EED_MODIFY_CMDS='[dDmMtTjJsSuU]' 
+# View command character classes
+readonly EED_VIEW_CHARS='pPnNlL='
+readonly EED_VIEW_CLASS="[${EED_VIEW_CHARS}]"
+
+# Legacy constants for backward compatibility
+readonly EED_ADDR_MATCH="${EED_ADDR}"
+readonly EED_RANGE_MATCH="${EED_RANGE}"
+readonly EED_ADDR_CAPTURE="${EED_ADDR}"
+readonly EED_RANGE_CAPTURE="${EED_RANGE}"
+readonly EED_REGEX_VIEW_CMD="${EED_VIEW_CLASS}"
+readonly EED_MODIFY_CMDS='[dDmMtTjJsSuU]'
 readonly EED_INPUT_CMDS='[aAcCiI]'
+
+# --- CENTRALIZED REGEX PATTERNS ---
+# These patterns were previously scattered across multiple files
+
+# Basic ed command patterns (from eed_validator.sh)
+readonly EED_REGEX_INPUT_BASIC='^[0-9]*[aciACI]$'
+readonly EED_REGEX_WRITE_BASIC='^w$'
+readonly EED_REGEX_QUIT_BASIC='^q$'
+
+# Address with command patterns (replaces multiple instances)
+readonly EED_REGEX_ADDR_CMD='^([0-9]+)(,([0-9]+|\$))?([dDcCbBiIaAsS])'
+readonly EED_REGEX_MOVE_TRANSFER='^[[:space:]]*[0-9]*,?[0-9]*[mMtTrR]'
+
+# Input mode detection pattern (from eed_common.sh)
+readonly EED_REGEX_INPUT_MODE='^(\.|[0-9]+)?,?(\$|[0-9]+)?[aAcCiI]$'
+
+# Core substitute command pattern - exactly as ChatGPT大师 recommended
+readonly EED_REGEX_SUBSTITUTE_CORE='s(.)([^\\]|\\.)*\1([^\\]|\\.)*\1([0-9]+|[gp]+)?$'
+
+# Separate patterns to preserve capture group numbering
+
+# when an address prefix is present, it adds one capturing group,
+# so the delimiter capture becomes group 2 -> use \2
+readonly EED_REGEX_SUBSTITUTE_WITH_ADDR="${EED_ADDR}s(.)([^\\]|\\.)*\\2([^\\]|\\.)*\\2([0-9]+|[gp]+)?$"
+
+# when a range prefix is present, it adds two capturing groups,
+# so the delimiter capture becomes group 3 -> use \3
+readonly EED_REGEX_SUBSTITUTE_WITH_RANGE="${EED_RANGE}s(.)([^\\]|\\.)*\\3([^\\]|\\.)*\\3([0-9]+|[gp]+)?$"
+
 
 # --- COMMAND MATCHING FUNCTIONS ---
 
-# Check if line is a view command (p, P, n, N, l, L, =)
 is_view_command() {
-    local line="$1"
-    # No address: p, P, n, etc
-    [[ "$line" =~ ^${EED_VIEW_CMDS}$ ]] || \
-    # Single address: 5p, .n, $l
-    [[ "$line" =~ ^${EED_ADDR}${EED_VIEW_CMDS}$ ]] || \
-    # Range: 1,5p, .,/end/n
-    [[ "$line" =~ ^${EED_RANGE}${EED_VIEW_CMDS}$ ]] || \
-    # All lines: ,p (equivalent to 1,$p)
-    [[ "$line" =~ ^,${EED_VIEW_CMDS}$ ]]
+  local line="$1"
+  [[ "$line" =~ ^${EED_VIEW_CLASS}$ ]] || \
+  [[ "$line" =~ ^${EED_ADDR}${EED_VIEW_CLASS}$ ]] || \
+  [[ "$line" =~ ^${EED_RANGE}${EED_VIEW_CLASS}$ ]] || \
+  [[ "$line" =~ ^,${EED_VIEW_CLASS}$ ]]
 }
 
 # Check if line is a modifying command (d, m, t, etc)
@@ -71,7 +107,7 @@ is_input_command() {
     local line="$1"
     # No address: a, c, i
     [[ "$line" =~ ^${EED_INPUT_CMDS}$ ]] || \
-    # Single address: 5a, .c, $i  
+    # Single address: 5a, .c, $i
     [[ "$line" =~ ^${EED_ADDR}${EED_INPUT_CMDS}$ ]] || \
     # Range: 1,5c
     [[ "$line" =~ ^${EED_RANGE}${EED_INPUT_CMDS}$ ]]
@@ -79,11 +115,18 @@ is_input_command() {
 
 # Check if line is a substitute command
 is_substitute_command() {
-    local line="$1"
-    # s/old/new/ or 1,$s/old/new/g
-    [[ "$line" =~ ^s/.*/.*/[gp]*$ ]] || \
-    [[ "$line" =~ ^${EED_ADDR}s/.*/.*/[gp]*$ ]] || \
-    [[ "$line" =~ ^${EED_RANGE}s/.*/.*/[gp]*$ ]]
+    local line="$1" rest="$1"
+
+    # Strip range prefix if present
+    if [[ "$line" =~ ^${EED_RANGE} ]]; then
+        rest="${line:${#BASH_REMATCH[0]}}"
+    # Otherwise strip single address prefix if present  
+    elif [[ "$line" =~ ^${EED_ADDR} ]]; then
+        rest="${line:${#BASH_REMATCH[0]}}"
+    fi
+
+    # Use fixed core regex to check s command
+    [[ "$rest" =~ ^${EED_REGEX_SUBSTITUTE_CORE} ]]
 }
 
 # Check if line is write command
@@ -94,7 +137,7 @@ is_write_command() {
 
 # Check if line is quit command
 is_quit_command() {
-    local line="$1" 
+    local line="$1"
     [[ "$line" =~ ^[qQ]$ ]]
 }
 
@@ -115,7 +158,7 @@ is_search_command() {
     local line="$1"
     # Forward search: /pattern/ or /pattern/p
     [[ "$line" =~ ^/[^/]*/[pPnNlL=]?$ ]] || \
-    # Backward search: ?pattern? or ?pattern?p  
+    # Backward search: ?pattern? or ?pattern?p
     [[ "$line" =~ ^\?.*\?[pP]?$ ]] || \
     # Range search: /start/,/end/p
     [[ "$line" =~ ^/.*/([+-][0-9]+)?,/.*/([+-][0-9]+)?[pP]?$ ]]

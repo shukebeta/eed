@@ -47,12 +47,12 @@ show_usage() {
 # Log ed commands for analysis and debugging
 log_ed_commands() {
     local script_content="$1"
-    
+
     # Skip logging during tests
     if [[ "${EED_TESTING:-}" == "1" ]]; then
         return 0
     fi
-    
+
     local timestamp
     timestamp=$(date --iso-8601=seconds)
 
@@ -77,7 +77,7 @@ log_ed_commands() {
         fi
 
         # Check for commands that enter input mode *after* trying to log the command itself
-        if [[ "$line" =~ ^(\.|[0-9]+)?,?(\$|[0-9]+)?[aAcCiI]$ ]]; then
+        if [[ "$line" =~ ${EED_REGEX_INPUT_MODE} ]]; then
             in_input_mode=true
         fi
 

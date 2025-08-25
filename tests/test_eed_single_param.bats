@@ -5,9 +5,15 @@
 # Implementation will make them pass (GREEN phase)
 
 setup() {
+    # Determine repository root using BATS_TEST_DIRNAME
+    REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+
+    # Create unique test directory and switch into it
     TEST_DIR="$(mktemp -d)"
     cd "$TEST_DIR"
-    SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../eed"
+
+    # Use the repository eed executable directly
+    SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
 
     # Prevent logging during tests
     export EED_TESTING=1

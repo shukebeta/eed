@@ -2,13 +2,15 @@
 # Unit tests for new pattern matching functions
 
 setup() {
-    # Create test directory
-    TEST_DIR="${BATS_TMPDIR}/eed_pattern_test"
-    mkdir -p "$TEST_DIR"
+    # Determine repository root using BATS_TEST_DIRNAME
+    REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+
+    # Create unique test directory and switch into it
+    TEST_DIR="$(mktemp -d)"
     cd "$TEST_DIR"
 
-    # Load functions
-    source "$BATS_TEST_DIRNAME/../lib/eed_regex_patterns.sh"
+    # Load functions using absolute paths
+    source "$REPO_ROOT/lib/eed_regex_patterns.sh"
 }
 
 teardown() {
@@ -65,6 +67,63 @@ teardown() {
     [ "$status" -ne 0 ]
 }
 
+# Security tests for substitute command regex fixes
+@test "is_substitute_command: security fixes - invalid patterns should fail" {
+    # These should fail with the fixed regex (prevent greedy matching issues)
+    run is_substitute_command "s/a/b/c/d"
+    [ "$status" -ne 0 ]
+
+    run is_substitute_command "s/old/new/extra/stuff"
+    [ "$status" -ne 0 ]
+
+    run is_substitute_command "1,5s/pattern/replacement/invalid/extra"
+    [ "$status" -ne 0 ]
+}
+
+
+# Test unified regex pattern
+@test "test unified EED_REGEX_SUBSTITUTE_CMD" {
+    # Load the patterns
+    source "$REPO_ROOT/lib/eed_regex_patterns.sh"
+
+    # Test the unified pattern directly
+    [[ "s/old/new/" =~ $EED_REGEX_SUBSTITUTE_CMD ]]
+    [ "$?" -eq 0 ]
+
+    [[ "s#old#new#" =~ $EED_REGEX_SUBSTITUTE_CMD ]]
+    [ "$?" -eq 0 ]
+
+    [[ "1,5s|old|new|g" =~ $EED_REGEX_SUBSTITUTE_CMD ]]
+    [ "$?" -eq 0 ]
+
+    # Test function calls
+    is_substitute_command "s/old/new/"
+    [ "$?" -eq 0 ]
+
+    is_substitute_command "s#old#new#"
+    [ "$?" -eq 0 ]
+}
+
+# Critical: Test alternative delimiters (G老师's key concern)
+@test "is_substitute_command: alternative delimiters must work" {
+    # ed allows any non-space character as delimiter - this is CRITICAL functionality
+    run is_substitute_command "s#old#new#"
+    [ "$status" -eq 0 ]
+
+    run is_substitute_command "s|old|new|"
+    [ "$status" -eq 0 ]
+
+    run is_substitute_command "s:old:new:"
+    [ "$status" -eq 0 ]
+
+    run is_substitute_command "s@old@new@g"
+    [ "$status" -eq 0 ]
+
+    # With addresses
+    run is_substitute_command "1,\$s#path/file#newpath/file#g"
+    [ "$status" -eq 0 ]
+}
+
 # Test is_modifying_command function
 @test "is_modifying_command: basic cases" {
     run is_modifying_command "5d"
@@ -107,5 +166,28 @@ teardown() {
     [ "$status" -eq 0 ]
 
     run is_quit_command "Q"
+    [ "$status" -eq 0 ]
+}
+
+# Edge case tests addressing G老师's concerns
+@test "pattern functions: edge cases that G老师 was concerned about" {
+    # These are the exact scenarios G老师 thought would fail
+    run is_view_command "5p"
+    [ "$status" -eq 0 ]
+
+    run is_view_command "1,5p"
+    [ "$status" -eq 0 ]
+
+    run is_modifying_command "5d"
+    [ "$status" -eq 0 ]
+
+    run is_modifying_command "1,5d"
+    [ "$status" -eq 0 ]
+
+    # Test the range vs single address distinction works correctly
+    run is_view_command ",p"
+    [ "$status" -eq 0 ]
+
+    run is_modifying_command ",d"
     [ "$status" -eq 0 ]
 }

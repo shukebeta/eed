@@ -4,17 +4,19 @@
 # Direct testing of classify_ed_script and validate_ed_script
 
 setup() {
+    # Determine repository root using BATS_TEST_DIRNAME
+    REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+
+    # Create unique test directory and switch into it
     TEST_DIR="$(mktemp -d)"
     cd "$TEST_DIR"
 
-    # Load validator functions
-    # Load shared regex patterns
-    source "$BATS_TEST_DIRNAME/../lib/eed_regex_patterns.sh"
-    source "$BATS_TEST_DIRNAME/../lib/eed_validator.sh"
+    # Load validator functions using absolute paths
+    source "$REPO_ROOT/lib/eed_regex_patterns.sh"
+    source "$REPO_ROOT/lib/eed_validator.sh"
 
-    # Ensure we can invoke the eed executable from these tests
-    SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../eed"
-    chmod +x "$SCRIPT_UNDER_TEST" 2>/dev/null || true
+    # Use the repository eed executable directly
+    SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
 
     # Prevent logging during tests
     export EED_TESTING=1
@@ -696,6 +698,30 @@ q"
     # Match any git add suggestion text produced by eed
     [[ "$output" == *"git add"* ]]
     [[ "$output" == *"reminder_test.txt"* ]]
+}
+
+@test "classifier: G老师's edge case concerns verification" {
+    # Verify that the exact cases G老师 was worried about work correctly
+    run classify_ed_script "5p"
+    [ "$status" -eq 0 ]
+    [ "$output" = "view_only" ]
+
+    run classify_ed_script "5d"
+    [ "$status" -eq 0 ]
+    [ "$output" = "has_modifying" ]
+
+    run classify_ed_script "1,5p"
+    [ "$status" -eq 0 ]
+    [ "$output" = "view_only" ]
+
+    run classify_ed_script "1,5d"
+    [ "$status" -eq 0 ]
+    [ "$output" = "has_modifying" ]
+
+    # Test substitute commands that were concerns
+    run classify_ed_script "1,\$s/old/new/g"
+    [ "$status" -eq 0 ]
+    [ "$output" = "has_modifying" ]
 }
 
 @test "git add reminder: preview mode does not show git add suggestion" {

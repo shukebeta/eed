@@ -126,7 +126,7 @@ detect_dot_trap() {
         fi
 
         # Look for patterns suggesting heredoc usage attempt
-        if [[ "$line" =~ ^[0-9]*[aciACI]$ ]] || [[ "$line" =~ ^w$ ]] || [[ "$line" =~ ^q$ ]]; then
+        if [[ "$line" =~ ${EED_REGEX_INPUT_BASIC} ]] || [[ "$line" =~ ${EED_REGEX_WRITE_BASIC} ]] || [[ "$line" =~ ${EED_REGEX_QUIT_BASIC} ]]; then
             suspicious_pattern=true
         fi
     done <<< "$script"
@@ -189,13 +189,13 @@ detect_complex_patterns() {
         fi
 
         # Detect move/transfer/read commands
-        if [[ "$line" =~ ^[[:space:]]*[0-9]*,?[0-9]*[mMtTrR] ]]; then
+        if [[ "$line" =~ ${EED_REGEX_MOVE_TRANSFER} ]]; then
             echo "COMPLEX: Move/transfer/read command detected: $line" >&2
             return 1
         fi
 
         # Extract numeric addresses and check for overlaps
-        if [[ "$line" =~ ^([0-9]+)(,([0-9]+|\$))?([dDcCbBiIaAsS]) ]]; then
+        if [[ "$line" =~ ${EED_REGEX_ADDR_CMD} ]]; then
             local start="${BASH_REMATCH[1]}"
             local end="${BASH_REMATCH[3]:-$start}"
             local cmd="${BASH_REMATCH[4]}"
@@ -257,7 +257,7 @@ reorder_script_if_needed() {
     # Step 1: Parse script and collect all lines and modifying commands
     while IFS= read -r line; do
         script_lines+=("$line")
-        if [[ "$line" =~ ^([0-9]+)(,([0-9]+|\$))?([dDcCbBiIaAsS]) ]]; then
+        if [[ "$line" =~ ${EED_REGEX_ADDR_CMD} ]]; then
             modifying_commands+=("$line_index:${BASH_REMATCH[1]}:$line")
             modifying_line_numbers+=("${BASH_REMATCH[1]}")
         fi
@@ -359,7 +359,7 @@ detect_line_order_issue() {
 
     # Parse script to extract line numbers from modifying commands
     while IFS= read -r line; do
-        if [[ "$line" =~ ^([0-9]+)(,([0-9]+|\$))?([dDcCbBiIaAsS]) ]]; then
+        if [[ "$line" =~ ${EED_REGEX_ADDR_CMD} ]]; then
             modifying_line_numbers+=("${BASH_REMATCH[1]}")
         fi
     done <<< "$script"
