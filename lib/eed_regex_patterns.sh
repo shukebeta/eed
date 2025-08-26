@@ -41,11 +41,6 @@ readonly EED_RANGE="${EED_ADDR},${EED_ADDR}"
 readonly EED_VIEW_CHARS='pPnNlL='
 readonly EED_VIEW_CLASS="[${EED_VIEW_CHARS}]"
 
-# Legacy constants for backward compatibility
-readonly EED_ADDR_MATCH="${EED_ADDR}"
-readonly EED_RANGE_MATCH="${EED_RANGE}"
-readonly EED_ADDR_CAPTURE="${EED_ADDR}"
-readonly EED_RANGE_CAPTURE="${EED_RANGE}"
 readonly EED_REGEX_VIEW_CMD="${EED_VIEW_CLASS}"
 readonly EED_MODIFY_CMDS='[dDmMtTjJsSuU]'
 readonly EED_INPUT_CMDS='[aAcCiI]'
@@ -72,12 +67,6 @@ readonly EED_REGEX_SUBSTITUTE_CORE='s(.)([^\\]|\\.)*\1([^\\]|\\.)*\1([0-9]+|[gp]
 
 # when an address prefix is present, it adds one capturing group,
 # so the delimiter capture becomes group 2 -> use \2
-readonly EED_REGEX_SUBSTITUTE_WITH_ADDR="${EED_ADDR}s(.)([^\\]|\\.)*\\2([^\\]|\\.)*\\2([0-9]+|[gp]+)?$"
-
-# when a range prefix is present, it adds two capturing groups,
-# so the delimiter capture becomes group 3 -> use \3
-readonly EED_REGEX_SUBSTITUTE_WITH_RANGE="${EED_RANGE}s(.)([^\\]|\\.)*\\3([^\\]|\\.)*\\3([0-9]+|[gp]+)?$"
-
 
 # --- COMMAND MATCHING FUNCTIONS ---
 
