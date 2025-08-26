@@ -63,6 +63,14 @@ readonly EED_REGEX_INPUT_MODE='^(\.|[0-9]+)?,?(\$|[0-9]+)?[aAcCiI]$'
 # Core substitute command pattern - exactly as ChatGPT大师 recommended
 readonly EED_REGEX_SUBSTITUTE_CORE='s(.)([^\\]|\\.)*\1([^\\]|\\.)*\1([0-9]+|[gp]+)?$'
 
+# Command-specific patterns
+readonly EED_REGEX_WRITE_CMD='^w( .*)?$'
+readonly EED_REGEX_QUIT_CMD='^[qQ]$'
+readonly EED_REGEX_GLOBAL_CMD='^[gv]/.*/[pPnNdDsS]?$'
+readonly EED_REGEX_FORWARD_SEARCH='^/[^/]*/[pPnNlL=]?$'
+readonly EED_REGEX_BACKWARD_SEARCH='^\?.*\?[pP]?$'
+readonly EED_REGEX_RANGE_SEARCH='^/.*/([+-][0-9]+)?,/.*/([+-][0-9]+)?[pP]?$'
+
 # Separate patterns to preserve capture group numbering
 
 # when an address prefix is present, it adds one capturing group,
@@ -121,13 +129,13 @@ is_substitute_command() {
 # Check if line is write command
 is_write_command() {
     local line="$1"
-    [[ "$line" =~ ^w( .*)?$ ]]
+    [[ "$line" =~ $EED_REGEX_WRITE_CMD ]]
 }
 
 # Check if line is quit command
 is_quit_command() {
     local line="$1"
-    [[ "$line" =~ ^[qQ]$ ]]
+    [[ "$line" =~ $EED_REGEX_QUIT_CMD ]]
 }
 
 # Check if line is address-only (navigation)
@@ -139,16 +147,17 @@ is_address_only() {
 # Check if line is global command
 is_global_command() {
     local line="$1"
-    [[ "$line" =~ ^[gv]/.*/[pPnNdDsS]?$ ]]
+    [[ "$line" =~ $EED_REGEX_GLOBAL_CMD ]]
 }
 
 # Check if line is search command
 is_search_command() {
     local line="$1"
     # Forward search: /pattern/ or /pattern/p
-    [[ "$line" =~ ^/[^/]*/[pPnNlL=]?$ ]] || \
+    # Forward search: /pattern/ or /pattern/p
+    [[ "$line" =~ $EED_REGEX_FORWARD_SEARCH ]] || \
     # Backward search: ?pattern? or ?pattern?p
-    [[ "$line" =~ ^\?.*\?[pP]?$ ]] || \
+    [[ "$line" =~ $EED_REGEX_BACKWARD_SEARCH ]] || \
     # Range search: /start/,/end/p
-    [[ "$line" =~ ^/.*/([+-][0-9]+)?,/.*/([+-][0-9]+)?[pP]?$ ]]
+    [[ "$line" =~ $EED_REGEX_RANGE_SEARCH ]]
 }
