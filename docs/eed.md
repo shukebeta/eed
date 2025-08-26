@@ -11,7 +11,7 @@ Always use the eed tool instead of Edit, MultiEdit, or Write tools for file modi
 
 2. **Use eed via Bash tool with quoted heredoc pattern**:
    ```bash
-   eed --force ~/unix/style/path/to/file "$(cat <<'EOF'
+   eed --force /unix/style/path/to/file "$(cat <<'EOF'
    # ed commands here
    w
    q
@@ -19,11 +19,13 @@ Always use the eed tool instead of Edit, MultiEdit, or Write tools for file modi
    )"
    ```
 
-3. **Always use Unix-style paths** (~/path/to/file) - NEVER use Windows paths (C:\path\to\file)
+3. **Always use Unix-style paths** (~/path/to/file) - NEVER use Windows paths (C:\path\to\file). Always use forward slashes (/), as backslashes will break shell commands.
 
 4. **Always end ed commands with w and q** to save changes:
    - `w` - write (save) the file
    - `q` - quit editor
+
+5. **Forgiving stdin mode (new)** - If you pipe ed commands but omit the `-` argument, `eed` will read stdin, proceed normally (validation, preview/force), and — on *successful completion* — print a friendly, non-blaming, educational tip. For scripts and CI, prefer the explicit `-` to avoid ambiguity.
 
 ## Ed Command Reference:
 
@@ -117,7 +119,7 @@ EOF
 - If eed command fails, check syntax of ed commands
 - Always verify file exists before editing
 - Use `--debug` flag to troubleshoot issues
-- Backup files automatically created as `file.eed.bak`
+- Backup / preview files are written as `file.eed.preview` (in preview mode)
 
 ## Important:
 
@@ -125,4 +127,5 @@ EOF
 - **Force mode**: Recommended for direct execution
 - **Unix paths**: Always use forward slashes
 - **Save explicitly**: Never forget `w` and `q`
+- **Avoid nested heredocs**: Nested heredocs are fragile and prone to parsing errors. Prefer multiple sequential `eed` edits or write a temporary ed script and feed it via stdin with `-`.
 - **Atomic operations**: All changes succeed or all fail
