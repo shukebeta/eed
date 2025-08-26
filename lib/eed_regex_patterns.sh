@@ -60,8 +60,45 @@ readonly EED_REGEX_MOVE_TRANSFER='^[[:space:]]*[0-9]*,?[0-9]*[mMtTrR]'
 # Input mode detection pattern (from eed_common.sh)
 readonly EED_REGEX_INPUT_MODE='^(\.|[0-9]+)?,?(\$|[0-9]+)?[aAcCiI]$'
 
-# Core substitute command pattern - exactly as ChatGPT大师 recommended
-readonly EED_REGEX_SUBSTITUTE_CORE='s(.)([^\\]|\\.)*\1([^\\]|\\.)*\1([0-9]+|[gp]+)?$'
+# --- Substitute command regex detection ---
+# Some Bash builds (e.g. Git Bash on Windows) choke on complex alternation + backrefs.
+# We auto-detect if strict regex works; otherwise fall back to a simpler version.
+
+detect_substitute_regex() {
+    local probe strict fallback
+
+    probe="s/x/x/"
+    strict='s(.)([^\\]|\\.)*\1([^\\]|\\.)*\1([0-9]+|[gp]+)?$'
+    fallback='s(.)[^[:space:]]*\1[^[:space:]]*\1([0-9gp]+)?$'
+
+    # Poisoned testcases to flush out buggy regex engines
+    local tests_ok=0
+
+    # Minimal substitute should match
+    if [[ "$probe" =~ $strict ]]; then
+        tests_ok=$((tests_ok+1))
+    fi
+
+    # Alternative delimiter should match
+    if [[ "s|a/b|c|" =~ $strict ]]; then
+        tests_ok=$((tests_ok+1))
+    fi
+
+    # Escaped dot should match
+    if [[ "s/.*console\.log.*;//" =~ $strict ]]; then
+        tests_ok=$((tests_ok+1))
+    fi
+
+    # Require all probes to pass
+    if [[ $tests_ok -eq 3 ]]; then
+        echo "$strict"
+    else
+        echo "$fallback"
+    fi
+}
+
+readonly EED_REGEX_SUBSTITUTE_CORE="$(detect_substitute_regex)"
+unset -f detect_substitute_regex
 
 # Command-specific patterns
 readonly EED_REGEX_WRITE_CMD='^w( .*)?$'
