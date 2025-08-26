@@ -57,28 +57,53 @@ done
 
 # Enforce single parameter mode after parsing flags
 if [ $# -ne 2 ]; then
-    echo "Usage: eed [--debug] [--force] [--disable-auto-reorder] <file> <ed_script>" >&2
+    echo "Usage: eed [--debug] [--force] [--disable-auto-reorder] FILE {SCRIPT|-}" >&2
     echo "" >&2
     echo "Options:" >&2
     echo "  --debug    Enable debug mode (preserve temp files, show ed output)" >&2
     echo "  --force    Skip preview-confirm workflow, edit file directly" >&2
     echo "  --disable-auto-reorder  Disable automatic script reordering" >&2
     echo "" >&2
-    echo "Use a quoted heredoc to pass complex ed scripts without shell expansion." >&2
-    echo "Example (quoted heredoc prevents variable/backslash expansion):" >&2
-    echo "eed file.txt \"\$(cat <<'EOF_EXAMPLE'" >&2
+    echo "Use a quoted heredoc to pass complex ed scripts without shell expansion," >&2
+    echo "or use '-' as script parameter to read from stdin." >&2
+    echo "" >&2
+    echo "Example 1 - quoted heredoc:" >&2
+    echo 'eed file.txt "$(cat <<'\''EOF_EXAMPLE'\''' >&2
     echo "3c" >&2
     echo "new content" >&2
     echo "." >&2
     echo "w" >&2
     echo "q" >&2
     echo "EOF_EXAMPLE" >&2
-    echo '")' >&2
+    echo '\")"' >&2
+    echo "" >&2
+    echo "Example 2 - stdin with heredoc:" >&2
+    echo "eed file.txt - <<'EOF'" >&2
+    echo "3c" >&2
+    echo "new content" >&2
+    echo "." >&2
+    echo "w" >&2
+    echo "q" >&2
+    echo "EOF" >&2
     exit 1
 fi
 
 FILE="$1"
 ED_SCRIPT="$2"
+
+# Handle stdin script input
+if [ "$ED_SCRIPT" = "-" ]; then
+    echo "Note: Reading ed script from standard input..." >&2
+    if [ -t 0 ]; then
+        echo "Error: No input provided to stdin" >&2
+        exit 1
+    fi
+    ED_SCRIPT=$(cat)
+    if [ -z "$ED_SCRIPT" ]; then
+        echo "Error: Empty script read from stdin" >&2
+        exit 1
+    fi
+fi
 
 # --- Pre-processor Validation ---
 validation_result=$(validate_ed_script "$ED_SCRIPT")
