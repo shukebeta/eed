@@ -25,6 +25,21 @@ teardown() {
     [ "${lines[1]}" = "line 3" ]
 }
 
+@test "stdin pipeline without '-' (forgiving auto-read)" {
+    echo -e "line 1\nline 2\nline 3" > test.txt
+
+    # Pipe script but omit the '-' positional argument; eed should accept stdin.
+    run bash -c "printf '1d\nw\nq\n' | $SCRIPT_UNDER_TEST --force test.txt"
+    [ "$status" -eq 0 ]
+
+    # The tool should print a friendly tip when it auto-read stdin
+    [[ "$output" == *"I read your script from stdin"* ]] || [[ "$output" == *"'-' was missing"* ]]
+
+    run cat test.txt
+    [ "${lines[0]}" = "line 2" ]
+    [ "${lines[1]}" = "line 3" ]
+}
+
 @test "backward compatibility works" {
     echo -e "line 1\nline 2\nline 3" > test.txt
     

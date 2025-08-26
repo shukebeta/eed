@@ -28,6 +28,7 @@ source "$SCRIPT_DIR/lib/eed_validator.sh"
 DEBUG_MODE=false
 FORCE_MODE=false
 DISABLE_AUTO_REORDER=false
+FORGOT_STDIN_ARG_FLAG=false
 
 # Parse flags with proper argument handling
 while [ $# -gt 0 ]; do
@@ -56,40 +57,35 @@ while [ $# -gt 0 ]; do
 done
 
 # Enforce single parameter mode after parsing flags
-if [ $# -ne 2 ]; then
-    echo "Usage: eed [--debug] [--force] [--disable-auto-reorder] FILE {SCRIPT|-}" >&2
-    echo "" >&2
-    echo "Options:" >&2
-    echo "  --debug    Enable debug mode (preserve temp files, show ed output)" >&2
-    echo "  --force    Skip preview-confirm workflow, edit file directly" >&2
-    echo "  --disable-auto-reorder  Disable automatic script reordering" >&2
-    echo "" >&2
-    echo "Use a quoted heredoc to pass complex ed scripts without shell expansion," >&2
-    echo "or use '-' as script parameter to read from stdin." >&2
-    echo "" >&2
-    echo "Example 1 - quoted heredoc:" >&2
-    echo 'eed file.txt "$(cat <<'\''EOF_EXAMPLE'\''' >&2
-    echo "3c" >&2
-    echo "new content" >&2
-    echo "." >&2
-    echo "w" >&2
-    echo "q" >&2
-    echo "EOF_EXAMPLE" >&2
-    echo '\")"' >&2
-    echo "" >&2
-    echo "Example 2 - stdin with heredoc:" >&2
-    echo "eed file.txt - <<'EOF'" >&2
-    echo "3c" >&2
-    echo "new content" >&2
-    echo "." >&2
-    echo "w" >&2
-    echo "q" >&2
-    echo "EOF" >&2
+# Determine final FILE and ED_SCRIPT in a clear, ordered way:
+# 1) forgiving stdin mode: only FILE provided and stdin has data
+# 2) explicit two-argument mode: FILE and SCRIPT (or '-')
+# 3) otherwise: show usage and exit
+if [ $# -eq 1 ] && ! [ -t 0 ]; then
+    # Forgiving stdin mode: user likely piped instructions but forgot '-'
+    FORGOT_STDIN_ARG_FLAG=true
+    FILE="$1"
+    ED_SCRIPT=$(cat)
+    if [ -z "$ED_SCRIPT" ]; then
+        echo "Error: Empty script read from stdin" >&2
+        exit 1
+    fi
+elif [ $# -eq 2 ]; then
+    # Standard two-argument mode
+    FILE="$1"
+    ED_SCRIPT="$2"
+else
+    # Invalid usage
+    show_usage
     exit 1
 fi
 
-FILE="$1"
-ED_SCRIPT="$2"
+
+# After parameter parsing, assign FILE and ED_SCRIPT for the normal two-argument case
+if [ $# -eq 2 ]; then
+    FILE="$1"
+    ED_SCRIPT="$2"
+fi
 
 # Handle stdin script input
 if [ "$ED_SCRIPT" = "-" ]; then
@@ -104,6 +100,7 @@ if [ "$ED_SCRIPT" = "-" ]; then
         exit 1
     fi
 fi
+
 
 # --- Pre-processor Validation ---
 validation_result=$(validate_ed_script "$ED_SCRIPT")
@@ -191,9 +188,15 @@ if [ "$SCRIPT_TYPE" = "view_only" ]; then
     case $ED_EXIT_CODE in
         0)
             echo "✓ Successfully processed $FILE"
+            if [ "$FORGOT_STDIN_ARG_FLAG" = true ]; then
+                echo "💡 Tip: '-' was missing; I read from stdin this time."
+            fi
             ;;
         1)
             echo "✓ View operation completed (no matches found)"
+            if [ "$FORGOT_STDIN_ARG_FLAG" = true ]; then
+                echo "💡 Tip: '-' was missing; I read from stdin this time."
+            fi
             exit 0
             ;;
         2)
@@ -294,6 +297,10 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
         echo "✓ Successfully edited preview file."
         echo "💡 Applying changes: mv '$PREVIEW_FILE' '$FILE'"
         mv "$PREVIEW_FILE" "$FILE"
+        # Friendly post-success tip if we auto-read stdin
+        if [ "$FORGOT_STDIN_ARG_FLAG" = true ]; then
+            echo "💡 Tip: '-' was missing; I read from stdin this time."
+        fi
         # Check if inside a Git repository before giving the tip
         if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
             echo "💡 Next, stage your changes: git add '$FILE'"
@@ -317,5 +324,9 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
         echo ""
         echo "To discard these changes, run:"
         echo "  rm '$PREVIEW_FILE'"
+        if [ "$FORGOT_STDIN_ARG_FLAG" = true ]; then
+            echo ""
+            echo "💡 Tip: '-' was missing; I read from stdin this time."
+        fi
     fi
 fi
