@@ -11,12 +11,11 @@ Always use the eed tool instead of Edit, MultiEdit, or Write tools for file modi
 
 2. **Use eed via Bash tool with quoted heredoc pattern**:
    ```bash
-   eed --force /unix/style/path/to/file "$(cat <<'EOF'
-   # ed commands here
-   w
-   q
-   EOF
-   )"
+eed --force /unix/style/path/to/file - <<'EOF'
+# ed commands here
+w
+q
+EOF
    ```
 
 3. **Always use Unix-style paths** (~/path/to/file) - NEVER use Windows paths (C:\path\to\file). Always use forward slashes (/), as backslashes will break shell commands.
@@ -47,62 +46,57 @@ Always use the eed tool instead of Edit, MultiEdit, or Write tools for file modi
 
 ### Force Mode (Recommended):
 ```bash
-eed --force file.txt "$(cat <<'EOF'
+eed --force file.txt - <<'EOF'
 5d
 w
 q
 EOF
-)"
 ```
 
 ### Preview Mode (Default):
 Shows changes first, requires manual confirmation
 ```bash
-eed file.txt "$(cat <<'EOF'
+eed file.txt - <<'EOF'
 5d
 w
 q
 EOF
-)"
 ```
 
 ## Common Patterns:
 
 ### Add Import Statement:
 ```bash
-eed --force file.js "$(cat <<'EOF'
+eed --force file.js - <<'EOF'
 1i
 import newModule from 'library';
 .
 w
 q
 EOF
-)"
 ```
 
 ### Replace Text Globally:
 ```bash
-eed --force file.txt "$(cat <<'EOF'
+eed --force file.txt - <<'EOF'
 1,$s/oldFunction/newFunction/g
 w
 q
 EOF
-)"
 ```
 
 ### Delete Lines with Pattern:
 ```bash
-eed --force file.js "$(cat <<'EOF'
+eed --force file.js - <<'EOF'
 g/console\.log/d
 w
 q
 EOF
-)"
 ```
 
 ### Multi-Step Editing:
 ```bash
-eed --force file.txt "$(cat <<'EOF'
+eed --force file.txt - <<'EOF'
 /TODO/
 c
 DONE: Task completed
@@ -111,7 +105,6 @@ DONE: Task completed
 w
 q
 EOF
-)"
 ```
 
 ## Error Handling:
