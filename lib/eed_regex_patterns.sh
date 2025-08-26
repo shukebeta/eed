@@ -71,10 +71,6 @@ readonly EED_REGEX_FORWARD_SEARCH='^/[^/]*/[pPnNlL=]?$'
 readonly EED_REGEX_BACKWARD_SEARCH='^\?.*\?[pP]?$'
 readonly EED_REGEX_RANGE_SEARCH='^/.*/([+-][0-9]+)?,/.*/([+-][0-9]+)?[pP]?$'
 
-# Separate patterns to preserve capture group numbering
-
-# when an address prefix is present, it adds one capturing group,
-# so the delimiter capture becomes group 2 -> use \2
 
 # --- COMMAND MATCHING FUNCTIONS ---
 
@@ -153,7 +149,6 @@ is_global_command() {
 # Check if line is search command
 is_search_command() {
     local line="$1"
-    # Forward search: /pattern/ or /pattern/p
     # Forward search: /pattern/ or /pattern/p
     [[ "$line" =~ $EED_REGEX_FORWARD_SEARCH ]] || \
     # Backward search: ?pattern? or ?pattern?p
