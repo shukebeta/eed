@@ -4,7 +4,7 @@ Always use the eed tool instead of Edit, MultiEdit, or Write tools for file modi
 
 ## Instructions:
 
-**For complete eed documentation, read:** https://github.com/shukebeta/pkb/blob/master/docs/development/claude/eed-comprehensive-guide.md
+**For complete eed documentation, read:** https://github.com/shukebeta/eed/blob/master/docs/eed-comprehensive-guide.md
 
 
 1. **Stop before using Edit/MultiEdit tools** - Always ask yourself: "Am I about to use Edit/MultiEdit/Write?" If yes, use eed instead.
