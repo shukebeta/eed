@@ -91,7 +91,7 @@ q"
     # Should indicate force mode and preview application
     [[ "$output" == *"Note: --force mode enabled. Editing preview file"* ]]
     [[ "$output" == *"✓ Successfully edited preview file."* ]]
-    [[ "$output" == *"Applying changes"* ]] || [[ "$output" == *"mv 'sample.txt.eed.preview' 'sample.txt'"* ]]
+    [[ "$output" == *"✓ Changes applied directly (force mode enabled)"* ]]
 
     # Should not show diff or instructions as primary workflow (preview applied)
     [[ "$output" != *"To apply these changes"* ]]
@@ -103,9 +103,27 @@ q"
     [ ! -f sample.txt.eed.preview ]
 }
 
+
 @test "force mode - view-only script still executes directly" {
     # View-only should behave same in force mode
     run $SCRIPT_UNDER_TEST --force sample.txt ",p
+q"
+    [ "$status" -eq 0 ]
+
+    # Should show file contents
+    [[ "$output" == *"line1"* ]]
+    [[ "$output" == *"line2"* ]]
+    [[ "$output" == *"line3"* ]]
+
+    # Should not create preview
+    [ \! -f sample.txt.eed.preview ]
+}
+
+@test "force mode - shows clear success message without confusing mv command" {
+    # Test that --force mode shows clear message instead of confusing mv instruction
+    run $SCRIPT_UNDER_TEST --force sample.txt "2c
+new line2
+
 q"
     [ "$status" -eq 0 ]
 

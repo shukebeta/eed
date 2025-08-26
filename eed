@@ -55,6 +55,8 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+# Track effective force mode (set after flag parsing so it reflects --force)
+effective_force_mode="$FORCE_MODE"
 
 # Enforce single parameter mode after parsing flags
 # Determine final FILE and ED_SCRIPT in a clear, ordered way:
@@ -96,6 +98,8 @@ if [ "$ED_SCRIPT" = "-" ]; then
     fi
 fi
 
+# --- EARLY SAFETY CHECK: will be handled later in unified logic ---
+
 
 # --- Pre-processor Validation ---
 validation_result=$(validate_ed_script "$ED_SCRIPT")
@@ -121,14 +125,44 @@ fi
 # --- Log Commands for Analysis ---
 log_ed_commands "$ED_SCRIPT"
 
-# --- Automatic Script Reordering for Line Number Safety ---
-# Get potentially reordered script to prevent line numbering conflicts
-if [ "$DISABLE_AUTO_REORDER" = "false" ]; then
-    REORDERED_SCRIPT=$(reorder_script_if_needed "$ED_SCRIPT")
-    if [ $? -eq 1 ]; then
-        # Reordering was performed, use the reordered script
-        ED_SCRIPT="$REORDERED_SCRIPT"
+# --- SINGLE COMPLEXITY DETECTION (used by all subsequent logic) ---
+detect_complex_patterns "$ED_SCRIPT"
+HAS_COMPLEX_PATTERNS=$?
+
+# --- UNIFIED SAFETY OVERRIDE LOGIC ---
+if [ "$FORCE_MODE" = true ]; then
+    # Check if environment override is set
+    if [ "${EED_FORCE_OVERRIDE:-}" = "1" ]; then
+        # User explicitly overrode safety checks
+        effective_force_mode="$FORCE_MODE"
+    else
+        # Use cached complexity detection result
+        if [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
+            # High-risk: complex patterns detected
+            emit_safety_override_tag "complex_unordered"
+            # Human-readable guidance to stderr
+            echo "💡 Complex or non-deterministic operations detected (e.g. global/move/transfer)" >&2
+            echo "   Script will be previewed for safety. To force apply:" >&2
+            echo "   - Set EED_FORCE_OVERRIDE=1 environment variable, or" >&2
+            echo "   - Review and simplify the script patterns" >&2
+            echo "" >&2
+            effective_force_mode=false
+        fi
     fi
+fi
+
+# --- Automatic Script Reordering for Line Number Safety ---
+# Skip reordering if complex patterns detected
+if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; then
+    REORDERED_OUTPUT=$(reorder_script_if_needed "$ED_SCRIPT")
+    reorder_rc=$?
+    if [ $reorder_rc -eq 1 ]; then
+        # Reordering was performed; use the reordered script
+        ED_SCRIPT="$REORDERED_OUTPUT"
+    fi
+elif [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
+    # Complex patterns detected, skip reordering with user-friendly message
+    echo "⚠️ Complex patterns detected. Auto-reordering disabled for safety." >&2
 fi
 
 # Check if file exists, create if needed
@@ -136,6 +170,7 @@ if [ ! -f "$FILE" ]; then
     echo "Creating new file: $FILE"
     echo > "$FILE"  # Create file with one empty line instead of zero bytes
 fi
+
 
 # --- Core Execution Logic with Preview-Confirm ---
 
@@ -212,8 +247,9 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
     PREVIEW_FILE="$FILE.eed.preview"
 
     # Decide on editing mode
-    if [ "$FORCE_MODE" = true ]; then
-        echo "Note: --force mode enabled. Editing preview file, will apply directly." >&2
+    if [ "$effective_force_mode" = true ]; then
+        # Emit force-mode notice on stdout so test harnesses capturing stdout see it
+        echo "Note: --force mode enabled. Editing preview file, will apply directly."
         cp "$TARGET_FILE" "$PREVIEW_FILE"
         ED_TARGET="$PREVIEW_FILE"  # Always edit preview file
         BACKUP_CREATED=true
@@ -254,7 +290,7 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
     if [ $ED_EXIT_CODE -ne 0 ]; then
         case $ED_EXIT_CODE in
             1)
-                if [ "$FORCE_MODE" = true ]; then
+                if [ "$effective_force_mode" = true ]; then
                     echo "✗ Edit command failed, restoring preview" >&2
                     if [ "$BACKUP_CREATED" = true ]; then
                         mv "$PREVIEW_FILE" "$FILE"
@@ -267,7 +303,7 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
                 ;;
             2)
                 echo "✗ File I/O error" >&2
-                if [ "$FORCE_MODE" = true ] && [ "$BACKUP_CREATED" = true ]; then
+                if [ "$effective_force_mode" = true ] && [ "$BACKUP_CREATED" = true ]; then
                     mv "$PREVIEW_FILE" "$FILE"
                 else
                     rm -f "$PREVIEW_FILE"
@@ -275,7 +311,7 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
                 ;;
             3)
                 echo "✗ Internal ed error" >&2
-                if [ "$FORCE_MODE" = true ] && [ "$BACKUP_CREATED" = true ]; then
+                if [ "$effective_force_mode" = true ] && [ "$BACKUP_CREATED" = true ]; then
                     mv "$PREVIEW_FILE" "$FILE"
                 else
                     rm -f "$PREVIEW_FILE"
@@ -288,9 +324,9 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
     fi
 
     # --- Success Path ---
-    if [ "$FORCE_MODE" = true ]; then
+    if [ "$effective_force_mode" = true ]; then
         echo "✓ Successfully edited preview file."
-        echo "💡 Applying changes: mv '$PREVIEW_FILE' '$FILE'"
+        echo "✓ Changes applied directly (force mode enabled)"
         mv "$PREVIEW_FILE" "$FILE"
         # Friendly post-success tip if we auto-read stdin
         if [ "$FORGOT_STDIN_ARG_FLAG" = true ]; then

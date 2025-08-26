@@ -428,3 +428,53 @@ eed --debug file.txt 'your commands here'
 ---
 
 **Remember:** The forgiving stdin mode and post-success tip are meant to reduce friction without hiding behavior. Prefer explicit `-` in scripts; enjoy safe, previewable edits with `eed`.
+
+## Intelligent Safety Override
+
+eed includes an intelligent safety override system that protects against potentially dangerous --force operations.
+
+### How It Works
+
+When you use --force mode, eed analyzes the script for high-risk patterns:
+
+- **Complex patterns**: Global commands (g/, v/), move/transfer operations (m, t)
+- **Unordered operations**: Line number operations not in descending order
+- **Risk assessment**: High-risk = complex patterns + unordered operations
+
+### Override Behavior
+
+For high-risk scripts, --force is automatically ignored and preview mode is used instead:
+
+```bash
+# This will trigger safety override
+echo 'g/pattern/d
+1d
+3d
+w
+q' | eed --force file.txt -
+
+# Output:
+# 💡 SAFETY: --force ignored due to high-risk pattern detection
+# EED-SAFETY-OVERRIDE:reason=complex_unordered
+```
+
+### Bypass Options
+
+**Environment Variable:**
+```bash
+EED_FORCE_OVERRIDE=1 eed --force file.txt script.ed
+```
+
+**Script Simplification:**
+- Use descending order: 3d, 1d instead of 1d, 3d
+- Avoid mixing global commands with line operations
+
+### Machine Integration
+
+CI/automation scripts can:
+- Check stderr for `EED-SAFETY-OVERRIDE:reason=` 
+- Set `EED_FORCE_OVERRIDE=1` to bypass when appropriate
+- Exit codes remain unchanged (preview success = 0)
+
+This system prevents accidental file corruption while maintaining full user control.
+

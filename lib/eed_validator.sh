@@ -235,6 +235,8 @@ detect_complex_patterns() {
 
 # Automatically reorder ed script commands to prevent line number conflicts
 # Returns reordered script via stdout, shows user-friendly messages via stderr
+# NOTE: Complex pattern detection is now handled externally - this function 
+# should only be called when complex patterns are NOT present
 reorder_script_if_needed() {
     local script="$1"
     local line
@@ -242,16 +244,6 @@ reorder_script_if_needed() {
     local -a modifying_commands=()
     local -a modifying_line_numbers=()
     local line_index=0
-
-    # Step 0: Check for complex patterns first
-    if ! detect_complex_patterns "$script"; then
-        echo "⚠️ Complex patterns detected. Auto-reordering disabled for safety." >&2
-        while IFS= read -r line; do
-            script_lines+=("$line")
-        done <<< "$script"
-        printf '%s\n' "${script_lines[@]}"  # Output original script
-        return 0
-    fi
 
 
     # Step 1: Parse script and collect all lines and modifying commands
@@ -393,4 +385,73 @@ detect_line_order_issue() {
     fi
 
     return 0
+}
+
+# --- SAFETY OVERRIDE DETECTION FUNCTIONS ---
+
+# Emit machine-readable safety override tag (called only once)
+emit_safety_override_tag() {
+    local reason="${1:-complex_unordered}"
+    # Machine-readable tag to stdout for CI/test harnesses that only capture stdout
+    printf '%s\n' "EED-SAFETY-OVERRIDE:reason=$reason"
+    # SAFETY message to stdout for test compatibility
+    printf '%s\n' "SAFETY: --force ignored due to high-risk pattern detection"
+    # Additional human-readable message to stderr
+    printf '%s\n' "SAFETY: --force ignored due to high-risk pattern detection" >&2
+}
+
+# Check if script contains complex patterns that make it unpredictable
+has_complex_patterns() {
+    local script="$1"
+    local line
+    
+    while IFS= read -r line; do
+        line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -z "$line" ] && continue
+        
+        # Detect global/visual commands
+        if [[ "$line" =~ ^[gvGV]/ ]]; then
+            return 0
+        fi
+        
+        # Detect move/transfer commands  
+        if [[ "$line" =~ [mMtT] ]]; then
+            return 0
+        fi
+        
+    done <<< "$script"
+    
+    return 1
+}
+
+# Determine ordering pattern of line numbers
+determine_ordering() {
+    local script="$1"
+    local line
+    local -a numbers=()
+    
+    while IFS= read -r line; do
+        line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -z "$line" ] && continue
+        
+        if [[ "$line" =~ ^([0-9]+) ]]; then
+            numbers+=("${BASH_REMATCH[1]}")
+        fi
+    done <<< "$script"
+    
+    if [ ${#numbers[@]} -lt 2 ]; then
+        echo "single"
+        return 0
+    fi
+    
+    local orig="${numbers[*]}"
+    local sorted
+    sorted=$(printf '%s\n' "${numbers[@]}" | sort -n | tr '\n' ' ')
+    sorted=${sorted% }
+    
+    if [ "$orig" = "$sorted" ]; then
+        echo "ascending"
+    else
+        echo "unordered"
+    fi
 }
