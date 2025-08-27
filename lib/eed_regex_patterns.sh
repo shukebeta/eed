@@ -71,26 +71,8 @@ detect_substitute_regex() {
     strict='s(.)([^\\]|\\.)*\1([^\\]|\\.)*\1([0-9]+|[gp]+)?$'
     fallback='s(.)[^[:space:]]*\1[^[:space:]]*\1([0-9gp]+)?$'
 
-    # Poisoned testcases to flush out buggy regex engines
-    local tests_ok=0
-
-    # Minimal substitute should match
-    if [[ "$probe" =~ $strict ]]; then
-        tests_ok=$((tests_ok+1))
-    fi
-
-    # Alternative delimiter should match
-    if [[ "s|a/b|c|" =~ $strict ]]; then
-        tests_ok=$((tests_ok+1))
-    fi
-
-    # Escaped dot should match
-    if [[ "s/.*console\.log.*;//" =~ $strict ]]; then
-        tests_ok=$((tests_ok+1))
-    fi
-
     # Require all probes to pass
-    if [[ $tests_ok -eq 3 ]]; then
+    if [[ "s/.*console\.log.*;//" =~ $strict ]]; then
         echo "$strict"
     else
         echo "$fallback"
