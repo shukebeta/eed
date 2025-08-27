@@ -86,7 +86,6 @@ fi
 
 # Handle stdin script input
 if [ "$ED_SCRIPT" = "-" ]; then
-    echo "Note: Reading ed script from standard input..." >&2
     if [ -t 0 ]; then
         echo "Error: No input provided to stdin" >&2
         exit 1
