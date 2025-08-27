@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install bats
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bats
+        
+    - name: Make eed executable
+      run: chmod +x eed
+      
+    - name: Run all bats tests
+      run: |
+        echo "🧪 Running all bats test suites..."
+        bats tests/*.bats
+        
+    - name: Test summary
+      run: |
+        echo "✅ All tests completed successfully!"
+        echo "📊 Test coverage includes:"
+        echo "  - Basic file operations (insert/delete/replace)"
+        echo "  - Preview and force modes" 
+        echo "  - Error handling and recovery"
+        echo "  - Safety validation and complex patterns"
+        echo "  - Git integration features"
+        echo "  - Force mode messaging (today's improvement!)"
+        echo "  - $(ls tests/*.bats | wc -l) bats test suites executed"
