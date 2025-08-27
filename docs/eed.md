@@ -24,7 +24,7 @@ EOF
    - `w` - write (save) the file
    - `q` - quit editor
 
-5. **Forgiving stdin mode (new)** - If you pipe ed commands but omit the `-` argument, `eed` will read stdin, proceed normally (validation, preview/force), and — on *successful completion* — print a friendly, non-blaming, educational tip. For scripts and CI, prefer the explicit `-` to avoid ambiguity.
+5. **Forgiving stdin mode** - If you pipe ed commands but omit the `-` argument, `eed` will read stdin, proceed normally (validation, preview/force), and — on *successful completion* — print a friendly, non-blaming, educational tip. For scripts and CI, prefer the explicit `-` to avoid ambiguity.
 
 ## Ed Command Reference:
 
@@ -117,7 +117,7 @@ EOF
 ### Heredoc nesting trap (AI users)
 
 - When embedding ed scripts via heredoc, avoid reusing the same delimiter for nested heredocs. A line that is a standalone heredoc delimiter (for example, `EOF`) found inside the final ED script very likely indicates a nested-heredoc mistake where the shell terminated an inner heredoc early.
-- Validator behavior (new):
+- Validator behavior:
   - If eed detects a standalone heredoc marker in the ED script, it will halt and refuse to auto-fix. This is intentionally strict because heredoc leftovers usually indicate a truncated ED script and auto-fixing would mask data loss.
   - eed will only auto-insert a missing `.` to terminate an open a/c/i input block when there is an explicit write/quit (`w` or `q`) command present in the script (high-confidence auto-fix). If no `w`/`q` is present, eed will error and ask you to correct the script.
 - Short guidance:

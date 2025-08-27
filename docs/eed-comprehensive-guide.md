@@ -43,7 +43,7 @@ EFFICIENCY TIP: Use `--force` to skip preview when confident
 - **Backup** — edits written to `<file>.eed.preview` in preview mode (or moved into place in `--force`)
 - **Smart** — classifies view vs modify commands
 - **Auto-reorder** — reorders simple line-number edits to avoid conflicts
-- **Forgiving stdin mode** — (new) if a user pipes a script but omits the `-` argument, `eed` will read stdin, proceed, and after success print a friendly, educational tip rather than failing
+- **Forgiving stdin mode** if a user pipes a script but omits the `-` argument, `eed` will read stdin, proceed, and after success print a friendly, educational tip rather than failing
 
 ## Usage Syntax (preferred examples first)
 
@@ -131,7 +131,7 @@ EOF
 )"
 ```
 
-## Forgiving stdin mode (new)
+## Forgiving stdin mode
 
 Behavior:
 - If `eed` is invoked with a single non-flag positional argument (the target `FILE`) and there is data on stdin (pipeline), `eed` will assume the user intended to pass the script via stdin (they may have forgotten the `-` argument).
@@ -216,12 +216,12 @@ Always use a quoted heredoc (`<<'EOF'`) so the shell doesn't expand variables or
 Every heredoc marker must be unique within the entire command. In practice we've observed AIs repeatedly make mistakes with nested heredocs even after warnings — the safest rule is: avoid nesting heredocs whenever possible.
 ### Heredoc nesting trap detection
 
-- eed now includes a validation check that detects *standalone heredoc delimiters* (e.g. a line with only `EOF`) inside the final ED script. This typically indicates a nested-heredoc parsing mistake where the shell closed an inner heredoc early, truncating the script passed to eed.
+- eed includes a validation check that detects *standalone heredoc delimiters* (e.g. a line with only `EOF`) inside the final ED script. This typically indicates a nested-heredoc parsing mistake where the shell closed an inner heredoc early, truncating the script passed to eed.
 - When detected, eed halts the run and prints an explanatory, AI-friendly message with suggested fixes.
 
 Why this matters:
 - A truncated ED script can cause `ed` to silently perform no edits (or behave unexpectedly) while returning success, producing confusing "silent failures".
-- The new check prevents those silent failures and provides actionable guidance.
+- This validation prevents those silent failures and provides actionable guidance.
 
 Example (what the validator catches):
 ```bash
