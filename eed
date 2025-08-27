@@ -123,6 +123,17 @@ if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
 fi
 
 # --- Log Commands for Analysis ---
+# --- EARLY COMMAND VALIDATION ---
+SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
+
+# Handle invalid commands immediately (before any complex analysis)
+if [ "$SCRIPT_TYPE" = "invalid_command" ]; then
+    echo "✗ Error: Invalid ed command detected" >&2
+    echo "Script contains unrecognized commands:" >&2
+    echo "$ED_SCRIPT" >&2
+    exit 1
+fi
+
 log_ed_commands "$ED_SCRIPT"
 
 # --- SINGLE COMPLEXITY DETECTION (used by all subsequent logic) ---
@@ -175,15 +186,6 @@ fi
 # --- Core Execution Logic with Preview-Confirm ---
 
 # 1. Classify script to determine workflow
-SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
-
-# 2. Handle invalid commands before executing ed
-if [ "$SCRIPT_TYPE" = "invalid_command" ]; then
-    echo "✗ Error: Invalid ed command detected" >&2
-    echo "Script contains unrecognized commands:" >&2
-    echo "$ED_SCRIPT" >&2
-    exit 1
-fi
 
 # 3. Handle view-only scripts (no changes, simple execution)
 if [ "$SCRIPT_TYPE" = "view_only" ]; then

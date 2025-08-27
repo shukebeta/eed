@@ -412,9 +412,9 @@ emit_safety_override_tag() {
     # Machine-readable tag to stdout for CI/test harnesses that only capture stdout
     printf '%s\n' "EED-SAFETY-OVERRIDE:reason=$reason"
     # SAFETY message to stdout for test compatibility
+    # Human-readable message to stderr only (prevents duplicate display)
     printf '%s\n' "SAFETY: --force ignored due to high-risk pattern detection"
     # Additional human-readable message to stderr
-    printf '%s\n' "SAFETY: --force ignored due to high-risk pattern detection" >&2
 }
 
 # Check if script contains complex patterns that make it unpredictable
