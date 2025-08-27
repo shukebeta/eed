@@ -82,18 +82,18 @@ teardown() {
 
 
 # Test unified regex pattern
-@test "test unified EED_REGEX_SUBSTITUTE_CMD" {
+@test "test unified EED_REGEX_SUBSTITUTE_CORE" {
     # Load the patterns
     source "$REPO_ROOT/lib/eed_regex_patterns.sh"
 
     # Test the unified pattern directly
-    [[ "s/old/new/" =~ $EED_REGEX_SUBSTITUTE_CMD ]]
+    [[ "s/old/new/" =~ $EED_REGEX_SUBSTITUTE_CORE ]]
     [ "$?" -eq 0 ]
 
-    [[ "s#old#new#" =~ $EED_REGEX_SUBSTITUTE_CMD ]]
+    [[ "s#old#new#" =~ $EED_REGEX_SUBSTITUTE_CORE ]]
     [ "$?" -eq 0 ]
 
-    [[ "1,5s|old|new|g" =~ $EED_REGEX_SUBSTITUTE_CMD ]]
+    [[ "1,5s|old|new|g" =~ $EED_REGEX_SUBSTITUTE_CORE ]]
     [ "$?" -eq 0 ]
 
     # Test function calls
