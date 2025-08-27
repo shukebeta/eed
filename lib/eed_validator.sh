@@ -164,11 +164,27 @@ detect_complex_patterns() {
     local line
     local -a addresses=()
     local -a intervals=()
-    local in_g_block=false
+    local in_input_mode=false
 
     while IFS= read -r line; do
         # Skip empty lines and comments
         [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        # Handle input mode context (after a/c/i commands)
+        if [ "$in_input_mode" = true ]; then
+            # In input mode, only look for terminator
+            if [[ "$line" == "." ]]; then
+                in_input_mode=false
+            fi
+            # Skip all other lines in input mode as they are text content
+            continue
+        fi
+
+        # Check if this line starts input mode
+        if is_input_command "$line"; then
+            in_input_mode=true
+            # Continue to process this command line normally
+        fi
 
         # Detect g/v blocks with modifying commands
         if [[ "$line" =~ $EED_REGEX_GV_MODIFYING ]]; then
