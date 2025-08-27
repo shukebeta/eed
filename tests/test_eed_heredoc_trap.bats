@@ -27,6 +27,18 @@ q"
   [[ "$output" == *"heredoc"* ]]
 }
 
+@test "heredoc leftover with w/q still errors" {
+  # Even if write/quit commands are present, a standalone heredoc marker should cause an error
+  run $SCRIPT_UNDER_TEST test.txt "1a
+content line
+EOF
+w
+q"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"heredoc"* ]]
+  [ ! -f test.txt ]
+}
+
 @test "valid script passes validation" {
   cat > good.txt <<'EOF'
 line1

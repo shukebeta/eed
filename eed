@@ -112,9 +112,18 @@ fi
 # --- Heredoc trap detection: catch leftover heredoc delimiters that indicate
 #     nested heredoc mistakes (common when wrapping ed scripts in heredocs)
 if ! detect_heredoc_trap "$ED_SCRIPT"; then
-    echo "✗ Execution halted due to a potential heredoc nesting error." >&2
+    # detect_heredoc_trap() already prints detailed guidance to stderr.
+    # Emit a short, prominent summary so it stands out in noisy terminals/logs.
+    echo "" >&2
+    echo "✗ Heredoc nesting error detected — aborting to avoid data loss." >&2
+    echo "   Fix: use unique heredoc delimiters or write the ed script to a temporary file and pass via stdin ('-')." >&2
+    echo "   See previous lines for detailed guidance." >&2
     exit 1
 fi
+
+# --- Auto-fix unterminated input blocks (a/c/i)
+FIXED_SCRIPT=$(detect_and_fix_unterminated_input "$ED_SCRIPT")
+ED_SCRIPT="$FIXED_SCRIPT"
 
 # Handle empty script case
 if [ -z "$ED_SCRIPT" ] || [ "$ED_SCRIPT" = "" ]; then
