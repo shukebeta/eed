@@ -454,8 +454,7 @@ w
 q' | eed --force file.txt -
 
 # Output:
-# 💡 SAFETY: --force ignored due to high-risk pattern detection
-# EED-SAFETY-OVERRIDE:reason=complex_unordered
+# 💡 Complex script detected (--force disabled)
 ```
 
 ### Bypass Options
@@ -472,8 +471,8 @@ EED_FORCE_OVERRIDE=1 eed --force file.txt script.ed
 ### Machine Integration
 
 CI/automation scripts can:
-- Check stderr for `EED-SAFETY-OVERRIDE:reason=` 
-- Set `EED_FORCE_OVERRIDE=1` to bypass when appropriate
+- Check stderr for `Complex script detected` message
+- Set `EED_FORCE_OVERRIDE=1` to bypass when appropriate  
 - Exit codes remain unchanged (preview success = 0)
 
 This system prevents accidental file corruption while maintaining full user control.

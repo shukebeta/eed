@@ -188,25 +188,25 @@ detect_complex_patterns() {
 
         # Detect g/v blocks with modifying commands
         if [[ "$line" =~ $EED_REGEX_GV_MODIFYING ]]; then
-            echo "COMPLEX: g/v block with modifying command detected: $line" >&2
+            [ "$DEBUG_MODE" = true ] && echo "COMPLEX: g/v block with modifying command detected: $line" >&2
             return 1
         fi
 
         # Detect non-numeric addresses with modifying commands
         if [[ "$line" =~ $EED_REGEX_NON_NUMERIC_MODIFYING ]]; then
-            echo "COMPLEX: Non-numeric address with modifying command detected: $line" >&2
+            [ "$DEBUG_MODE" = true ] && echo "COMPLEX: Non-numeric address with modifying command detected: $line" >&2
             return 1
         fi
 
         # Detect offset addresses with modifying commands
         if [[ "$line" =~ $EED_REGEX_OFFSET_MODIFYING ]]; then
-            echo "COMPLEX: Offset address with modifying command detected: $line" >&2
+            [ "$DEBUG_MODE" = true ] && echo "COMPLEX: Offset address with modifying command detected: $line" >&2
             return 1
         fi
 
         # Detect move/transfer/read commands
         if [[ "$line" =~ ${EED_REGEX_MOVE_TRANSFER} ]]; then
-            echo "COMPLEX: Move/transfer/read command detected: $line" >&2
+            [ "$DEBUG_MODE" = true ] && echo "COMPLEX: Move/transfer/read command detected: $line" >&2
             return 1
         fi
 
@@ -404,18 +404,7 @@ detect_line_order_issue() {
     return 0
 }
 
-# --- SAFETY OVERRIDE DETECTION FUNCTIONS ---
-
-# Emit machine-readable safety override tag (called only once)
-emit_safety_override_tag() {
-    local reason="${1:-complex_unordered}"
-    # Machine-readable tag to stdout for CI/test harnesses that only capture stdout
-    printf '%s\n' "EED-SAFETY-OVERRIDE:reason=$reason"
-    # SAFETY message to stdout for test compatibility
-    # Human-readable message to stderr only (prevents duplicate display)
-    printf '%s\n' "SAFETY: --force ignored due to high-risk pattern detection"
-    # Additional human-readable message to stderr
-}
+# --- COMPLEX PATTERN DETECTION FUNCTIONS ---
 
 # Check if script contains complex patterns that make it unpredictable
 has_complex_patterns() {

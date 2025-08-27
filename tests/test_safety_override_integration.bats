@@ -34,21 +34,23 @@ teardown() {
 }
 
 @test "safety override triggers for complex unordered operations" {
-    script=$'g/line/d\n1d\n3d\nw\nq'
+    script=$'g/line2/d\nw\nq'
     
     run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' --force '$TEST_FILE' -"
     
-    # Should contain safety override message  
-    [[ "$output" =~ SAFETY.*--force\ ignored ]]
+    # Should contain new simplified safety message
+    [[ "$output" =~ "Complex script detected" ]]
+    [[ "$output" =~ "--force disabled" ]]
 }
 
-@test "safety override includes machine-readable tag" {
-    script=$'g/line/d\n1d\n3d\nw\nq'
+@test "simplified messaging - no machine tags in output" {
+    script=$'g/line2/d\nw\nq'
     
     run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' --force '$TEST_FILE' - 2>&1"
     
-    # Should contain machine-readable tag  
-    [[ "$output" =~ "EED-SAFETY-OVERRIDE:reason=complex_unordered" ]]
+    # Should NOT contain old machine-readable tags (noise reduction)
+    ! [[ "$output" =~ "EED-SAFETY-OVERRIDE" ]]
+    ! [[ "$output" =~ "SAFETY.*ignored" ]]
 }
 
 @test "EED_FORCE_OVERRIDE bypasses safety checks" {

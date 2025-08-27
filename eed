@@ -149,13 +149,7 @@ if [ "$FORCE_MODE" = true ]; then
         # Use cached complexity detection result
         if [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
             # High-risk: complex patterns detected
-            emit_safety_override_tag "complex_unordered"
-            # Human-readable guidance to stderr
-            echo "💡 Complex or non-deterministic operations detected (e.g. global/move/transfer)" >&2
-            echo "   Script will be previewed for safety. To force apply:" >&2
-            echo "   - Set EED_FORCE_OVERRIDE=1 environment variable, or" >&2
-            echo "   - Review and simplify the script patterns" >&2
-            echo "" >&2
+            echo "💡 Complex script detected (--force disabled)" >&2
             effective_force_mode=false
         fi
     fi
@@ -171,8 +165,8 @@ if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; the
         ED_SCRIPT="$REORDERED_OUTPUT"
     fi
 elif [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
-    # Complex patterns detected, skip reordering with user-friendly message
-    echo "⚠️ Complex patterns detected. Auto-reordering disabled for safety." >&2
+    # Complex patterns detected in non-force mode, skip reordering
+    [ "$DEBUG_MODE" = true ] && echo "⚠️ Complex patterns detected. Auto-reordering disabled for safety." >&2
 fi
 
 # Check if file exists, create if needed
