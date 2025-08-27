@@ -369,7 +369,7 @@ q"
 
 @test "auto reorder: ascending deletions get automatically reordered" {
     local script="$(printf '2d\n4d\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 1 ]  # Signal that reordering was performed
     # Verify the reordered output contains commands in correct order
     [[ "$output" == *"4d"* ]]
@@ -390,7 +390,7 @@ q"
 @test "auto reorder: complex mixed operations (1d, 5a, 9c)" {
     # Test ascending line numbers that need reordering: 1d, 5a, 9c → 9c, 5a, 1d
     local script="$(printf '1d\n5a\nappended line\n.\n9c\nnew content\n.\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 1 ]  # Reordering performed
     # Should reorder modifying commands by line number descending: 9c, 5a, 1d
     local output_lines=()
@@ -411,7 +411,7 @@ q"
 
 @test "auto reorder: no reordering needed for descending commands" {
     local script="$(printf '4d\n2d\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 0 ]  # No reordering needed
     # Output should be identical to input
     [ "$output" = "$script" ]
@@ -419,7 +419,7 @@ q"
 
 @test "auto reorder: preserve non-modifying commands in original positions" {
     local script="$(printf '1p\n2d\n3p\n4d\n5p\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 1 ]  # Reordering performed
     # Should contain all original commands
     [[ "$output" == *"1p"* ]]
@@ -435,7 +435,7 @@ q"
     # Complex scenario: 15,20d (delete 6 lines), 8a (append 3 lines), 3,5d (delete 3 lines)
     # Should reorder to: 15,20d, 8a, 3,5d to prevent line shifting issues
     local script="$(printf '3,5d\n8a\nline 1 added\nline 2 added\nline 3 added\n.\n15,20d\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 1 ]  # Reordering performed
 
     # Parse output to verify command order
@@ -465,7 +465,7 @@ q"
     # Scenario: 1,3d (delete range), 7c (change single), 10,15d (delete range), 20i (insert)
     # Expected order: 20i, 10,15d, 7c, 1,3d
     local script="$(printf '1,3d\n7c\nnew line 7\n.\n10,15d\n20i\ninserted at 20\n.\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 1 ]  # Reordering performed
 
     local output_lines=()
@@ -490,53 +490,13 @@ q"
 }
 
 
-# Complex pattern detection tests
-@test "complex pattern detection: g/v blocks are detected" {
-    local script="$(printf '1d\ng/pattern/d\n2d\nw\nq')"
-    run reorder_script_if_needed "$script"
-    [ "$status" -eq 0 ]  # No reordering due to complex pattern
-    [[ "$output" == *"1d"* ]]
-    [[ "$output" == *"g/pattern/d"* ]]
-    [[ "$output" == *"2d"* ]]
-}
+# Note: Complex pattern detection tests removed - behavior moved to unified architecture
+# End-to-end complex pattern handling is tested in test_safety_override_integration.bats
 
-@test "complex pattern detection: non-numeric addresses are detected" {
-    local script="$(printf '1d\n./pattern/d\n3d\nw\nq')"
-    run reorder_script_if_needed "$script"
-    [ "$status" -eq 0 ]  # No reordering due to complex pattern
-    [[ "$output" == *"1d"* ]]
-    [[ "$output" == *"./pattern/d"* ]]
-    [[ "$output" == *"3d"* ]]
-}
-
-@test "complex pattern detection: overlapping intervals are detected" {
-    local script="$(printf '5a\nappended line\n.\n3,5d\nw\nq')"
-    run reorder_script_if_needed "$script"
-    [ "$status" -eq 0 ]  # No reordering due to complex pattern (5a overlaps with 3,5d)
-    [[ "$output" == *"5a"* ]]
-    [[ "$output" == *"3,5d"* ]]
-}
-
-@test "complex pattern detection: move/transfer commands are detected" {
-    local script="$(printf '1d\n2m4\n3d\nw\nq')"
-    run reorder_script_if_needed "$script"
-    [ "$status" -eq 0 ]  # No reordering due to complex pattern
-    [[ "$output" == *"1d"* ]]
-    [[ "$output" == *"2m4"* ]]
-    [[ "$output" == *"3d"* ]]
-}
-
-@test "complex pattern detection: multiple operations on same address are detected" {
-    local script="$(printf '1d\n1i\nnew line\n.\nw\nq')"
-    run reorder_script_if_needed "$script"
-    [ "$status" -eq 0 ]  # No reordering due to complex pattern
-    [[ "$output" == *"1d"* ]]
-    [[ "$output" == *"1i"* ]]
-}
 
 @test "complex pattern detection: simple numeric patterns still allow reordering" {
     local script="$(printf '1d\n3d\n5d\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 1 ]  # Reordering performed - no complex patterns detected
     # Should be reordered to 5d, 3d, 1d
     local output_lines=()
@@ -562,7 +522,7 @@ w
 q
 EOF
 )
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 0 ]  # No reordering needed for single command
     # Verify the exclamation mark is preserved (literal ${!arr[@]}) and not escaped like '\!'
     [[ "$output" == *'${!arr[@]}'* ]]
@@ -609,7 +569,7 @@ EOF
 # Improved complex pattern detection tests
 @test "improved detection: g/pattern/p with simple deletes should allow reordering" {
     local script="$(printf 'g/function/p\n1d\n5d\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 1 ]  # Reordering performed - g/pattern/p is safe
     # Should be reordered to 5d, 1d
     local output_lines=()
@@ -624,7 +584,7 @@ EOF
 
 @test "improved detection: /pattern/p with simple deletes should allow reordering" {
     local script="$(printf '/function/p\n1d\n5d\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 1 ]  # Reordering performed - /pattern/p is safe
     # Should be reordered to 5d, 1d
     local output_lines=()
@@ -639,7 +599,7 @@ EOF
 
 @test "improved detection: offset address print with simple deletes should allow reordering" {
     local script="$(printf '$-5,$p\n1d\n5d\nw\nq')"
-    run reorder_script_if_needed "$script"
+    run reorder_script "$script"
     [ "$status" -eq 1 ]  # Reordering performed - $-5,$p is safe
     # Should be reordered to 5d, 1d
     local output_lines=()
@@ -654,26 +614,26 @@ EOF
 
 @test "improved detection: g/pattern/d should still be detected as complex" {
     local script="$(printf 'g/function/d\n1d\n5d\nw\nq')"
-    run reorder_script_if_needed "$script"
-    [ "$status" -eq 0 ]  # No reordering due to complex pattern
-    [[ "$output" == *"g/function/d"* ]]
-    [[ "$output" == *"1d"* ]]
-    [[ "$output" == *"5d"* ]]
+    # Test the unified architecture: detect_complex_patterns should identify this as complex
+    run detect_complex_patterns "$script" 2>/dev/null
+    [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
 }
 
 @test "improved detection: non-numeric address with delete should still be detected as complex" {
     local script="$(printf '/pattern/d\n1d\n5d\nw\nq')"
-    run reorder_script_if_needed "$script"
-    [ "$status" -eq 0 ]  # No reordering due to complex pattern
-    [[ "$output" == *"/pattern/d"* ]]
-    [[ "$output" == *"1d"* ]]
-    [[ "$output" == *"5d"* ]]
+    # Test the unified architecture: detect_complex_patterns should identify this as complex
+    run detect_complex_patterns "$script" 2>/dev/null
+    [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
 }
 
 @test "improved detection: offset address with delete should still be detected as complex" {
     local script="$(printf '.-5,.+5d\n1d\n5d\nw\nq')"
-    run reorder_script_if_needed "$script"
-    [ "$status" -eq 0 ]  # No reordering due to complex pattern
+    run detect_complex_patterns "$script" 2>/dev/null
+    [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
+    
+    # Verify reorder_script still reorders the numeric parts (that's its job)
+    run reorder_script "$script"
+    [ "$status" -eq 1 ]  # Reordering was performed (1d,5d -> 5d,1d)
     [[ "$output" == *".-5,.+5d"* ]]
     [[ "$output" == *"1d"* ]]
     [[ "$output" == *"5d"* ]]

@@ -123,14 +123,16 @@ q"
     # Test that --force mode shows clear message instead of confusing mv instruction
     run $SCRIPT_UNDER_TEST --force sample.txt "2c
 new line2
-
+.
+w
 q"
     [ "$status" -eq 0 ]
 
-    # Should show file contents
-    [[ "$output" == *"line1"* ]]
-    [[ "$output" == *"line2"* ]]
-    [[ "$output" == *"line3"* ]]
+    # Should show clear force mode success message
+    [[ "$output" == *"✓ Changes applied directly (force mode enabled)"* ]]
+    
+    # File should be modified directly
+    [[ "$(cat sample.txt)" == $'line1\nnew line2\nline3' ]]
 
     # Should not create preview
     [ ! -f sample.txt.eed.preview ]

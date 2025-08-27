@@ -94,7 +94,7 @@ q"
 
 @test "mixed workflow - view then edit then verify" {
     # Complex workflow: search, edit, verify, save
-    run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
+    EED_FORCE_OVERRIDE=1 run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
 /pattern/p
 .c
 replaced pattern line
@@ -120,7 +120,7 @@ EOF
 
 @test "mixed workflow - conditional save based on verification" {
     # Edit, verify, decide whether to save
-    run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
+    EED_FORCE_OVERRIDE=1 run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
 1c
 TEST CHANGE
 .

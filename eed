@@ -152,9 +152,9 @@ if [ "$FORCE_MODE" = true ]; then
 fi
 
 # --- Automatic Script Reordering for Line Number Safety ---
-# Skip reordering if complex patterns detected
+# Skip reordering if complex patterns detected (unified architecture)
 if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; then
-    REORDERED_OUTPUT=$(reorder_script_if_needed "$ED_SCRIPT")
+    REORDERED_OUTPUT=$(reorder_script "$ED_SCRIPT")
     reorder_rc=$?
     if [ $reorder_rc -eq 1 ]; then
         # Reordering was performed; use the reordered script

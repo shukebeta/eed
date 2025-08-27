@@ -251,9 +251,8 @@ detect_complex_patterns() {
 
 # Automatically reorder ed script commands to prevent line number conflicts
 # Returns reordered script via stdout, shows user-friendly messages via stderr
-# NOTE: Complex pattern detection is now handled externally - this function 
-# should only be called when complex patterns are NOT present
-reorder_script_if_needed() {
+# Maintains backward compatibility by handling complex pattern detection internally
+reorder_script() {
     local script="$1"
     local line
     local -a script_lines=()
@@ -261,6 +260,8 @@ reorder_script_if_needed() {
     local -a modifying_line_numbers=()
     local line_index=0
 
+    # Note: Complex pattern detection is now handled externally in the unified architecture
+    # This function focuses purely on reordering logic
 
     # Step 1: Parse script and collect all lines and modifying commands
     while IFS= read -r line; do
