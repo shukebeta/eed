@@ -34,6 +34,41 @@ validate_ed_script() {
     return 0
 }
 
+# Detect likely heredoc nesting errors by looking for leftover heredoc markers.
+# This captures the common AI/user mistake of reusing the same heredoc delimiter
+# multiple times, leaving a stray delimiter line inside the final ED script.
+detect_heredoc_trap() {
+    local script="$1"
+
+    # Common heredoc markers to check for as standalone lines.
+    # Add or remove markers here if other delimiters are commonly used.
+    if grep -q -E '^(EOF|EOT|HEREDOC)$' <<< "$script"; then
+        echo "💡 Potential heredoc nesting error detected." >&2
+        echo "   A line consisting only of a heredoc marker (e.g. 'EOF') was found in the ed script." >&2
+        echo "   This often happens when nested heredocs use the same delimiter and the shell" >&2
+        echo "   terminates an inner heredoc early, leaving the marker as stray text." >&2
+        echo "" >&2
+        echo "   Consequences: the ED script may be truncated and ed may silently do nothing." >&2
+        echo "   Suggested fixes:" >&2
+        echo "     - Use unique delimiters for nested heredocs (e.g. INNER/OUTER)" >&2
+        echo "     - Or avoid nesting heredocs; write the ed script to a temp file instead" >&2
+        echo "" >&2
+        echo "   Example:" >&2
+        echo "     eed file.txt \"\$(cat <<'OUTER'" >&2
+        echo "     10a" >&2
+        echo "     \$(cat <<'INNER'" >&2
+        echo "     some content" >&2
+        echo "     INNER" >&2
+        echo "     )" >&2
+        echo "     ." >&2
+        echo "     OUTER" >&2
+        echo "     )\"" >&2
+        return 1
+    fi
+
+    return 0
+}
+
 # TODO: Implement enhanced validator with parsing stack
 # validate_ed_script_enhanced() {
 #     # The enhanced validator from user's example will go here

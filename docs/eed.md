@@ -114,6 +114,28 @@ EOF
 - Use `--debug` flag to troubleshoot issues
 - Backup / preview files are written as `file.eed.preview` (in preview mode)
 
+### Heredoc nesting trap (AI users)
+
+- When embedding ed scripts via heredoc, avoid reusing the same delimiter for nested heredocs. If a line containing only a heredoc delimiter (for example, `EOF`) appears inside the final ED script, it very likely indicates a nested-heredoc mistake where the shell terminated an inner heredoc early.
+- Starting with this release, eed performs a validation check and will halt if it detects a standalone heredoc marker in the ED script. The error message will explain the issue and suggest fixes.
+
+Example (correct — use unique delimiters):
+```bash
+# bash
+eed file.txt "$(cat <<'OUTER'
+10a
+$(cat <<'INNER'
+some content
+INNER
+)
+.
+OUTER
+)"
+```
+
+Suggested fixes:
+- Use unique delimiters for nested heredocs (e.g. INNER/OUTER).
+- Or write the ed script to a temporary file and feed it via stdin (`-`) to avoid nesting entirely.
 ## Important:
 
 - **Mandatory tool**: Use eed for ALL file modifications

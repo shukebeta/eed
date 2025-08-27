@@ -109,6 +109,13 @@ if [ $validation_code -ne 0 ]; then
     exit 1
 fi
 
+# --- Heredoc trap detection: catch leftover heredoc delimiters that indicate
+#     nested heredoc mistakes (common when wrapping ed scripts in heredocs)
+if ! detect_heredoc_trap "$ED_SCRIPT"; then
+    echo "✗ Execution halted due to a potential heredoc nesting error." >&2
+    exit 1
+fi
+
 # Handle empty script case
 if [ -z "$ED_SCRIPT" ] || [ "$ED_SCRIPT" = "" ]; then
     echo "✓ No operations performed (empty script)"

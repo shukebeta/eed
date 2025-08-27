@@ -214,6 +214,47 @@ Always use a quoted heredoc (`<<'EOF'`) so the shell doesn't expand variables or
 
 ### Nested Heredoc Naming Convention (and why to avoid nesting)
 Every heredoc marker must be unique within the entire command. In practice we've observed AIs repeatedly make mistakes with nested heredocs even after warnings — the safest rule is: avoid nesting heredocs whenever possible.
+### Heredoc nesting trap detection
+
+- eed now includes a validation check that detects *standalone heredoc delimiters* (e.g. a line with only `EOF`) inside the final ED script. This typically indicates a nested-heredoc parsing mistake where the shell closed an inner heredoc early, truncating the script passed to eed.
+- When detected, eed halts the run and prints an explanatory, AI-friendly message with suggested fixes.
+
+Why this matters:
+- A truncated ED script can cause `ed` to silently perform no edits (or behave unexpectedly) while returning success, producing confusing "silent failures".
+- The new check prevents those silent failures and provides actionable guidance.
+
+Example (what the validator catches):
+```bash
+# BAD: leftover EOF inside the script indicates a nested-heredoc mistake
+eed file.txt "$(cat <<'OUTER'
+10a
+Some text
+EOF    # <-- stray EOF left in the final script
+.
+w
+q
+OUTER
+)"
+```
+
+Suggested fixes:
+- Use unique delimiters for nested heredocs (e.g. `INNER` / `OUTER`) or avoid nesting entirely.
+- Prefer piping commands or using an explicit stdin `-` instead of nesting, for example:
+```bash
+# Pipe example
+printf '1,$s/old/new/g\nw\nq\n' | eed path/to/file -
+
+# Or heredoc to stdin (no nesting)
+eed path/to/file - <<'EOF'
+1,$s/old/new/g
+w
+q
+EOF
+```
+
+Implementation notes:
+- The detection logic is implemented in [`lib/eed_validator.sh`](lib/eed_validator.sh:40) and integrated into the pre-validation step of the main script [`eed`](eed:103).
+- You can adjust the list of markers (`EOF`, `EOT`, `HEREDOC`) in the validator if you need to support other project-specific markers.
 
 Why avoid nesting
 - Nested heredocs are fragile: it's easy to reuse the same marker by accident, causing silent parsing errors or truncated input.
