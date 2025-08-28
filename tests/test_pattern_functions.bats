@@ -191,3 +191,46 @@ teardown() {
     run is_modifying_command ",d"
     [ "$status" -eq 0 ]
 }
+
+# Test search pattern ranges - /pat1/,/pat2/ commands  
+@test "is_view_command: search pattern ranges" {
+    run is_view_command "/pattern1/,/pattern2/p"
+    [ "$status" -eq 0 ]
+
+    run is_view_command "/start/,/end/n"
+    [ "$status" -eq 0 ]
+
+    run is_view_command "?backward?,?end?p"
+    [ "$status" -eq 0 ]
+}
+
+@test "is_modifying_command: search pattern ranges" {
+    run is_modifying_command "/pattern1/,/pattern2/d"
+    [ "$status" -eq 0 ]
+
+    run is_modifying_command "?start?,?end?d"
+    [ "$status" -eq 0 ]
+}
+
+@test "is_input_command: search pattern ranges" {
+    run is_input_command "/pattern1/,/pattern2/c"
+    [ "$status" -eq 0 ]
+
+    run is_input_command "/start/,/end/a"
+    [ "$status" -eq 0 ]
+
+    run is_input_command "?backward?,?forward?i"
+    [ "$status" -eq 0 ]
+}
+
+# Mixed address types (numeric + search pattern)
+@test "mixed address ranges work correctly" {
+    run is_view_command "5,/pattern/p"
+    [ "$status" -eq 0 ]
+
+    run is_modifying_command "/start/,10d"
+    [ "$status" -eq 0 ]
+
+    run is_input_command "1,/end/c"
+    [ "$status" -eq 0 ]
+}
