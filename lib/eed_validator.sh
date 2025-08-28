@@ -158,6 +158,32 @@ detect_and_fix_unterminated_input() {
 # }
 
 # Classify ed script and validate commands
+# Small, focused helpers make the main classifier logic clearer.
+__cs_is_input_line() {
+    local line="$1"
+    is_input_command "$line"
+    return $?
+}
+
+__cs_is_modifying_line() {
+    local line="$1"
+    # Any of these indicate a modifying operation
+    is_modifying_command "$line" && return 0
+    is_substitute_command "$line" && return 0
+    is_write_command "$line" && return 0
+    return 1
+}
+
+__cs_is_view_line() {
+    local line="$1"
+    is_view_command "$line" && return 0
+    is_quit_command "$line" && return 0
+    is_address_only "$line" && return 0
+    is_global_command "$line" && return 0
+    is_search_command "$line" && return 0
+    return 1
+}
+
 classify_ed_script() {
     local script="$1"
     local line
@@ -169,7 +195,7 @@ classify_ed_script() {
         line="${line%"${line##*[![:space:]]}"}"  # rtrim
         [ -z "$line" ] && continue
 
-        # Get current context from parsing stack
+        # Current context (INPUT when inside a/c/i block)
         local current_context=""
         if [ ${#parsing_stack[@]} -gt 0 ]; then
             current_context="${parsing_stack[${#parsing_stack[@]}-1]}"
@@ -183,46 +209,30 @@ classify_ed_script() {
             continue
         fi
 
-        # Check for modifying commands (append, change, insert)
-        if is_input_command "$line"; then
+        # Input-mode starters are modifying operations
+        if __cs_is_input_line "$line"; then
             parsing_stack+=("INPUT")
             echo "has_modifying"
             return 0
         fi
 
-        # Other modifying commands (delete, move, etc)
-        if is_modifying_command "$line"; then
+        # Other modifying commands (delete, move, substitute, write)
+        if __cs_is_modifying_line "$line"; then
             echo "has_modifying"
             return 0
         fi
 
-        # Substitute command: [range]s/pattern/replacement/[flags]
-        if is_substitute_command "$line"; then
-            echo "has_modifying"
-            return 0
+        # Valid view-only commands and navigational commands
+        if __cs_is_view_line "$line"; then
+            continue
         fi
 
-        if is_write_command "$line"; then
-            echo "has_modifying"
-            return 0
-        fi
-
-        # Check for valid view commands
-        if is_view_command "$line" || \
-           is_quit_command "$line" || \
-           is_address_only "$line" || \
-           is_global_command "$line" || \
-           is_search_command "$line"; then
-            continue  # Valid view command, keep checking
-        else
-            # Invalid command found
-            echo "invalid_command"
-            return 0
-        fi
-
+        # If none matched, it's an invalid/unknown command
+        echo "invalid_command"
+        return 0
     done <<< "$script"
 
-    # If we get here, all commands were valid view commands
+    # All lines validated as view-only / navigational
     echo "view_only"
     return 0
 }
