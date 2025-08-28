@@ -10,7 +10,7 @@ setup() {
 
     # Create unique test directory and switch into it
     TEST_DIR="$(mktemp -d)"
-    cd "$TEST_DIR"
+    cd "$TEST_DIR" || exit
 
     # Use the repository eed executable directly
     SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
