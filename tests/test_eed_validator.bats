@@ -640,26 +640,6 @@ EOF
 }
 
 
-# Git add reminder tests
-@test "git add reminder: --force mode shows git add suggestion" {
-    local test_file="$TEST_DIR/reminder_test.txt"
-    echo "original content" > "$test_file"
-
-    # Ensure this temp directory is a git working tree so eed prints the git add suggestion
-    git init >/dev/null 2>&1 || true
-
-    run $SCRIPT_UNDER_TEST --force "$test_file" "1c
-new content
-.
-w
-q"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"✨"* ]]
-    # Match any git add suggestion text produced by eed
-    [[ "$output" == *"git add"* ]]
-    [[ "$output" == *"reminder_test.txt"* ]]
-}
-
 @test "classifier: G老师's edge case concerns verification" {
     # Verify that the exact cases G老师 was worried about work correctly
     run classify_ed_script "5p"
@@ -684,16 +664,3 @@ q"
     [ "$output" = "has_modifying" ]
 }
 
-@test "git add reminder: preview mode does not show git add suggestion" {
-    local test_file="$TEST_DIR/preview_test.txt"
-    echo "original content" > "$test_file"
-
-    run $SCRIPT_UNDER_TEST "$test_file" "1c
-new content
-.
-w
-q"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Edits applied to a temporary preview"* ]]
-    [[ "$output" != *"git add"* ]]
-}

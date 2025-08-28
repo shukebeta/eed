@@ -48,7 +48,7 @@ q"
 
     # Should show instructions to apply/discard the preview
     [[ "$output" == *"To apply these changes, run:"* ]]
-    [[ "$output" == *"mv 'sample.txt.eed.preview' 'sample.txt'"* ]]
+    [[ "$output" == *"mv 'sample.txt.eed.preview' 'sample.txt' && git add 'sample.txt'"* ]]
     [[ "$output" == *"To discard these changes, run:"* ]]
     [[ "$output" == *"rm 'sample.txt.eed.preview'"* ]]
 
