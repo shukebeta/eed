@@ -263,12 +263,10 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
         [ "$DEBUG_MODE" = true ] && echo "--force mode enabled. Editing preview file, will apply directly."
         cp "$TARGET_FILE" "$PREVIEW_FILE"
         ED_TARGET="$PREVIEW_FILE"  # Always edit preview file
-        BACKUP_CREATED=true
     else
         # DEFAULT BEHAVIOR: Work on a copy, leave original untouched
         cp "$TARGET_FILE" "$PREVIEW_FILE"
-        ED_TARGET="$PREVIEW_FILE" # ed will edit the preview file\!
-        BACKUP_CREATED=false  # In preview mode, preview is the working copy
+        ED_TARGET="$PREVIEW_FILE" # ed will edit the preview file
     fi
 
     # Create and prepare the temp command file
@@ -301,32 +299,17 @@ if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
     if [ $ED_EXIT_CODE -ne 0 ]; then
         case $ED_EXIT_CODE in
             1)
-                if [ "$effective_force_mode" = true ]; then
-                    echo "✗ Edit command failed, restoring preview" >&2
-                    if [ "$BACKUP_CREATED" = true ]; then
-                        mv "$PREVIEW_FILE" "$FILE"
-                    fi
-                else
                     echo "✗ Edit command failed" >&2
                     echo "  No changes were made to the original file." >&2
                     rm -f "$PREVIEW_FILE"
-                fi
                 ;;
             2)
                 echo "✗ File I/O error" >&2
-                if [ "$effective_force_mode" = true ] && [ "$BACKUP_CREATED" = true ]; then
-                    mv "$PREVIEW_FILE" "$FILE"
-                else
                     rm -f "$PREVIEW_FILE"
-                fi
                 ;;
             3)
                 echo "✗ Internal ed error" >&2
-                if [ "$effective_force_mode" = true ] && [ "$BACKUP_CREATED" = true ]; then
-                    mv "$PREVIEW_FILE" "$FILE"
-                else
                     rm -f "$PREVIEW_FILE"
-                fi
                 ;;
         esac
         echo "Commands attempted:" >&2

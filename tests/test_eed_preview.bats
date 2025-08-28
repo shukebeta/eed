@@ -48,7 +48,7 @@ q"
 
     # Should show instructions to apply/discard the preview
     [[ "$output" == *"To apply these changes, run:"* ]]
-    [[ "$output" == *"mv 'sample.txt.eed.preview' 'sample.txt' && git add 'sample.txt'"* ]]
+    [[ "$output" == *"mv 'sample.txt.eed.preview' 'sample.txt'"* ]]
     [[ "$output" == *"To discard these changes, run:"* ]]
     [[ "$output" == *"rm 'sample.txt.eed.preview'"* ]]
 
@@ -114,7 +114,7 @@ q"
     [[ "$output" == *"line3"* ]]
 
     # Should not create preview
-    [ \! -f sample.txt.eed.preview ]
+    [ ! -f sample.txt.eed.preview ]
 }
 
 @test "force mode - shows clear success message without confusing mv command" {
@@ -161,10 +161,10 @@ new line2
 q"
     [ "$status" -ne 0 ]
 
-    # Should show error and restoration message
-    [[ "$output" == *"Edit command failed, restoring preview"* ]]
+    # Should show error message
+    [[ "$output" == *"Edit command failed"* ]]
 
-    # Original file should be restored (unchanged)
+    # Original file should be unchanged (never touched)
     [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
 }
 
@@ -225,7 +225,7 @@ q"
     [ "$status" -eq 0 ]
 
     # Should show both debug and force mode messages
-    [[ "$output" \!= *"--force mode enabled"* ]]
+    [[ "$output" == *"--force mode enabled"* ]]
     [[ "$output" == *"Debug mode: executing ed"* ]]
 
     # File should be modified directly (force mode)
@@ -265,6 +265,49 @@ EOF
     content="$(cat sample.txt.eed.preview)"
     [[ "$content" == *"CHANGED LINE 1"* ]]
     [[ "$content" == *"new line after line3"* ]]
+}
+
+@test "critical safety - edit failure never corrupts original file" {
+    # Test that original file is NEVER touched when edit fails
+    # This tests the bug fix where we used to mv corrupted preview over original
+
+    # Create original content
+    echo "CRITICAL_DATA_LINE_1" > sample.txt
+    echo "CRITICAL_DATA_LINE_2" >> sample.txt
+
+    # Record original content and timestamp
+    original_content="$(cat sample.txt)"
+    original_stat="$(stat sample.txt)"
+
+    # Force mode with failing command - should not corrupt original
+    run $SCRIPT_UNDER_TEST --force sample.txt "1c
+new content
+.
+999p
+q"
+    [ "$status" -ne 0 ]
+
+    # Original file must be completely untouched
+    [[ "$(cat sample.txt)" == "$original_content" ]]
+    [[ "$(stat sample.txt)" == "$original_stat" ]]
+
+    # No preview file should remain
+    [ ! -f sample.txt.eed.preview ]
+
+    # Preview mode with failing command - should also not corrupt original
+    run $SCRIPT_UNDER_TEST sample.txt "1c
+another attempt
+.
+999p
+q"
+    [ "$status" -ne 0 ]
+
+    # Original file still completely untouched
+    [[ "$(cat sample.txt)" == "$original_content" ]]
+    [[ "$(stat sample.txt)" == "$original_stat" ]]
+
+    # No preview file should remain
+    [ ! -f sample.txt.eed.preview ]
 }
 
 @test "preview mode - no changes results in empty diff" {

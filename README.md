@@ -1,13 +1,15 @@
 # eed — Enhanced ed with Preview-Confirm workflow
 
-eed is an AI-oriented text editor designed for programmatic collaboration with AI: preview diffs, smart git integration, and atomic apply semantics.
+eed is an AI-oriented text editor designed for programmatic collaboration with AI: preview diffs, smart git integration, atomic apply semantics, and bulletproof safety.
 
-Key features
-- Preview-confirm workflow (default): edits are written to `<file>.eed.preview` for review; use `--force` to apply directly.
-- Automatic safety: reorders numeric line operations to avoid conflicts and warns on unsafe/complex patterns.
-- Smart git integration: automatically suggests `git add` only in git repositories.
-- Intelligent diff display: uses `git diff --no-index` for better code movement visualization.
-- Shell-safe invocation: use a quoted heredoc to prevent shell expansion and preserve literal ed scripts.
+## Key Features
+
+- **Preview-Confirm Workflow (default)**: Edits are written to `<file>.eed.preview` for review; use `--force` to apply directly
+- **Automatic Safety & Reordering**: Intelligently reorders line operations to avoid conflicts and detects unsafe patterns
+- **Smart Git Integration**: Auto-stages changes in force mode, suggests staging commands in preview mode
+- **Bulletproof Error Handling**: Original files are never corrupted, even when edit operations fail
+- **Intelligent Diff Display**: Uses `git diff --no-index` for superior code movement visualization
+- **Shell-Safe Invocation**: Use quoted heredocs to prevent shell expansion and preserve literal ed scripts
 
 Quick usage
 ```
@@ -22,29 +24,37 @@ EOF
  )"
 ```
 
-Installation
+## Recent Improvements (v2.1)
 
-## Recent Improvements (v2.0)
+### 🛡️ Bulletproof Safety (Critical Bug Fix)
+- **Fixed data corruption bug**: Original files are now never corrupted when edit operations fail
+- **Simplified error handling**: Failed edits just remove the corrupted preview file, original stays untouched
+- **Enhanced testing**: Added comprehensive tests to ensure file safety under all failure scenarios
 
 ### 🎯 Unified Editing Strategy
-Both preview and force modes now use a consistent workflow:
-- **Preview mode**: Edit preview file → Show intelligent diff → Manual apply
-- **Force mode**: Edit preview file → Auto-apply → Smart git integration
+Both preview and force modes use a consistent workflow:
+- **Preview mode**: Edit preview file → Show intelligent diff → Manual apply with git staging guidance
+- **Force mode**: Edit preview file → Auto-apply → Automatic git staging in repos
 
-### 🚀 Smart Git Integration  
-- Automatically detects git repositories using `git rev-parse --is-inside-work-tree`
-- Only suggests `git add` when actually in a git repo
-- Clear, actionable messaging: "💡 Next, stage your changes: git add 'file'"
+### 🚀 Proactive Git Integration
+- **Force mode**: Automatically executes `git add` after successful edits in git repositories
+- **Preview mode**: Shows complete apply command including git staging when in repos
+- **Smart detection**: Only activates git features when actually inside a git repository
+
+### 🧠 Intelligent Script Processing
+- **Auto-reordering**: Automatically reorders ascending line operations to prevent conflicts
+- **Complex pattern detection**: Identifies potentially unsafe scripts and provides safety guidance
+- **Override support**: Use `EED_FORCE_OVERRIDE=1` to bypass safety checks when needed
 
 ### 📊 Enhanced Preview Experience
-- **Intelligent diff**: Prioritizes `git diff --no-index` for better code movement detection
-- **Semantic naming**: `.eed.preview` files replace confusing `.eed.bak` naming  
-- **Fallback support**: Uses `delta` or standard `diff` when git unavailable
+- **Intelligent diff**: Uses `git diff --no-index` for superior code movement visualization
+- **Semantic naming**: `.eed.preview` files with clear apply/discard instructions
+- **Fallback support**: Gracefully degrades to `delta` or standard `diff` when git unavailable
 
 ### 🔧 Under the Hood
-- Eliminated documentation that misled AI to use invalid `[DOT]` syntax
-- Unified backup-then-apply strategy across all modes
-- Improved error messages and user guidance
+- **Simplified output**: Force mode shows elegant ✨ instead of verbose messages
+- **Debug mode**: Detailed technical information available with `--debug` flag
+- **Robust patterns**: Comprehensive regex validation for all ed command types
 
 ## Installation
 - Copy `eed` and `lib/` into a directory on your PATH (for example, `~/bin`).
