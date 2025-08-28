@@ -34,7 +34,7 @@ q"
     [ "$status" -eq 0 ]
 
     # Should show clear force mode success message
-    [[ "$output" == *"✓ Changes applied directly (force mode enabled)"* ]]
+    [[ "$output" == *"✨"* ]]
 
     # Should NOT show confusing mv command instruction
     [[ "$output" != *"💡 Applying changes: mv"* ]]

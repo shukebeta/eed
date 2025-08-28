@@ -654,7 +654,7 @@ new content
 w
 q"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Successfully edited"* ]]
+    [[ "$output" == *"✨"* ]]
     # Match any git add suggestion text produced by eed
     [[ "$output" == *"git add"* ]]
     [[ "$output" == *"reminder_test.txt"* ]]

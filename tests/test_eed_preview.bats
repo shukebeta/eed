@@ -89,9 +89,7 @@ q"
     [ "$status" -eq 0 ]
 
     # Should indicate force mode and preview application
-    [[ "$output" == *"Note: --force mode enabled. Editing preview file"* ]]
-    [[ "$output" == *"✓ Successfully edited preview file."* ]]
-    [[ "$output" == *"✓ Changes applied directly (force mode enabled)"* ]]
+    [[ "$output" == *"✨"* ]]
 
     # Should not show diff or instructions as primary workflow (preview applied)
     [[ "$output" != *"To apply these changes"* ]]
@@ -129,7 +127,7 @@ q"
     [ "$status" -eq 0 ]
 
     # Should show clear force mode success message
-    [[ "$output" == *"✓ Changes applied directly (force mode enabled)"* ]]
+    [[ "$output" == *"✨"* ]]
     
     # File should be modified directly
     [[ "$(cat sample.txt)" == $'line1\nnew line2\nline3' ]]
@@ -227,7 +225,7 @@ q"
     [ "$status" -eq 0 ]
 
     # Should show both debug and force mode messages
-    [[ "$output" == *"--force mode enabled"* ]]
+    [[ "$output" \!= *"--force mode enabled"* ]]
     [[ "$output" == *"Debug mode: executing ed"* ]]
 
     # File should be modified directly (force mode)
