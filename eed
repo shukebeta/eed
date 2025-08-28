@@ -179,6 +179,12 @@ if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; the
     if [ $reorder_rc -eq 1 ]; then
         # Reordering was performed; use the reordered script
         ED_SCRIPT="$REORDERED_OUTPUT"
+        
+        # Cancel --force when reordering occurs
+        if [ "$effective_force_mode" = true ]; then
+            echo "💡 Script reordered for safety (--force disabled)" >&2
+            effective_force_mode=false
+        fi
     fi
 elif [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
     # Complex patterns detected in non-force mode, skip reordering

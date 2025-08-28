@@ -284,3 +284,24 @@ teardown() {
   run is_address_only "/unterminated"
   [ "$status" -ne 0 ]
 }
+
+@test "backward search with escaped delimiter" {
+  run is_address_only "?escape\\?test?"
+  [ "$status" -eq 0 ]
+}
+
+@test "backward search patterns work correctly" {
+  run is_view_command "?pattern?p"
+  [ "$status" -eq 0 ]
+  
+  run is_view_command "?escape\\?test?p"
+  [ "$status" -eq 0 ]
+}
+
+@test "forward and backward search with complex escaping" {
+  run is_address_only "/path\\/to\\/file/"
+  [ "$status" -eq 0 ]
+  
+  run is_address_only "?question\\?mark\\??"
+  [ "$status" -eq 0 ]
+}

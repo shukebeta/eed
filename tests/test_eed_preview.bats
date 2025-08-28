@@ -310,6 +310,29 @@ q"
     [ ! -f sample.txt.eed.preview ]
 }
 
+@test "force mode - auto-reordering cancels force mode" {
+    # Test that --force is cancelled when script reordering occurs
+    run $SCRIPT_UNDER_TEST --force sample.txt "1d
+2d
+3d
+w
+q"
+    [ "$status" -eq 0 ]
+    
+    # Should show reordering and force cancellation message
+    [[ "$output" == *"Auto-reordering script to prevent line numbering conflicts"* ]]
+    [[ "$output" == *"Script reordered for safety (--force disabled)"* ]]
+    
+    # Should create preview file (force mode cancelled)
+    [ -f sample.txt.eed.preview ]
+    
+    # Should show preview instructions instead of direct edit
+    [[ "$output" == *"To apply these changes, run:"* ]]
+    
+    # Original file should be unchanged
+    [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
+}
+
 @test "preview mode - no changes results in empty diff" {
     # Test script that makes no actual changes
     run $SCRIPT_UNDER_TEST sample.txt "w
