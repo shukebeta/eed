@@ -522,6 +522,58 @@ detect_line_order_issue() {
     return 0
 }
 
+# Validate line number ranges in ed script
+validate_line_ranges() {
+    local script="$1"
+    local file_path="$2"
+    local max_lines
+    local line
+    
+    # Skip validation if file doesn't exist
+    if [ ! -f "$file_path" ]; then
+        return 0
+    fi
+    
+    # Get file line count
+    max_lines=$(wc -l < "$file_path")
+    # Handle empty files: ed treats them as having 1 empty line
+    [ "$max_lines" -eq 0 ] && max_lines=1
+    
+    while IFS= read -r line; do
+        # Trim whitespace and skip empty lines
+        line="${line#"${line%%[![:space:]]*}"}"  # ltrim
+        line="${line%"${line##*[![:space:]]}"}"  # rtrim
+        [ -z "$line" ] && continue
+        
+        # Skip input mode content (between commands like 'a' and '.')
+        if [[ "$line" == "." ]]; then
+            continue
+        fi
+        
+        # Check line number ranges using existing regex
+        if [[ "$line" =~ ${EED_REGEX_ADDR_CMD} ]]; then
+            local start_line="${BASH_REMATCH[1]}"
+            local end_line="${BASH_REMATCH[3]}"
+            
+            # Check start line number
+            if [ "$start_line" -gt "$max_lines" ]; then
+                echo "✗ Line number error in command '$line'" >&2
+                echo "  Line $start_line does not exist (file has only $max_lines lines)" >&2
+                return 1
+            fi
+            
+            # Check end line number (if it's not $ and not empty)
+            if [ -n "$end_line" ] && [ "$end_line" != "\$" ] && [ "$end_line" -gt "$max_lines" ]; then
+                echo "✗ Line number error in command '$line'" >&2
+                echo "  Line $end_line does not exist (file has only $max_lines lines)" >&2
+                return 1
+            fi
+        fi
+    done <<< "$script"
+    
+    return 0
+}
+
 # --- COMPLEX PATTERN DETECTION FUNCTIONS ---
 
 # Check if script contains complex patterns that make it unpredictable

@@ -333,6 +333,62 @@ q"
     [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
 }
 
+@test "line number validation - single out-of-range line" {
+    # Test line number validation with out-of-range line number
+    run $SCRIPT_UNDER_TEST sample.txt "5d
+q"
+    [ "$status" -ne 0 ]
+    
+    # Should show precise error message
+    [[ "$output" == *"Line number error in command '5d'"* ]]
+    [[ "$output" == *"Line 5 does not exist (file has only 3 lines)"* ]]
+    
+    # Original file should be unchanged
+    [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
+}
+
+@test "line number validation - range with out-of-range end" {
+    # Test range command with out-of-range end line
+    run $SCRIPT_UNDER_TEST sample.txt "1,10d
+q"
+    [ "$status" -ne 0 ]
+    
+    # Should show precise error message for end line
+    [[ "$output" == *"Line number error in command '1,10d'"* ]]
+    [[ "$output" == *"Line 10 does not exist (file has only 3 lines)"* ]]
+    
+    # Original file should be unchanged
+    [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
+}
+
+@test "line number validation - dollar sign should work" {
+    # Test that $ (last line) is handled correctly
+    run $SCRIPT_UNDER_TEST sample.txt "1,\$d
+w
+q"
+    [ "$status" -eq 0 ]
+    
+    # Should create preview (not error out)
+    [ -f sample.txt.eed.preview ]
+    
+    # Preview should be empty (all lines deleted)
+    [[ "$(cat sample.txt.eed.preview)" == "" ]]
+}
+
+@test "line number validation - valid ranges work normally" {
+    # Test that valid line numbers work as expected
+    run $SCRIPT_UNDER_TEST sample.txt "2d
+w
+q"
+    [ "$status" -eq 0 ]
+    
+    # Should create preview
+    [ -f sample.txt.eed.preview ]
+    
+    # Should show line2 was deleted
+    [[ "$output" == *"-line2"* ]]
+}
+
 @test "preview mode - no changes results in empty diff" {
     # Test script that makes no actual changes
     run $SCRIPT_UNDER_TEST sample.txt "w
