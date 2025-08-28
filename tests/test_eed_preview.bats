@@ -449,3 +449,48 @@ q"
     run diff sample.txt sample.txt.eed.preview
     [ "$status" -eq 0 ]
 }
+
+@test "preview mode - auto-reordering shows reorder message" {
+    # Test that reordering message appears in preview mode (not just force mode)
+    run $SCRIPT_UNDER_TEST sample.txt "1d
+2d
+3d
+w
+q"
+    [ "$status" -eq 0 ]
+    
+    # Should show reordering message
+    [[ "$output" == *"Auto-reordering script to prevent line numbering conflicts"* ]]
+    [[ "$output" == *"Original: (1,2,3) → Reordered: (3,2,1)"* ]]
+    
+    # Should create preview file (normal preview mode)
+    [ -f sample.txt.eed.preview ]
+    
+    # Should show preview instructions  
+    [[ "$output" == *"To apply these changes, run:"* ]]
+    
+    # Original file should be unchanged
+    [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
+}
+
+@test "preview mode - no reordering when already in reverse order" {
+    # Test that reverse order commands don't trigger unnecessary reordering
+    run $SCRIPT_UNDER_TEST sample.txt "3d
+2d
+1d
+w
+q"
+    [ "$status" -eq 0 ]
+    
+    # Should NOT show reordering message
+    [[ "$output" != *"Auto-reordering script"* ]]
+    
+    # Should create preview file normally
+    [ -f sample.txt.eed.preview ]
+    
+    # Should show preview instructions
+    [[ "$output" == *"To apply these changes, run:"* ]]
+    
+    # Original file should be unchanged
+    [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
+}

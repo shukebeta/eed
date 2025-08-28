@@ -383,33 +383,30 @@ detect_complex_patterns() {
 # returns 1 if reordering was performed, 0 otherwise.
 _get_modifying_command_info() {
     local script="$1"
-    # Exposed as globals for use by other helpers:
-    # _rs_script_lines, _rs_modifying_commands, _rs_modifying_line_numbers
-    _rs_script_lines=()
-    _rs_modifying_commands=()
-    _rs_modifying_line_numbers=()
-
     local line
     local line_index=0
+
+    # Output NUL-delimited records for safe parsing of arbitrary content
     while IFS= read -r line; do
-        _rs_script_lines+=("$line")
+        printf '%s\0' "SCRIPT_LINE:$line"
         if [[ "$line" =~ ${EED_REGEX_ADDR_CMD} ]]; then
-            _rs_modifying_commands+=("$line_index:${BASH_REMATCH[1]}:$line")
-            _rs_modifying_line_numbers+=("${BASH_REMATCH[1]}")
+            printf '%s\0' "MODIFYING_CMD:$line_index:${BASH_REMATCH[1]}:$line"
         fi
         ((line_index++))
     done <<< "$script"
 }
 
 _is_reordering_needed() {
+    local -a modifying_line_numbers=("$@")
+
     # Returns 0 when reordering is needed, non-zero otherwise.
-    if [ ${#_rs_modifying_line_numbers[@]} -lt 2 ]; then
+    if [ ${#modifying_line_numbers[@]} -lt 2 ]; then
         return 1
     fi
 
-    local original_sequence="${_rs_modifying_line_numbers[*]}"
+    local original_sequence="${modifying_line_numbers[*]}"
     local sorted_line_numbers
-    mapfile -t sorted_line_numbers < <(printf '%s\n' "${_rs_modifying_line_numbers[@]}" | sort -n)
+    mapfile -t sorted_line_numbers < <(printf '%s\n' "${modifying_line_numbers[@]}" | sort -n)
     local sorted_sequence_str="${sorted_line_numbers[*]}"
 
     if [ "$original_sequence" != "$sorted_sequence_str" ]; then
@@ -417,7 +414,7 @@ _is_reordering_needed() {
     fi
 
     local unique_count
-    unique_count=$(printf '%s\n' "${_rs_modifying_line_numbers[@]}" | uniq | wc -l)
+    unique_count=$(printf '%s\n' "${modifying_line_numbers[@]}" | uniq | wc -l)
     if [ "$unique_count" -le 1 ]; then
         return 1
     fi
@@ -425,16 +422,37 @@ _is_reordering_needed() {
     return 0
 }
 
-_perform_reordering() {
+_perform_reordering_from_records() {
+    local -a records=("$@")
+    local -a script_lines=()
+    local -a modifying_commands=()
+    local -a modifying_line_numbers=()
+
+    # Parse the pre-captured NUL-delimited records
+    for record in "${records[@]}"; do
+        # Skip empty records (from trailing NUL)
+        [ -z "$record" ] && continue
+        
+        if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
+            script_lines+=("${BASH_REMATCH[1]}")
+        elif [[ "$record" =~ ^MODIFYING_CMD:([0-9]+):([0-9]+):(.*)$ ]]; then
+            local idx="${BASH_REMATCH[1]}"
+            local line_num="${BASH_REMATCH[2]}"
+            local cmd="${BASH_REMATCH[3]}"
+            modifying_commands+=("$idx:$line_num:$cmd")
+            modifying_line_numbers+=("$line_num")
+        fi
+    done
+
     # Produces reordered script on stdout and returns 1 to indicate reordering.
     local -a modifying_commands_sorted
-    mapfile -t modifying_commands_sorted < <(printf '%s\n' "${_rs_modifying_commands[@]}" | sort -s -t: -k2,2nr -k1,1n)
+    mapfile -t modifying_commands_sorted < <(printf '%s\n' "${modifying_commands[@]}" | sort -s -t: -k2,2nr -k1,1n)
 
     # Informative messaging, kept to match previous UX
     echo "✓ Auto-reordering script to prevent line numbering conflicts:" >&2
-    local original_formatted="($(IFS=, ; echo "${_rs_modifying_line_numbers[*]}"))"
+    local original_formatted="($(IFS=, ; echo "${modifying_line_numbers[*]}"))"
     local -a reverse_sorted_line_numbers
-    mapfile -t reverse_sorted_line_numbers < <(printf '%s\n' "${_rs_modifying_line_numbers[@]}" | sort -nr)
+    mapfile -t reverse_sorted_line_numbers < <(printf '%s\n' "${modifying_line_numbers[@]}" | sort -nr)
     local suggested_formatted="($(IFS=, ; echo "${reverse_sorted_line_numbers[*]}"))"
     echo "   Original: ${original_formatted} → Reordered: ${suggested_formatted}" >&2
     echo "" >&2
@@ -452,8 +470,8 @@ _perform_reordering() {
         # If input-mode command, include following content until terminating "."
         if [[ "$cmd_line" =~ [aAcCiI]$ ]]; then
             local content_idx=$((old_index + 1))
-            while [ "$content_idx" -lt "${#_rs_script_lines[@]}" ]; do
-                local content_line="${_rs_script_lines[$content_idx]}"
+            while [ "$content_idx" -lt "${#script_lines[@]}" ]; do
+                local content_line="${script_lines[$content_idx]}"
                 reordered_script+=("$content_line")
                 processed_indices+=("$content_idx")
                 if [ "$content_line" = "." ]; then
@@ -465,7 +483,7 @@ _perform_reordering() {
     done
 
     # Append remaining lines in original order
-    for i in "${!_rs_script_lines[@]}"; do
+    for i in "${!script_lines[@]}"; do
         local is_processed=false
         for proc_idx in "${processed_indices[@]}"; do
             if [ "$i" = "$proc_idx" ]; then
@@ -474,7 +492,7 @@ _perform_reordering() {
             fi
         done
         if [ "$is_processed" = false ]; then
-            reordered_script+=("${_rs_script_lines[$i]}")
+            reordered_script+=("${script_lines[$i]}")
         fi
     done
 
@@ -484,18 +502,34 @@ _perform_reordering() {
 
 reorder_script() {
     local script="$1"
-    # Gather command info
-    _get_modifying_command_info "$script"
+    local -a script_lines=()
+    local -a modifying_line_numbers=()
+
+    # Capture records once to avoid double parsing (NUL-delimited)
+    local -a records=()
+    mapfile -t -d '' records < <(_get_modifying_command_info "$script")
+    
+    # Parse records to extract what we need for decision making
+    for record in "${records[@]}"; do
+        # Skip empty records (from trailing NUL)
+        [ -z "$record" ] && continue
+        
+        if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
+            script_lines+=("${BASH_REMATCH[1]}")
+        elif [[ "$record" =~ ^MODIFYING_CMD:[0-9]+:([0-9]+):.*$ ]]; then
+            modifying_line_numbers+=("${BASH_REMATCH[1]}")
+        fi
+    done
 
     # Decide whether to reorder
-    if ! _is_reordering_needed; then
+    if ! _is_reordering_needed "${modifying_line_numbers[@]}"; then
         # Output original script unchanged
-        printf '%s\n' "${_rs_script_lines[@]}"
+        printf '%s\n' "${script_lines[@]}"
         return 0
     fi
 
-    # Perform reordering and propagate the same exit semantics as before
-    _perform_reordering
+    # Perform reordering using pre-captured records
+    _perform_reordering_from_records "${records[@]}"
     return $?
 }
 
@@ -550,35 +584,35 @@ validate_line_ranges() {
     local file_path="$2"
     local max_lines
     local line
-    
+
     # Get file line count (file should exist by now due to creation logic)
     max_lines=$(wc -l < "$file_path")
     # Handle empty files: ed treats them as having 1 empty line
     [ "$max_lines" -eq 0 ] && max_lines=1
-    
+
     while IFS= read -r line; do
         # Trim whitespace and skip empty lines
         line="${line#"${line%%[![:space:]]*}"}"  # ltrim
         line="${line%"${line##*[![:space:]]}"}"  # rtrim
         [ -z "$line" ] && continue
-        
+
         # Skip input mode content (between commands like 'a' and '.')
         if [[ "$line" == "." ]]; then
             continue
         fi
-        
+
         # Check line number ranges using existing regex
         if [[ "$line" =~ ${EED_REGEX_ADDR_CMD} ]]; then
             local start_line="${BASH_REMATCH[1]}"
             local end_line="${BASH_REMATCH[3]}"
-            
+
             # Check start line number
             if [ "$start_line" -gt "$max_lines" ]; then
                 echo "✗ Line number error in command '$line'" >&2
                 echo "  Line $start_line does not exist (file has only $max_lines lines)" >&2
                 return 1
             fi
-            
+
             # Check end line number (if it's not $ and not empty)
             if [ -n "$end_line" ] && [ "$end_line" != "\$" ] && [ "$end_line" -gt "$max_lines" ]; then
                 echo "✗ Line number error in command '$line'" >&2
@@ -587,7 +621,7 @@ validate_line_ranges() {
             fi
         fi
     done <<< "$script"
-    
+
     return 0
 }
 
@@ -597,23 +631,23 @@ validate_line_ranges() {
 has_complex_patterns() {
     local script="$1"
     local line
-    
+
     while IFS= read -r line; do
         line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         [ -z "$line" ] && continue
-        
+
         # Detect global/visual commands
         if [[ "$line" =~ ^[gvGV]/ ]]; then
             return 0
         fi
-        
-        # Detect move/transfer commands  
+
+        # Detect move/transfer commands
         if [[ "$line" =~ [mMtT] ]]; then
             return 0
         fi
-        
+
     done <<< "$script"
-    
+
     return 1
 }
 
@@ -622,26 +656,26 @@ determine_ordering() {
     local script="$1"
     local line
     local -a numbers=()
-    
+
     while IFS= read -r line; do
         line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         [ -z "$line" ] && continue
-        
+
         if [[ "$line" =~ ^([0-9]+) ]]; then
             numbers+=("${BASH_REMATCH[1]}")
         fi
     done <<< "$script"
-    
+
     if [ ${#numbers[@]} -lt 2 ]; then
         echo "single"
         return 0
     fi
-    
+
     local orig="${numbers[*]}"
     local sorted
     sorted=$(printf '%s\n' "${numbers[@]}" | sort -n | tr '\n' ' ')
     sorted=${sorted% }
-    
+
     if [ "$orig" = "$sorted" ]; then
         echo "ascending"
     else
