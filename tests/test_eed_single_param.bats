@@ -10,7 +10,7 @@ setup() {
 
     # Create unique test directory and switch into it
     TEST_DIR="$(mktemp -d)"
-    cd "$TEST_DIR"
+    cd "$TEST_DIR" || exit
 
     # Use the repository eed executable directly
     SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
@@ -88,16 +88,10 @@ line2
 line3
 EOF
 
-    # Multi-step workflow with intermediate save
-    run $SCRIPT_UNDER_TEST --force test.txt "1c
-changed1
-.
-w
-2c
-changed2
-.
-w
-q"
+    # Multi-step workflow with intermediate save — pipe the script via stdin so bats captures status reliably
+    # Force apply the preview so the test verifies file changes rather than the preview behavior.
+    # Also disable auto-reordering so --force is not cancelled by safety reordering.
+    run bash -c "printf '1c\nchanged1\n.\nw\n2c\nchanged2\n.\nw\nq\n' | EED_FORCE_OVERRIDE=1 $SCRIPT_UNDER_TEST --force --disable-auto-reorder test.txt -"
     [ "$status" -eq 0 ]
     run grep -q "changed1" test.txt
     [ "$status" -eq 0 ]
