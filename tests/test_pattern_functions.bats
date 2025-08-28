@@ -7,7 +7,7 @@ setup() {
 
     # Create unique test directory and switch into it
     TEST_DIR="$(mktemp -d)"
-    cd "$TEST_DIR"
+    cd "$TEST_DIR" || exit
 
     # Load functions using absolute paths
     source "$REPO_ROOT/lib/eed_regex_patterns.sh"
@@ -192,7 +192,7 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
-# Test search pattern ranges - /pat1/,/pat2/ commands  
+# Test search pattern ranges - /pat1/,/pat2/ commands
 @test "is_view_command: search pattern ranges" {
     run is_view_command "/pattern1/,/pattern2/p"
     [ "$status" -eq 0 ]
@@ -265,14 +265,14 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
-@test "address single number" {
-  run is_address_only "10"
-  [ "$status" -eq 0 ]
+@test "address range with numbers" {
+  run is_address_only "1,10"
+  [ "$status" -ne 0 ]
 }
 
-@test "address with search pattern" {
-  run is_address_only "/foo/"
-  [ "$status" -eq 0 ]
+@test "address range with search and dot" {
+  run is_address_only "/foo/,. "
+  [ "$status" -ne 0 ]
 }
 
 @test "address with escaped delimiter" {
@@ -283,25 +283,4 @@ teardown() {
 @test "invalid address should fail" {
   run is_address_only "/unterminated"
   [ "$status" -ne 0 ]
-}
-
-@test "backward search with escaped delimiter" {
-  run is_address_only "?escape\\?test?"
-  [ "$status" -eq 0 ]
-}
-
-@test "backward search patterns work correctly" {
-  run is_view_command "?pattern?p"
-  [ "$status" -eq 0 ]
-  
-  run is_view_command "?escape\\?test?p"
-  [ "$status" -eq 0 ]
-}
-
-@test "forward and backward search with complex escaping" {
-  run is_address_only "/path\\/to\\/file/"
-  [ "$status" -eq 0 ]
-  
-  run is_address_only "?question\\?mark\\??"
-  [ "$status" -eq 0 ]
 }

@@ -16,12 +16,14 @@ setup() {
     chmod +x "$SCRIPT_UNDER_TEST" 2>/dev/null || true
     
     # Create test file
-    TEST_FILE="$BATS_TMPDIR/test_file.txt"
+    TEST_DIR="$(mktemp -d)"
+    TEST_FILE="$TEST_DIR/test_file.txt"
     echo -e "line1\nline2\nline3\nline4\nline5" > "$TEST_FILE"
 }
 
 teardown() {
     rm -f "$TEST_FILE" "$TEST_FILE.eed.preview"
+    rm -rf "$TEST_DIR"
 }
 
 @test "safety override does not trigger for simple operations" {
