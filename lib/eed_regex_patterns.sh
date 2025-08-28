@@ -33,7 +33,7 @@ readonly EED_REGEX_OFFSET_MODIFYING="^[[:space:]]*[\.\$][+-][0-9].*${EED_MODIFYI
 # --- BASIC PATTERNS ---
 
 # Address patterns - clean separation between raw patterns and grouped versions
-readonly EED_ADDR_RAW='\.|[0-9]+|\$'
+readonly EED_ADDR_RAW='\.|[0-9]+|\$|/[^/]*/|\?[^?]*\?'
 readonly EED_ADDR="(${EED_ADDR_RAW})"
 readonly EED_RANGE="${EED_ADDR},${EED_ADDR}"
 
