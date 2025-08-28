@@ -140,11 +140,6 @@ fi
 # --- Log Commands for Analysis ---
 # --- EARLY COMMAND VALIDATION ---
 
-# Validate line number ranges first
-if ! validate_line_ranges "$ED_SCRIPT" "$FILE"; then
-    exit 1
-fi
-
 SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
 
 # Handle invalid commands immediately (before any complex analysis)
@@ -201,6 +196,11 @@ fi
 if [ ! -f "$FILE" ]; then
     echo "Creating new file: $FILE"
     echo > "$FILE"  # Create file with one empty line instead of zero bytes
+fi
+
+# Validate line number ranges after file creation
+if ! validate_line_ranges "$ED_SCRIPT" "$FILE"; then
+    exit 1
 fi
 
 

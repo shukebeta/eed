@@ -529,12 +529,7 @@ validate_line_ranges() {
     local max_lines
     local line
     
-    # Skip validation if file doesn't exist
-    if [ ! -f "$file_path" ]; then
-        return 0
-    fi
-    
-    # Get file line count
+    # Get file line count (file should exist by now due to creation logic)
     max_lines=$(wc -l < "$file_path")
     # Handle empty files: ed treats them as having 1 empty line
     [ "$max_lines" -eq 0 ] && max_lines=1

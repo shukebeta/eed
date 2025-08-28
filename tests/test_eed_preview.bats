@@ -389,6 +389,50 @@ q"
     [[ "$output" == *"-line2"* ]]
 }
 
+@test "line number validation - new file creation with invalid line" {
+    # Test line validation on newly created files
+    rm -f new_test_file.txt  # Ensure file doesn't exist
+
+    run $SCRIPT_UNDER_TEST new_test_file.txt "5d
+q"
+    [ "$status" -ne 0 ]
+
+    # Should show error for new file (which has only 1 line)
+    [[ "$output" == *"Line number error in command '5d'"* ]]
+    [[ "$output" == *"Line 5 does not exist (file has only 1 lines)"* ]]
+
+    # Should show file creation message first
+    [[ "$output" == *"Creating new file: new_test_file.txt"* ]]
+
+    # File should exist but be unchanged (just the empty line)
+    [ -f new_test_file.txt ]
+    [[ "$(wc -l < new_test_file.txt)" == "1" ]]
+
+    # Clean up
+    rm -f new_test_file.txt
+}
+
+@test "line number validation - new file with valid line 1 works" {
+    # Test that line 1 operations work on new files
+    rm -f new_test_file2.txt  # Ensure file doesn't exist
+
+    run $SCRIPT_UNDER_TEST new_test_file2.txt "1a
+hello world
+.
+w
+q"
+    [ "$status" -eq 0 ]
+
+    # Should create preview successfully
+    [ -f new_test_file2.txt.eed.preview ]
+
+    # Preview should contain the added content
+    [[ "$(cat new_test_file2.txt.eed.preview)" == $'\nhello world' ]]
+
+    # Clean up
+    rm -f new_test_file2.txt new_test_file2.txt.eed.preview
+}
+
 @test "preview mode - no changes results in empty diff" {
     # Test script that makes no actual changes
     run $SCRIPT_UNDER_TEST sample.txt "w
