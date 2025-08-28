@@ -33,8 +33,13 @@ readonly EED_REGEX_OFFSET_MODIFYING="^[[:space:]]*[\.\$][+-][0-9].*${EED_MODIFYI
 # --- BASIC PATTERNS ---
 
 # Address patterns - clean separation between raw patterns and grouped versions
-readonly EED_ADDR_RAW='\.|[0-9]+|\$|/[^/]*/|\?[^?]*\?'
-readonly EED_ADDR="(${EED_ADDR_RAW})"
+readonly EED_ADDR_NUM='[0-9]+'
+readonly EED_ADDR_DOT='\.'
+readonly EED_ADDR_DOLLAR='\$'
+readonly EED_ADDR_SEARCH_FWD='/([^/\\]|\\.)*/'
+readonly EED_ADDR_SEARCH_BWD='\?([^?\\]|\\.)*\?'
+
+readonly EED_ADDR="(${EED_ADDR_NUM}|${EED_ADDR_DOT}|${EED_ADDR_DOLLAR}|${EED_ADDR_SEARCH_FWD}|${EED_ADDR_SEARCH_BWD})"
 readonly EED_RANGE="${EED_ADDR},${EED_ADDR}"
 
 # View command character classes
@@ -85,7 +90,7 @@ unset -f detect_substitute_regex
 # Command-specific patterns
 readonly EED_REGEX_WRITE_CMD='^w( .*)?$'
 readonly EED_REGEX_QUIT_CMD='^[qQ]$'
-readonly EED_REGEX_GLOBAL_CMD='^[gv]/.*/[pPnNdDsS]?$'
+readonly EED_REGEX_GLOBAL_CMD='^[gv]/.*/[pgPnNdDsS]?$'
 readonly EED_REGEX_FORWARD_SEARCH='^/[^/]*/[pPnNlL=]?$'
 readonly EED_REGEX_BACKWARD_SEARCH='^\?.*\?[pP]?$'
 readonly EED_REGEX_RANGE_SEARCH='^/.*/([+-][0-9]+)?,/.*/([+-][0-9]+)?[pP]?$'

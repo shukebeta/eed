@@ -234,3 +234,53 @@ teardown() {
     run is_input_command "1,/end/c"
     [ "$status" -eq 0 ]
 }
+
+@test "simple substitute passes" {
+  run is_substitute_command "s/foo/bar/g"
+  [ "$status" -eq 0 ]
+}
+
+@test "substitute with escaped delimiter passes" {
+  run is_substitute_command "s/\/a\/b/c/g"
+  [ "$status" -eq 0 ]
+}
+
+@test "substitute with number flag" {
+  run is_substitute_command "s/x/y/42"
+  [ "$status" -eq 0 ]
+}
+
+@test "substitute missing closing delimiter fails" {
+  run is_substitute_command "s/foo/bar"
+  [ "$status" -ne 0 ]
+}
+
+@test "global simple" {
+  run is_global_command "g/foo/p"
+  [ "$status" -eq 0 ]
+}
+
+@test "global with substitute" {
+  run is_global_command "g/foo/s/x/y/g"
+  [ "$status" -eq 0 ]
+}
+
+@test "address single number" {
+  run is_address_only "10"
+  [ "$status" -eq 0 ]
+}
+
+@test "address with search pattern" {
+  run is_address_only "/foo/"
+  [ "$status" -eq 0 ]
+}
+
+@test "address with escaped delimiter" {
+  run is_address_only "/a\/b/"
+  [ "$status" -eq 0 ]
+}
+
+@test "invalid address should fail" {
+  run is_address_only "/unterminated"
+  [ "$status" -ne 0 ]
+}
