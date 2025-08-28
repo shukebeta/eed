@@ -368,86 +368,82 @@ detect_complex_patterns() {
 }
 
 # Automatically reorder ed script commands to prevent line number conflicts
-# Returns reordered script via stdout, shows user-friendly messages via stderr
-# Maintains backward compatibility by handling complex pattern detection internally
-reorder_script() {
+# Refactored into focused helper functions for clarity and testability.
+# Public API preserved: reorder_script <script> => writes script to stdout and
+# returns 1 if reordering was performed, 0 otherwise.
+_get_modifying_command_info() {
     local script="$1"
+    # Exposed as globals for use by other helpers:
+    # _rs_script_lines, _rs_modifying_commands, _rs_modifying_line_numbers
+    _rs_script_lines=()
+    _rs_modifying_commands=()
+    _rs_modifying_line_numbers=()
+
     local line
-    local -a script_lines=()
-    local -a modifying_commands=()
-    local -a modifying_line_numbers=()
     local line_index=0
-
-    # Note: Complex pattern detection is now handled externally in the unified architecture
-    # This function focuses purely on reordering logic
-
-    # Step 1: Parse script and collect all lines and modifying commands
     while IFS= read -r line; do
-        script_lines+=("$line")
+        _rs_script_lines+=("$line")
         if [[ "$line" =~ ${EED_REGEX_ADDR_CMD} ]]; then
-            modifying_commands+=("$line_index:${BASH_REMATCH[1]}:$line")
-            modifying_line_numbers+=("${BASH_REMATCH[1]}")
+            _rs_modifying_commands+=("$line_index:${BASH_REMATCH[1]}:$line")
+            _rs_modifying_line_numbers+=("${BASH_REMATCH[1]}")
         fi
         ((line_index++))
     done <<< "$script"
+}
 
-    # Step 2: Check if reordering is needed (same logic as before)
-    if [ ${#modifying_line_numbers[@]} -lt 2 ]; then
-        printf '%s\n' "${script_lines[@]}"  # Output original script
-        return 0
+_is_reordering_needed() {
+    # Returns 0 when reordering is needed, non-zero otherwise.
+    if [ ${#_rs_modifying_line_numbers[@]} -lt 2 ]; then
+        return 1
     fi
 
-    local original_sequence="${modifying_line_numbers[*]}"
+    local original_sequence="${_rs_modifying_line_numbers[*]}"
     local sorted_line_numbers
-    mapfile -t sorted_line_numbers < <(printf '%s\n' "${modifying_line_numbers[@]}" | sort -n)
+    mapfile -t sorted_line_numbers < <(printf '%s\n' "${_rs_modifying_line_numbers[@]}" | sort -n)
     local sorted_sequence_str="${sorted_line_numbers[*]}"
 
-    # Step 3: If no reordering needed, return original script
     if [ "$original_sequence" != "$sorted_sequence_str" ]; then
-        printf '%s\n' "${script_lines[@]}"  # Output original script
-        return 0
+        return 1
     fi
 
-    # Check for unique line numbers to avoid false positives
     local unique_count
-    unique_count=$(printf '%s\n' "${modifying_line_numbers[@]}" | uniq | wc -l)
+    unique_count=$(printf '%s\n' "${_rs_modifying_line_numbers[@]}" | uniq | wc -l)
     if [ "$unique_count" -le 1 ]; then
-        printf '%s\n' "${script_lines[@]}"  # Output original script
-        return 0
+        return 1
     fi
 
-    # Step 4: Perform automatic reordering
+    return 0
+}
+
+_perform_reordering() {
+    # Produces reordered script on stdout and returns 1 to indicate reordering.
+    local -a modifying_commands_sorted
+    mapfile -t modifying_commands_sorted < <(printf '%s\n' "${_rs_modifying_commands[@]}" | sort -s -t: -k2,2nr -k1,1n)
+
+    # Informative messaging, kept to match previous UX
     echo "✓ Auto-reordering script to prevent line numbering conflicts:" >&2
-    local original_formatted="($(IFS=, ; echo "${modifying_line_numbers[*]}"))"
-
-    # Sort modifying commands by line number in descending order
-    local -a sorted_modifying_commands
-    mapfile -t sorted_modifying_commands < <(printf '%s\n' "${modifying_commands[@]}" | sort -s -t: -k2,2nr -k1,1n)
-
-    local reverse_sorted_line_numbers
-    mapfile -t reverse_sorted_line_numbers < <(printf '%s\n' "${modifying_line_numbers[@]}" | sort -nr)
+    local original_formatted="($(IFS=, ; echo "${_rs_modifying_line_numbers[*]}"))"
+    local -a reverse_sorted_line_numbers
+    mapfile -t reverse_sorted_line_numbers < <(printf '%s\n' "${_rs_modifying_line_numbers[@]}" | sort -nr)
     local suggested_formatted="($(IFS=, ; echo "${reverse_sorted_line_numbers[*]}"))"
-
     echo "   Original: ${original_formatted} → Reordered: ${suggested_formatted}" >&2
     echo "" >&2
 
-    # Step 5: Build reordered script - handle input mode commands as atomic units
     local -a reordered_script=()
     local -a processed_indices=()
 
-    # Add modifying commands in new order with their associated data
-    for cmd_info in "${sorted_modifying_commands[@]}"; do
+    for cmd_info in "${modifying_commands_sorted[@]}"; do
         local old_index="${cmd_info%%:*}"
         local cmd_line="${cmd_info##*:}"
 
         reordered_script+=("$cmd_line")
         processed_indices+=("$old_index")
 
-        # If this is an input mode command (a, c, i), include following content until "."
+        # If input-mode command, include following content until terminating "."
         if [[ "$cmd_line" =~ [aAcCiI]$ ]]; then
             local content_idx=$((old_index + 1))
-            while [ "$content_idx" -lt "${#script_lines[@]}" ]; do
-                local content_line="${script_lines[$content_idx]}"
+            while [ "$content_idx" -lt "${#_rs_script_lines[@]}" ]; do
+                local content_line="${_rs_script_lines[$content_idx]}"
                 reordered_script+=("$content_line")
                 processed_indices+=("$content_idx")
                 if [ "$content_line" = "." ]; then
@@ -458,8 +454,8 @@ reorder_script() {
         fi
     done
 
-    # Add remaining non-processed commands in original order
-    for i in "${!script_lines[@]}"; do
+    # Append remaining lines in original order
+    for i in "${!_rs_script_lines[@]}"; do
         local is_processed=false
         for proc_idx in "${processed_indices[@]}"; do
             if [ "$i" = "$proc_idx" ]; then
@@ -468,13 +464,29 @@ reorder_script() {
             fi
         done
         if [ "$is_processed" = false ]; then
-            reordered_script+=("${script_lines[$i]}")
+            reordered_script+=("${_rs_script_lines[$i]}")
         fi
     done
 
-    # Output reordered script
     printf '%s\n' "${reordered_script[@]}"
-    return 1 # Signal that reordering was performed
+    return 1
+}
+
+reorder_script() {
+    local script="$1"
+    # Gather command info
+    _get_modifying_command_info "$script"
+
+    # Decide whether to reorder
+    if ! _is_reordering_needed; then
+        # Output original script unchanged
+        printf '%s\n' "${_rs_script_lines[@]}"
+        return 0
+    fi
+
+    # Perform reordering and propagate the same exit semantics as before
+    _perform_reordering
+    return $?
 }
 
 # Legacy function for backward compatibility with existing tests
