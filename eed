@@ -83,6 +83,19 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
+        -)
+            # Handle stdin marker as regular argument (Unix standard)
+            if [ -z "$FILE_PATH" ]; then
+                FILE_PATH="$1"
+            elif [ -z "$ED_SCRIPT" ]; then
+                ED_SCRIPT="$1"
+            else
+                echo "✗ Error: Too many arguments" >&2
+                echo "Use 'eed --help' for usage information" >&2
+                exit 1
+            fi
+            shift
+            ;;
         -*)
             echo "✗ Error: Unknown option '$1'" >&2
             echo "Use 'eed --help' for usage information" >&2
