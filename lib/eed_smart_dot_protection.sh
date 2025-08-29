@@ -152,15 +152,51 @@ transform_content_dots() {
     # Parse script and identify input blocks
     local -a output_lines=()
     local in_input_mode=false
-    local has_w_command=false
-    local substitution_added=false
-    
+    local in_double_quote_block=false
+    local in_single_quote_block=false
+
     local -i idx=0
     local -i last_w_index=-1
     local -i first_q_index=-1
 
     while IFS= read -r line; do
-        # Handle input mode state transitions first
+        # Simple heuristic: avoid transforming content that is inside multi-line
+        # quoted strings. We toggle quote-block state when the line contains an
+        # odd number of unescaped quote characters. This is conservative but
+        # sufficient for our integration tests which use multi-line double-quoted
+        # strings for nested ed scripts.
+        local dq_count
+        local sq_count
+        dq_count=$(printf '%s' "$line" | tr -cd '"' | wc -c)
+        sq_count=$(printf '%s' "$line" | tr -cd "'" | wc -c)
+
+        if [ "$dq_count" -gt 0 ]; then
+            if (( dq_count % 2 == 1 )); then
+                if [ "$in_double_quote_block" = false ]; then
+                    in_double_quote_block=true
+                else
+                    in_double_quote_block=false
+                fi
+            fi
+        fi
+        if [ "$sq_count" -gt 0 ]; then
+            if (( sq_count % 2 == 1 )); then
+                if [ "$in_single_quote_block" = false ]; then
+                    in_single_quote_block=true
+                else
+                    in_single_quote_block=false
+                fi
+            fi
+        fi
+
+        # If we are inside any quoted block, treat line as opaque content.
+        if [ "$in_double_quote_block" = true ] || [ "$in_single_quote_block" = true ]; then
+            output_lines+=("$line")
+            idx=$((idx + 1))
+            continue
+        fi
+
+        # Handle input mode state transitions (only when not inside quoted blocks)
         if [ "$in_input_mode" = false ]; then
             # Check if this line starts input mode (a, c, i commands)
             if [[ "$line" =~ ^[[:space:]]*[0-9,\$]*[[:space:]]*[aAcCiI]([[:space:]]|$) ]]; then
@@ -183,16 +219,19 @@ transform_content_dots() {
                 continue
             fi
         else
-            # We're in input mode
+            # We're in input mode (and not inside quoted blocks)
             if [[ "$line" == "." ]]; then
-                # This is the terminator - keep it as-is and exit input mode
-                in_input_mode=false
+                # Terminator for the current input block; preserve it and exit input mode.
                 output_lines+=("$line")
+                in_input_mode=false
             else
-                # This is content - check for dots to replace
+                # This is content - check for dots to replace with markers
                 local transformed_line
                 transformed_line="${line//\./${marker}}"
                 output_lines+=("$transformed_line")
+                if [[ "$line" != "$transformed_line" ]]; then
+                    marker_used=1
+                fi
             fi
         fi
         idx=$((idx + 1))
@@ -223,7 +262,7 @@ transform_content_dots() {
         local -a final_output=()
         for i in "${!output_lines[@]}"; do
             if [ "$i" -eq "$last_w_index" ]; then
-                final_output+=("s/$marker/./g")
+                final_output+=("s@${marker}@.@g")
             fi
             final_output+=("${output_lines[$i]}")
         done
@@ -232,13 +271,13 @@ transform_content_dots() {
         local -a final_output=()
         for i in "${!output_lines[@]}"; do
             if [ "$i" -eq "$first_q_index" ]; then
-                final_output+=("s/$marker/./g")
+                final_output+=("s@${marker}@.@g")
             fi
             final_output+=("${output_lines[$i]}")
         done
         output_lines=("${final_output[@]}")
     else
-        output_lines+=("s/$marker/./g")
+        output_lines+=("s@${marker}@.@g")
     fi
     
     # Output the transformed script

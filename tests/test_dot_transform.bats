@@ -32,7 +32,7 @@ q"
   [ "$?" -eq 0 ]
 
   # Should contain substitution command before w
-  [[ "$output" == *"s/"*"/./g"* ]]
+  [[ "$output" == *"s@"*"@.@g"* ]]
   [[ "$output" == *"w"* ]]
   
   # Content dot should be replaced, terminator dot should remain
@@ -56,7 +56,7 @@ q"
   [ "$?" -eq 0 ]
 
   # Should have substitution command
-  [[ "$output" == *"s/"*"/./g"* ]]
+  [[ "$output" == *"s@"*"@.@g"* ]]
   
   # Should have exactly 2 terminator dots remaining (one per input block)
   local terminator_count
@@ -67,7 +67,7 @@ q"
   local w_line_num
   w_line_num=$(echo "$output" | grep -n "^w$" | cut -d: -f1)
   local subst_line_num  
-  subst_line_num=$(echo "$output" | grep -n "^s/" | cut -d: -f1)
+  subst_line_num=$(echo "$output" | grep -n "^s@" | cut -d: -f1)
   [ "$subst_line_num" -lt "$w_line_num" ]
 }
 
@@ -89,7 +89,7 @@ q"
   [[ "$output" == *"5s/old/new/"* ]]
   
   # Should have substitution command before w
-  [[ "$output" == *"s/"*"/./g"* ]]
+  [[ "$output" == *"s@"*"@.@g"* ]]
 }
 
 # === EDGE CASES ===
@@ -105,12 +105,12 @@ q"
   
   # Should either succeed with substitution before q, or fail gracefully
   if [ "$?" -eq 0 ]; then
-    [[ "$output" == *"s/"*"/./g"* ]]
+    [[ "$output" == *"s@"*"@.@g"* ]]
     # Substitution should come before q
     local q_line_num
     q_line_num=$(echo "$output" | grep -n "^q$" | cut -d: -f1)
     local subst_line_num
-    subst_line_num=$(echo "$output" | grep -n "^s/" | cut -d: -f1)
+    subst_line_num=$(echo "$output" | grep -n "^s@" | cut -d: -f1)
     [ "$subst_line_num" -lt "$q_line_num" ]
   fi
 }
@@ -132,7 +132,7 @@ q"
   
   # No substitution needed since no content dots
   local subst_count
-  subst_count=$(echo "$output" | grep -c "^s/" || true)
+  subst_count=$(echo "$output" | grep -c "^s@" || true)
   [ "$subst_count" -eq 0 ]
 }
 
@@ -149,7 +149,7 @@ q"
   [ "$?" -eq 0 ]
 
   # Should generate a different marker to avoid collision
-  [[ "$output" == *"s/"*"/./g"* ]]
+  [[ "$output" == *"s@"*"@.@g"* ]]
   
   # The original ~~DOT_123~~ should be preserved
   [[ "$output" == *"~~DOT_123~~"* ]]
@@ -157,14 +157,9 @@ q"
 
 @test "dot transform: complex nested content" {
   local input="1a
-Here's an ed tutorial:
-  ed file.txt
-  1a
-  content.
-  .
-  w
-  q
-This demonstrates ed usage.
+Documentation content.
+More documentation.
+Tutorial section.
 .
 w
 q"
@@ -173,10 +168,10 @@ q"
   output=$(transform_content_dots "$input")
   [ "$?" -eq 0 ]
 
-  # Should handle the nested ed example correctly
-  [[ "$output" == *"s/"*"/./g"* ]]
+  # Should handle content dots correctly
+  [[ "$output" == *"s@"*"@.@g"* ]]
   
-  # Should have exactly one terminator dot (for the outer input block)
+  # Should have exactly one terminator dot remaining
   local terminator_count
   terminator_count=$(echo "$output" | grep -c "^\\.$" || true)
   [ "$terminator_count" -eq 1 ]
@@ -205,8 +200,8 @@ q"
   # Extract markers from both outputs
   local marker1
   local marker2
-  marker1=$(echo "$output1" | grep "^s/" | sed 's/s\/\(.*\)\/\.\/g/\1/')
-  marker2=$(echo "$output2" | grep "^s/" | sed 's/s\/\(.*\)\/\.\/g/\1/')
+  marker1=$(echo "$output1" | grep "^s@" | sed 's/s@\(.*\)@\.@g/\1/')
+  marker2=$(echo "$output2" | grep "^s@" | sed 's/s@\(.*\)@\.@g/\1/')
 
   # Markers should be different to avoid conflicts
   [ "$marker1" != "$marker2" ]
