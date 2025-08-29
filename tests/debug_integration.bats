@@ -373,18 +373,32 @@ q'
     [ "$complex_count" -eq 1 ]
 }
 # Migrated from [`tests/test_eed.bats`](tests/test_eed.bats:261) - original @test "file creation for non-existent file"
-@test "file creation for non-existent file (migrated)" {
+@test "debug: file creation issue" {
     # Test that eed can create new files
     script='1i
 first line
 .
 w
 q'
+    echo "=== Testing file creation ==="
     run $SCRIPT_UNDER_TEST --force newfile.txt "$script"
+    echo "Exit status: $status"
+    echo "Output: $output"
+    
+    echo "=== File check ==="
+    if [ -f newfile.txt ]; then
+        echo "✓ File was created"
+        echo "File contents:"
+        cat newfile.txt
+    else
+        echo "✗ File was NOT created"
+        ls -la *.txt 2>/dev/null || echo "No txt files found"
+    fi
+    
+    # Test should pass now
     [ "$status" -eq 0 ]
     [ -f newfile.txt ]
-    run grep -q "first line" newfile.txt
-    [ "$status" -eq 0 ]
+    grep -q "first line" newfile.txt
 }
 # Migrated from tests/test_complex_messages_cleanup.bats - original @test "complex script without --force is silent about complexity"
 @test "complex script without --force is silent about complexity (migrated)" {

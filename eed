@@ -140,7 +140,8 @@ FILE_PATH=$(realpath -m "$FILE_PATH")
 if [ ! -f "$FILE_PATH" ]; then
     # Create file and any necessary parent directories
     mkdir -p "$(dirname "$FILE_PATH")"
-    touch "$FILE_PATH"
+    # Create file with single empty line to avoid ed line number issues
+    echo "" > "$FILE_PATH"
 fi
 
 # --- Script Validation ---
