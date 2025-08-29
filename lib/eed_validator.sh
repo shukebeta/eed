@@ -34,58 +34,17 @@ validate_ed_script() {
     return 0
 }
 
-# Detect likely heredoc nesting errors by looking for leftover heredoc markers.
-# This captures the common AI/user mistake of reusing the same heredoc delimiter
-# multiple times, leaving a stray delimiter line inside the final ED script.
-detect_heredoc_trap() {
-    local script="$1"
-
-    # Common heredoc markers to check for as standalone lines.
-    # Add or remove markers here if other delimiters are commonly used.
-    if grep -q -E '^(EOF|EOT|HEREDOC)$' <<< "$script"; then
-        echo "💡 Potential heredoc nesting error detected." >&2
-        echo "   A line consisting only of a heredoc marker (e.g. 'EOF') was found in the ed script." >&2
-        echo "   This often happens when nested heredocs use the same delimiter and the shell" >&2
-        echo "   terminates an inner heredoc early, leaving the marker as stray text." >&2
-        echo "" >&2
-        echo "   Consequences: the ED script may be truncated and ed may silently do nothing." >&2
-        echo "   Suggested fixes:" >&2
-        echo "     - Use unique delimiters for nested heredocs (e.g. INNER/OUTER)" >&2
-        echo "     - Or avoid nesting heredocs; write the ed script to a temp file instead" >&2
-        echo "" >&2
-        echo "   Example:" >&2
-        echo "     eed file.txt \"\$(cat <<'OUTER'" >&2
-        echo "     10a" >&2
-        echo "     \$(cat <<'INNER'" >&2
-        echo "     some content" >&2
-        echo "     INNER" >&2
-        echo "     )" >&2
-        echo "     ." >&2
-        echo "     OUTER" >&2
-        echo "     )\"" >&2
-        return 1
-    fi
-
-    return 0
-}
 
 # Detect and auto-fix unterminated input blocks (a/c/i) by inserting a '.' where needed.
-# Rules (refined):
-#  - If a standalone heredoc marker (EOF/EOT/HEREDOC) is present, treat as fatal and do NOT auto-fix.
-#  - Only auto-insert '.' when there is a write/quit (w or q) somewhere in the script; otherwise
-#    refuse to auto-fix to avoid masking heredoc-related truncation errors.
+# Rules:
+#  - Only auto-insert '.' when there is a write/quit (w or q) somewhere in the script
+#  - If no w/q is present, refuse to auto-fix to avoid masking script truncation errors
 detect_and_fix_unterminated_input() {
     local script="$1"
 
-    # Fail-fast on obvious heredoc leftover markers — do not auto-fix these cases.
-    if grep -q -E '^(EOF|EOT|HEREDOC)$' <<< "$script"; then
-        echo "💡 Potential heredoc nesting error detected. Not auto-fixing unterminated input blocks when heredoc markers are present." >&2
-        echo "   Use unique heredoc delimiters or write the ed script to a temporary file instead." >&2
-        return 1
-    fi
 
     # Pre-scan: does the script contain any write/quit commands? If not, we won't auto-fix a
-    # trailing unterminated input block (it's likely a heredoc/truncation issue).
+    # trailing unterminated input block (it's likely a script truncation issue).
     local has_wq=0
     if echo "$script" | grep -q -E '^[[:space:]]*[0-9,]*[[:space:]]*[wqQ]([[:space:]]|$)'; then
         has_wq=1
@@ -432,7 +391,7 @@ _perform_reordering_from_records() {
     for record in "${records[@]}"; do
         # Skip empty records (from trailing NUL)
         [ -z "$record" ] && continue
-        
+
         if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
             script_lines+=("${BASH_REMATCH[1]}")
         elif [[ "$record" =~ ^MODIFYING_CMD:([0-9]+):([0-9]+):(.*)$ ]]; then
@@ -508,12 +467,12 @@ reorder_script() {
     # Capture records once to avoid double parsing (NUL-delimited)
     local -a records=()
     mapfile -t -d '' records < <(_get_modifying_command_info "$script")
-    
+
     # Parse records to extract what we need for decision making
     for record in "${records[@]}"; do
         # Skip empty records (from trailing NUL)
         [ -z "$record" ] && continue
-        
+
         if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
             script_lines+=("${BASH_REMATCH[1]}")
         elif [[ "$record" =~ ^MODIFYING_CMD:[0-9]+:([0-9]+):.*$ ]]; then

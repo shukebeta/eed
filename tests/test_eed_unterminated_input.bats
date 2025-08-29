@@ -43,7 +43,7 @@ q"
   [ "$status" -eq 0 ]
 }
 
-@test "heredoc leftover without w/q errors" {
+@test "unterminated input block without w/q command errors" {
   run $SCRIPT_UNDER_TEST --force newfile.txt "1a
 line
 EOF"

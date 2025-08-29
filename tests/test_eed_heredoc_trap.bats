@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-# Tests for heredoc trap detection in eed
+# Tests for text content that might look like heredoc markers
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -16,27 +16,19 @@ teardown() {
   rm -rf "$TEST_DIR"
 }
 
-@test "detect heredoc trap - standalone EOF in script" {
-  run $SCRIPT_UNDER_TEST test.txt "1a
+@test "user can insert EOF as normal text content" {
+  run $SCRIPT_UNDER_TEST --force test.txt "1a
 content line
 EOF
 .
 w
 q"
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"heredoc"* ]]
-}
-
-@test "heredoc leftover with w/q still errors" {
-  # Even if write/quit commands are present, a standalone heredoc marker should cause an error
-  run $SCRIPT_UNDER_TEST test.txt "1a
-content line
-EOF
-w
-q"
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"heredoc"* ]]
-  [ ! -f test.txt ]
+  [ "$status" -eq 0 ]
+  [ -f test.txt ]
+  run grep -q "EOF" test.txt
+  [ "$status" -eq 0 ]
+  run grep -q "content line" test.txt
+  [ "$status" -eq 0 ]
 }
 
 @test "valid script passes validation" {
