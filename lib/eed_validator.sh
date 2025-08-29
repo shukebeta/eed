@@ -8,6 +8,8 @@ fi
 EED_VALIDATOR_LOADED=1
 # Source the shared regex patterns
 source "$(dirname "${BASH_SOURCE[0]}")/eed_regex_patterns.sh"
+# Source smart dot protection functionality
+source "$(dirname "${BASH_SOURCE[0]}")/eed_smart_dot_protection.sh"
 
 
 # Disable history expansion to prevent ! character escaping
@@ -233,16 +235,51 @@ suggest_dot_fix() {
     local script="$1"
 
     echo "⚠️  Detected multiple standalone dots in ed script" >&2
-    echo "   If you're using complex ed commands, consider using heredoc syntax:" >&2
-    echo "   eed file.txt \"\$(cat <<'EOF'" >&2
-    echo "   your ed commands here" >&2
-    echo "   use actual . (dot) for content termination in ed commands" >&2
-    echo "   EOF" >&2
-    echo "   )\"" >&2
+    echo "   If you're using complex ed commands with multiple dots, consider:" >&2
+    echo "   1. Using heredoc syntax for simple cases:" >&2
+    echo "      eed file.txt \"\$(cat <<'EOF'" >&2
+    echo "      your ed commands here" >&2
+    echo "      EOF" >&2
+    echo "      )\"" >&2
+    echo "   2. For complex cases (e.g., editing test files), use Edit/Write tools instead" >&2
     echo "" >&2
     echo "   Proceeding with current script..." >&2
 
     return 0
+}
+
+# Smart dot protection integration
+# Attempts to intelligently handle multiple dots in ed tutorial/documentation contexts
+# Returns the (possibly transformed) script on stdout
+apply_smart_dot_handling() {
+    local script="$1"
+    local file_path="$2"
+    
+    # First check if we should attempt smart protection
+    local confidence
+    confidence=$(detect_ed_tutorial_context "$script" "$file_path")
+    local detection_result=$?
+    
+    if [ "$detection_result" -eq 0 ]; then
+        # High confidence - attempt transformation
+        local transformed_script
+        transformed_script=$(transform_content_dots "$script")
+        if [ $? -eq 0 ]; then
+            echo "✨ Smart dot protection applied for ed tutorial editing (confidence: ${confidence}%)" >&2
+            echo "$transformed_script"
+            return 0
+        else
+            echo "⚠️  Smart dot protection failed, falling back to standard guidance" >&2
+        fi
+    elif [ "$confidence" -ge 40 ]; then
+        # Medium confidence - provide enhanced guidance
+        echo "🤔 Detected possible ed tutorial editing (confidence: ${confidence}%)" >&2
+        echo "   For complex cases with multiple dots, consider using Edit/Write tools instead" >&2
+    fi
+    
+    # Default: return original script unchanged
+    echo "$script"
+    return 1
 }
 
 # Detect complex patterns that are unsafe for automatic reordering
@@ -391,7 +428,7 @@ _perform_reordering_from_records() {
     for record in "${records[@]}"; do
         # Skip empty records (from trailing NUL)
         [ -z "$record" ] && continue
-
+        
         if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
             script_lines+=("${BASH_REMATCH[1]}")
         elif [[ "$record" =~ ^MODIFYING_CMD:([0-9]+):([0-9]+):(.*)$ ]]; then
@@ -467,12 +504,12 @@ reorder_script() {
     # Capture records once to avoid double parsing (NUL-delimited)
     local -a records=()
     mapfile -t -d '' records < <(_get_modifying_command_info "$script")
-
+    
     # Parse records to extract what we need for decision making
     for record in "${records[@]}"; do
         # Skip empty records (from trailing NUL)
         [ -z "$record" ] && continue
-
+        
         if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
             script_lines+=("${BASH_REMATCH[1]}")
         elif [[ "$record" =~ ^MODIFYING_CMD:[0-9]+:([0-9]+):.*$ ]]; then

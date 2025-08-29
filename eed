@@ -1,106 +1,136 @@
 #!/bin/bash
-# Enhanced ed wrapper with Modify-Preview-Confirm workflow
-# Usage: eed [--debug] [--force] [--disable-auto-reorder] <file> <ed_commands...>
-#
-# Options:
-#   --debug    Enable debug mode (preserve temp files, show ed output)
-#   --force    Skip preview-confirm workflow, edit file directly
-#   --disable-auto-reorder  Disable automatic script reordering
-#
-# Examples:
-#   eed file.txt "5d"                           # Delete line 5 (with preview)
-#   eed --force file.txt "5d"                   # Delete line 5 (direct edit)
-#   eed file.txt "3c" "new content" "."         # Replace line 3
-#   eed file.txt "5a" "new line" "."            # Insert after line 5
-#   eed file.txt "1,3d"                         # Delete lines 1-3
-#   eed file.txt "s/old/new/g"                  # Replace all 'old' with 'new' on current line
-#   eed file.txt "1,\$s/old/new/g"              # Replace all 'old' with 'new' in entire file
 
-# Disable history expansion to prevent ! character escaping
-set +H
+# eed - AI-oriented text editor with preview-confirm workflow
+# Provides bulletproof safety guarantees and intelligent automation for AI systems
 
-# Load library functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/eed_common.sh"
-source "$SCRIPT_DIR/lib/eed_validator.sh"
+set -euo pipefail
 
-# --- Argument Parsing & Mode Handling ---
-DEBUG_MODE=false
+# --- Configuration ---
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$REPO_ROOT/lib/eed_validator.sh"
+
+# Global settings
+DEBUG_MODE="${EED_DEBUG:-false}"
+DISABLE_AUTO_REORDER="${EED_DISABLE_AUTO_REORDER:-false}"
+FORCE_OVERRIDE="${EED_FORCE_OVERRIDE:-false}"
+
+# Testing mode (prevents log file creation)
+TESTING_MODE="${EED_TESTING:-false}"
+
+# --- Help and Usage ---
+show_help() {
+    cat << 'EOF'
+Usage: eed [OPTIONS] <file> [ed_script | -]
+
+AI-oriented text editor with bulletproof safety guarantees
+
+OPTIONS:
+  --force         Apply changes directly (skip preview mode)
+  --debug         Show detailed debugging information
+  --disable-auto-reorder  Disable automatic command reordering
+  --help          Show this help message
+
+ARGUMENTS:
+  file            Target file to edit (will be created if it doesn't exist)
+  ed_script       Ed commands as string, or '-' to read from stdin
+  -               Read ed script from stdin (alternative to ed_script)
+
+EXAMPLES:
+  # Preview mode (default - safe)
+  eed file.txt "1a\nHello\n.\nw\nq"
+  
+  # Direct mode (skip preview)
+  eed --force file.txt "1d\nw\nq"
+  
+  # Read from stdin
+  echo "1a\nContent\n.\nw\nq" | eed file.txt -
+  
+WORKFLOW:
+  1. Validates ed commands for safety
+  2. Creates preview in file.eed.preview
+  3. Shows diff and instructions (unless --force)
+  4. Provides clear next steps
+
+SAFETY FEATURES:
+  - Original files never corrupted
+  - Preview-first workflow
+  - Automatic command reordering
+  - Line number validation
+  - Git integration
+EOF
+}
+
+# --- Argument Parsing ---
 FORCE_MODE=false
-DISABLE_AUTO_REORDER=false
-FORGOT_STDIN_ARG_FLAG=false
+FILE_PATH=""
+ED_SCRIPT=""
 
-# Parse flags with proper argument handling
-while [ $# -gt 0 ]; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
-        --debug)
-            DEBUG_MODE=true
-            shift
-            ;;
         --force)
             FORCE_MODE=true
+            shift
+            ;;
+        --debug)
+            DEBUG_MODE=true
             shift
             ;;
         --disable-auto-reorder)
             DISABLE_AUTO_REORDER=true
             shift
             ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
         -*)
-            echo "Error: Unknown option $1" >&2
+            echo "✗ Error: Unknown option '$1'" >&2
+            echo "Use 'eed --help' for usage information" >&2
             exit 1
             ;;
         *)
-            # Break the loop once we hit non-flag arguments
-            break
+            if [ -z "$FILE_PATH" ]; then
+                FILE_PATH="$1"
+            elif [ -z "$ED_SCRIPT" ]; then
+                ED_SCRIPT="$1"
+            else
+                echo "✗ Error: Too many arguments" >&2
+                echo "Use 'eed --help' for usage information" >&2
+                exit 1
+            fi
+            shift
             ;;
     esac
 done
-# Track effective force mode (set after flag parsing so it reflects --force)
-effective_force_mode="$FORCE_MODE"
 
-# Enforce single parameter mode after parsing flags
-# Determine final FILE and ED_SCRIPT in a clear, ordered way:
-# 1) forgiving stdin mode: only FILE provided and stdin has data
-# 2) explicit two-argument mode: FILE and SCRIPT (or '-')
-# 3) otherwise: show usage and exit
-if [ $# -eq 1 ] && ! [ -t 0 ]; then
-    # Forgiving stdin mode: user likely piped instructions but forgot '-'
-    FORGOT_STDIN_ARG_FLAG=true
-    FILE="$1"
-    ED_SCRIPT=$(cat)
-    if [ -z "$ED_SCRIPT" ]; then
-        echo "Error: Empty script read from stdin" >&2
-        exit 1
-    fi
-elif [ $# -eq 2 ]; then
-    # Standard two-argument mode
-    FILE="$1"
-    ED_SCRIPT="$2"
-else
-    # Invalid usage
-    show_usage
+# Validate required arguments
+if [ -z "$FILE_PATH" ]; then
+    echo "✗ Error: File path is required" >&2
+    echo "Use 'eed --help' for usage information" >&2
     exit 1
 fi
 
-
-
-# Handle stdin script input
-if [ "$ED_SCRIPT" = "-" ]; then
+# Handle stdin input
+if [ "$ED_SCRIPT" = "-" ] || [ -z "$ED_SCRIPT" ]; then
     if [ -t 0 ]; then
-        echo "Error: No input provided to stdin" >&2
+        echo "✗ Error: Ed script is required (provide as argument or via stdin)" >&2
+        echo "Use 'eed --help' for usage information" >&2
         exit 1
     fi
     ED_SCRIPT=$(cat)
-    if [ -z "$ED_SCRIPT" ]; then
-        echo "Error: Empty script read from stdin" >&2
-        exit 1
-    fi
 fi
 
-# --- EARLY SAFETY CHECK: will be handled later in unified logic ---
+# Normalize file path to absolute path
+FILE_PATH=$(realpath -m "$FILE_PATH")
 
+# --- File Creation and Validation ---
+if [ ! -f "$FILE_PATH" ]; then
+    # Create file and any necessary parent directories
+    mkdir -p "$(dirname "$FILE_PATH")"
+    touch "$FILE_PATH"
+fi
 
-# --- Pre-processor Validation ---
+# --- Script Validation ---
 validation_result=$(validate_ed_script "$ED_SCRIPT")
 validation_code=$?
 echo "$validation_result" >&2
@@ -123,10 +153,19 @@ if [ -z "$ED_SCRIPT" ] || [ "$ED_SCRIPT" = "" ]; then
     exit 0
 fi
 
-# --- Dot Trap Detection and Guidance ---
+# --- Dot Trap Detection and Smart Handling ---
 if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
-    # Potential dot trap detected, provide guidance
-    suggest_dot_fix "$ED_SCRIPT"
+    # Try smart dot protection first for appropriate contexts
+    SMART_HANDLED_SCRIPT=$(apply_smart_dot_handling "$ED_SCRIPT" "$FILE_PATH")
+    smart_handling_result=$?
+    
+    if [ $smart_handling_result -eq 0 ]; then
+        # Smart protection was applied successfully
+        ED_SCRIPT="$SMART_HANDLED_SCRIPT"
+    else
+        # Smart protection not applied, fall back to standard guidance
+        suggest_dot_fix "$ED_SCRIPT"
+    fi
 fi
 
 # --- Log Commands for Analysis ---
@@ -137,31 +176,30 @@ SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
 # Handle invalid commands immediately (before any complex analysis)
 if [ "$SCRIPT_TYPE" = "invalid_command" ]; then
     echo "✗ Error: Invalid ed command detected" >&2
-    echo "Script contains unrecognized commands:" >&2
-    echo "$ED_SCRIPT" >&2
+    echo "Please check your ed script syntax" >&2
     exit 1
 fi
 
-log_ed_commands "$ED_SCRIPT"
+# --- Line Number Validation ---
+if ! validate_line_ranges "$ED_SCRIPT" "$FILE_PATH"; then
+    echo "✗ Error: Line number validation failed" >&2
+    echo "Please check that line numbers exist in the file" >&2
+    exit 1
+fi
 
-# --- SINGLE COMPLEXITY DETECTION (used by all subsequent logic) ---
-detect_complex_patterns "$ED_SCRIPT"
-HAS_COMPLEX_PATTERNS=$?
+# --- Complex Pattern Analysis for Safety Override ---
+HAS_COMPLEX_PATTERNS=0
+if ! detect_complex_patterns "$ED_SCRIPT" >/dev/null 2>&1; then
+    HAS_COMPLEX_PATTERNS=1
+fi
 
-# --- UNIFIED SAFETY OVERRIDE LOGIC ---
-if [ "$FORCE_MODE" = true ]; then
-    # Check if environment override is set
-    if [ "${EED_FORCE_OVERRIDE:-}" = "1" ]; then
-        # User explicitly overrode safety checks
-        effective_force_mode="$FORCE_MODE"
-    else
-        # Use cached complexity detection result
-        if [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
-            # High-risk: complex patterns detected
-            echo "💡 Complex script detected (--force disabled)" >&2
-            effective_force_mode=false
-        fi
-    fi
+# Determine effective force mode (may be cancelled by safety measures)
+effective_force_mode="$FORCE_MODE"
+
+# Override for testing/emergency use
+if [ "$FORCE_OVERRIDE" = true ]; then
+    effective_force_mode=true
+    echo "⚠️  FORCE_OVERRIDE enabled - bypassing all safety checks" >&2
 fi
 
 # --- Automatic Script Reordering for Line Number Safety ---
@@ -181,186 +219,78 @@ if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; the
     fi
 elif [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
     # Complex patterns detected in non-force mode, skip reordering
-    [ "$DEBUG_MODE" = true ] && echo "⚠️ Complex patterns detected. Auto-reordering disabled for safety." >&2
+    if [ "$DEBUG_MODE" = true ]; then
+        echo "ℹ️  Skipping auto-reorder due to complex patterns" >&2
+    fi
 fi
 
-# Check if file exists, create if needed
-if [ ! -f "$FILE" ]; then
-    echo "Creating new file: $FILE"
-    echo > "$FILE"  # Create file with one empty line instead of zero bytes
-fi
+# --- Ed Execution and Preview Generation ---
 
-# Validate line number ranges after file creation
-if ! validate_line_ranges "$ED_SCRIPT" "$FILE"; then
+# Generate preview file path
+PREVIEW_FILE="${FILE_PATH}.eed.preview"
+
+# Always create preview first (even in force mode) for safety
+cp "$FILE_PATH" "$PREVIEW_FILE"
+
+# Execute ed commands on preview
+if ! printf '%s\n' "$ED_SCRIPT" | ed -s "$PREVIEW_FILE" 2>/dev/null; then
+    echo "✗ Edit command failed" >&2
+    echo "  No changes were made to the original file." >&2
+    echo "Commands attempted:" >&2
+    echo "$ED_SCRIPT" >&2
+    rm -f "$PREVIEW_FILE"
     exit 1
 fi
 
-
-# --- Core Execution Logic with Preview-Confirm ---
-
-# 1. Classify script to determine workflow
-
-# 3. Handle view-only scripts (no changes, simple execution)
-if [ "$SCRIPT_TYPE" = "view_only" ]; then
-    # Create secure temporary command file
-    TEMP_CMD_FILE=$(mktemp)
-    cleanup() {
-        if [ "$DEBUG_MODE" = false ]; then
-            rm -f "$TEMP_CMD_FILE"
-        else
-            echo "Debug mode: temporary file preserved at $TEMP_CMD_FILE" >&2
+# --- Force Mode vs Preview Mode ---
+if [ "$effective_force_mode" = true ]; then
+    # Force mode: automatically apply changes
+    if ! diff -q "$FILE_PATH" "$PREVIEW_FILE" >/dev/null 2>&1; then
+        mv "$PREVIEW_FILE" "$FILE_PATH"
+        
+        # Git integration for force mode
+        if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            git add "$FILE_PATH" 2>/dev/null || true
         fi
-    }
-    trap cleanup EXIT
-
-    # Write the complete ed script to temp file
-    printf '%s\n' "$ED_SCRIPT" >> "$TEMP_CMD_FILE"
-
-    # Execute ed with error handling
-    if [ "$DEBUG_MODE" = true ]; then
-        echo "Debug mode: executing ed with commands from $TEMP_CMD_FILE" >&2
-        echo "Debug mode: ed command file contents:" >&2
-        cat -n "$TEMP_CMD_FILE" >&2
-        echo "Debug mode: ed output:" >&2
-        ed -s "$FILE" < "$TEMP_CMD_FILE"
-        ED_EXIT_CODE=$?
-    else
-        ed -s "$FILE" < "$TEMP_CMD_FILE"
-        ED_EXIT_CODE=$?
-    fi
-
-    # Handle ed result for view operations
-    case $ED_EXIT_CODE in
-        0)
-            echo "✨ Successfully processed $FILE"
-            if [ "$FORGOT_STDIN_ARG_FLAG" = true ]; then
-                echo "💡 Tip: '-' was missing; I read from stdin this time."
-            fi
-            ;;
-        1)
-            echo "✨ View operation completed (no matches found)"
-            if [ "$FORGOT_STDIN_ARG_FLAG" = true ]; then
-                echo "💡 Tip: '-' was missing; I read from stdin this time."
-            fi
-            exit 0
-            ;;
-        2)
-            echo "✗ File I/O error" >&2
-            exit 2
-            ;;
-        3)
-            echo "✗ Internal ed error" >&2
-            exit 3
-            ;;
-    esac
-    exit $ED_EXIT_CODE
-fi
-
-# 4. Handle modifying scripts with the new preview-confirm workflow
-if [ "$SCRIPT_TYPE" = "has_modifying" ]; then
-    TARGET_FILE="$FILE"
-    PREVIEW_FILE="$FILE.eed.preview"
-
-    # Decide on editing mode
-    if [ "$effective_force_mode" = true ]; then
-        # Emit force-mode notice on stdout so test harnesses capturing stdout see it
-        [ "$DEBUG_MODE" = true ] && echo "--force mode enabled. Editing preview file, will apply directly."
-        cp "$TARGET_FILE" "$PREVIEW_FILE"
-        ED_TARGET="$PREVIEW_FILE"  # Always edit preview file
-    else
-        # DEFAULT BEHAVIOR: Work on a copy, leave original untouched
-        cp "$TARGET_FILE" "$PREVIEW_FILE"
-        ED_TARGET="$PREVIEW_FILE" # ed will edit the preview file
-    fi
-
-    # Create and prepare the temp command file
-    TEMP_CMD_FILE=$(mktemp)
-    cleanup() {
-        if [ "$DEBUG_MODE" = false ]; then
-            rm -f "$TEMP_CMD_FILE"
-        else
-            echo "Debug mode: temporary file preserved at $TEMP_CMD_FILE" >&2
-        fi
-    }
-    trap cleanup EXIT
-
-    printf '%s\n' "$ED_SCRIPT" > "$TEMP_CMD_FILE"
-
-    # Execute ed on the chosen target (original or preview)
-    if [ "$DEBUG_MODE" = true ]; then
-        echo "Debug mode: executing ed with commands from $TEMP_CMD_FILE" >&2
-        echo "Debug mode: ed command file contents:" >&2
-        cat -n "$TEMP_CMD_FILE" >&2
-        echo "Debug mode: ed output:" >&2
-        ed -s "$ED_TARGET" < "$TEMP_CMD_FILE"
-        ED_EXIT_CODE=$?
-    else
-        ed -s "$ED_TARGET" < "$TEMP_CMD_FILE"
-        ED_EXIT_CODE=$?
-    fi
-
-    # Handle ed's result
-    if [ $ED_EXIT_CODE -ne 0 ]; then
-        case $ED_EXIT_CODE in
-            1)
-                    echo "✗ Edit command failed" >&2
-                    echo "  No changes were made to the original file." >&2
-                    rm -f "$PREVIEW_FILE"
-                ;;
-            2)
-                echo "✗ File I/O error" >&2
-                    rm -f "$PREVIEW_FILE"
-                ;;
-            3)
-                echo "✗ Internal ed error" >&2
-                    rm -f "$PREVIEW_FILE"
-                ;;
-        esac
-        echo "Commands attempted:" >&2
-        cat "$TEMP_CMD_FILE" >&2
-        exit $ED_EXIT_CODE
-    fi
-
-    # --- Success Path ---
-    if [ "$effective_force_mode" = true ]; then
-        echo "✨"
-        [ "$DEBUG_MODE" = true ] && echo "Successfully edited preview file."
-        [ "$DEBUG_MODE" = true ] && echo "Changes applied directly (force mode enabled)"
-        mv "$PREVIEW_FILE" "$FILE"
-        # Friendly post-success tip if we auto-read stdin
-        if [ "$FORGOT_STDIN_ARG_FLAG" = true ]; then
-            echo "💡 Tip: '-' was missing; I read from stdin this time."
-        fi
-        # Check if inside a Git repository before giving the tip
-        if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-            git add "$FILE" || true
+        
+        echo "✨ Changes applied successfully"
+        
+        # Show what changed in force mode
+        if [ "$DEBUG_MODE" = true ]; then
+            echo "Applied changes:"
+            echo "$ED_SCRIPT" | sed 's/^/  /'
         fi
     else
-        # The "Preview and Confirm" magic happens here
-        echo "✨ Edits applied to a temporary preview. Review the changes below:"
-        echo ""
-        # Generate and print intelligent diff
+        rm -f "$PREVIEW_FILE"
+        echo "✨ No changes needed (file already matches desired state)"
+    fi
+else
+    # Preview mode: show diff and instructions
+    echo "✨ Edits applied to a temporary preview. Review the changes below:"
+    echo
+
+    if diff -q "$FILE_PATH" "$PREVIEW_FILE" >/dev/null 2>&1; then
+        echo "No changes were made to the file content."
+        rm -f "$PREVIEW_FILE"
+    else
+        # Show the diff using git diff for better formatting
         if command -v git >/dev/null 2>&1; then
-            git diff --no-index --color=auto "$FILE" "$PREVIEW_FILE" || true
-        elif command -v delta >/dev/null 2>&1; then
-            delta "$FILE" "$PREVIEW_FILE" || true
+            git diff --no-index --no-prefix "$FILE_PATH" "$PREVIEW_FILE" || true
         else
-            diff -u --color=auto "$FILE" "$PREVIEW_FILE" || true
+            diff -u "$FILE_PATH" "$PREVIEW_FILE" || true
         fi
 
-        echo ""
+        echo
         echo "To apply these changes, run:"
-        if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-            echo "  mv '$PREVIEW_FILE' '$FILE' && git add '$FILE'"
-        else
-            echo "  mv '$PREVIEW_FILE' '$FILE'"
+        echo "  mv '$PREVIEW_FILE' '$FILE_PATH'"
+        
+        # Add git staging hint if in a git repository
+        if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            echo " && git add '$FILE_PATH'"
         fi
-        echo ""
+        
+        echo
         echo "To discard these changes, run:"
         echo "  rm '$PREVIEW_FILE'"
-        if [ "$FORGOT_STDIN_ARG_FLAG" = true ]; then
-            echo ""
-            echo "💡 Tip: '-' was missing; I read from stdin this time."
-        fi
     fi
 fi
