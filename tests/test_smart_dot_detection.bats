@@ -21,19 +21,12 @@ teardown() {
 
 @test "scene detection: bats test file with ed commands should trigger" {
   # Create a typical bats test file
-  cat > test_eed_example.bats <<'EOF'
+  # Create a minimal placeholder bats file to indicate this is a test file (avoid nested @test blocks)
+  cat > test_eed_example.bats <<'OUTER'
 #!/usr/bin/env bats
-
-@test "example ed operation" {
-  run $SCRIPT_UNDER_TEST file.txt "1a
-content line
-EOF
-.
-w
-q"
-  [ "$status" -eq 0 ]
-}
-EOF
+# Placeholder test file containing ed-like content for detection heuristics
+# The real ed commands are provided via $script variable below in this test.
+OUTER
 
   local script="1a
 content line
@@ -46,7 +39,7 @@ q"
   [ "$status" -eq 0 ]  # Should return success (high confidence)
   
   # Should return high confidence score
-  confidence=$(detect_ed_tutorial_context "$script" "test_eed_example.bats")
+  confidence=$(detect_ed_tutorial_context "$script" "test_eed_example.bats" || true)
   [ "$confidence" -ge 70 ]
 }
 
@@ -77,7 +70,7 @@ q"
   run detect_ed_tutorial_context "$script" "ed_tutorial.md"
   [ "$status" -eq 0 ]
   
-  confidence=$(detect_ed_tutorial_context "$script" "ed_tutorial.md")
+  confidence=$(detect_ed_tutorial_context "$script" "ed_tutorial.md" || true)
   [ "$confidence" -ge 60 ]
 }
 
@@ -92,7 +85,7 @@ q"
   run detect_ed_tutorial_context "$script" "tests/test_something.bats"
   [ "$status" -eq 0 ]
   
-  confidence=$(detect_ed_tutorial_context "$script" "tests/test_something.bats")
+  confidence=$(detect_ed_tutorial_context "$script" "tests/test_something.bats" || true)
   [ "$confidence" -ge 70 ]
 }
 
@@ -109,7 +102,7 @@ q"
   run detect_ed_tutorial_context "$script" "docs/ed_usage.md"
   [ "$status" -eq 0 ]
   
-  confidence=$(detect_ed_tutorial_context "$script" "docs/ed_usage.md")
+  confidence=$(detect_ed_tutorial_context "$script" "docs/ed_usage.md" || true)
   [ "$confidence" -ge 60 ]
 }
 
@@ -125,7 +118,7 @@ q"
   run detect_ed_tutorial_context "$script" "src/main.c"
   [ "$status" -ne 0 ]  # Should return failure (low confidence)
   
-  confidence=$(detect_ed_tutorial_context "$script" "src/main.c")
+  confidence=$(detect_ed_tutorial_context "$script" "src/main.c" || true)
   [ "$confidence" -lt 50 ]
 }
 
@@ -142,7 +135,7 @@ q"
   run detect_ed_tutorial_context "$script" "data.txt"
   [ "$status" -ne 0 ]
   
-  confidence=$(detect_ed_tutorial_context "$script" "data.txt")
+  confidence=$(detect_ed_tutorial_context "$script" "data.txt" || true)
   [ "$confidence" -lt 50 ]
 }
 
@@ -156,7 +149,7 @@ q"
   run detect_ed_tutorial_context "$script" "regular_file.txt"
   [ "$status" -ne 0 ]
   
-  confidence=$(detect_ed_tutorial_context "$script" "regular_file.txt")
+  confidence=$(detect_ed_tutorial_context "$script" "regular_file.txt" || true)
   [ "$confidence" -lt 50 ]
 }
 
@@ -171,7 +164,7 @@ other content.
 w
 q"
 
-  confidence=$(detect_ed_tutorial_context "$script" "example.txt")
+  confidence=$(detect_ed_tutorial_context "$script" "example.txt" || true)
   [ "$confidence" -ge 30 ]
   [ "$confidence" -le 70 ]
 }
@@ -182,7 +175,7 @@ q"
   run detect_ed_tutorial_context "$script" "test.bats"
   [ "$status" -ne 0 ]
   
-  confidence=$(detect_ed_tutorial_context "$script" "test.bats")
+  confidence=$(detect_ed_tutorial_context "$script" "test.bats" || true)
   [ "$confidence" -eq 0 ]
 }
 
@@ -195,6 +188,6 @@ q"
   run detect_ed_tutorial_context "$script" "test.bats"
   [ "$status" -ne 0 ]
   
-  confidence=$(detect_ed_tutorial_context "$script" "test.bats")
+  confidence=$(detect_ed_tutorial_context "$script" "test.bats" || true)
   [ "$confidence" -lt 30 ]
 }

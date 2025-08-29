@@ -37,7 +37,7 @@ q"
   
   # Content dot should be replaced, terminator dot should remain
   local line_count
-  line_count=$(echo "$output" | grep -c "^\\.$")
+  line_count=$(echo "$output" | grep -c "^\\.$" || true)
   [ "$line_count" -eq 1 ]  # Only the terminator dot should remain as-is
 }
 
@@ -60,7 +60,7 @@ q"
   
   # Should have exactly 2 terminator dots remaining (one per input block)
   local terminator_count
-  terminator_count=$(echo "$output" | grep -c "^\\.$")
+  terminator_count=$(echo "$output" | grep -c "^\\.$" || true)
   [ "$terminator_count" -eq 2 ]
   
   # Should contain the substitution before w command
@@ -132,7 +132,7 @@ q"
   
   # No substitution needed since no content dots
   local subst_count
-  subst_count=$(echo "$output" | grep -c "^s/")
+  subst_count=$(echo "$output" | grep -c "^s/" || true)
   [ "$subst_count" -eq 0 ]
 }
 
@@ -178,7 +178,7 @@ q"
   
   # Should have exactly one terminator dot (for the outer input block)
   local terminator_count
-  terminator_count=$(echo "$output" | grep -c "^\\.$")
+  terminator_count=$(echo "$output" | grep -c "^\\.$" || true)
   [ "$terminator_count" -eq 1 ]
 }
 

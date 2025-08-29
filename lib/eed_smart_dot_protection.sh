@@ -13,85 +13,112 @@ EED_SMART_DOT_LOADED=1
 detect_ed_tutorial_context() {
     local script="$1"
     local file_path="$2"
-    local confidence=0
-    
-    # === FILE-BASED HEURISTICS (0-30 points) ===
-    
-    # Test files and documentation are strong indicators
+
+    # Empty script => no confidence
+    if [ -z "$script" ]; then
+        echo 0
+        return 1
+    fi
+
     local filename
     filename=$(basename "$file_path")
-    
-    if [[ "$filename" == *test*.bats ]] || [[ "$filename" == test_*.* ]]; then
-        confidence=$((confidence + 25))
-    elif [[ "$filename" == *ed*.* ]] || [[ "$filename" == *tutorial*.* ]]; then
-        confidence=$((confidence + 20))
-    elif [[ "$filename" == *.md ]] || [[ "$filename" == *doc*.* ]]; then
-        confidence=$((confidence + 15))
+
+    # Immediately reject obvious source files to avoid false positives
+    if [[ "$filename" =~ \.(c|cpp|h|hpp|py|js|ts|go|java|rs|swift|kt|m|mm)$ ]]; then
+        echo 0
+        return 1
     fi
-    
-    # Path-based indicators
+
+    # Count standalone terminator dots (only lines that are exactly ".")
+    local dot_count
+    dot_count=$(printf '%s\n' "$script" | grep -c '^\.$' || true)
+    if [ "$dot_count" -eq 0 ]; then
+        # No terminator dots -> not the dot-trap scenario
+        echo 0
+        return 1
+    fi
+
+    # Require at least one strong contextual indicator (filename/path OR content markers)
+    local has_strong_indicator=0
+
+    # filename-level signals (include markdown/tutorial hints)
+    if [[ "$filename" == *.bats ]] || [[ "$filename" == test_* ]] || [[ "$filename" == *.md ]] || [[ "$filename" == *tutorial* ]] || [[ "$filename" == *ed* ]]; then
+        has_strong_indicator=1
+    fi
+
+    # path-level signals
+    if [[ "$file_path" == tests/* ]] || [[ "$file_path" == */tests/* ]] || [[ "$file_path" == docs/* ]] || [[ "$file_path" == */docs/* ]]; then
+        has_strong_indicator=1
+    fi
+
+    # script content signals (explicit bats/tutorial markers)
+    if printf '%s\n' "$script" | grep -q -E 'run[[:space:]].*SCRIPT_UNDER_TEST|@test|#!/usr/bin/env bats|```bash|ed[[:space:]]+[[:alnum:]._/~-]+'; then
+        has_strong_indicator=1
+    fi
+
+    # input-mode or write/quit lines are strong signals too (makes ambiguous . cases count)
+    if printf '%s\n' "$script" | grep -q -E '^[[:space:]]*[0-9,]*[[:space:]]*[aciACI][[:space:]]*$' || printf '%s\n' "$script" | grep -q -E '^[[:space:]]*[wqQ][[:space:]]*$'; then
+        has_strong_indicator=1
+    fi
+
+    # heredoc indicators
+    if printf '%s\n' "$script" | grep -q '<<' || printf '%s\n' "$script" | grep -q 'EOF'; then
+        has_strong_indicator=1
+    fi
+
+    if [ "$has_strong_indicator" -eq 0 ]; then
+        # No contextual signals beyond dots -> avoid auto-transform
+        echo 0
+        return 1
+    fi
+
+    # Calculate confidence with conservative weights
+    local confidence=0
+
+    # File/path signals
+    if [[ "$filename" == *.bats ]] || [[ "$filename" == test_* ]]; then
+        confidence=$((confidence + 50))
+    elif [[ "$filename" == *.md ]] || [[ "$filename" == *tutorial* ]] || [[ "$filename" == *ed* ]]; then
+        confidence=$((confidence + 35))
+    fi
+
     if [[ "$file_path" == tests/* ]] || [[ "$file_path" == */tests/* ]]; then
         confidence=$((confidence + 20))
     elif [[ "$file_path" == docs/* ]] || [[ "$file_path" == */docs/* ]]; then
         confidence=$((confidence + 15))
-    elif [[ "$file_path" == examples/* ]] || [[ "$file_path" == */examples/* ]]; then
-        confidence=$((confidence + 10))
     fi
-    
-    # === CONTENT-BASED HEURISTICS (0-40 points) ===
-    
-    # Check for bats test patterns
-    if echo "$script" | grep -q "run.*SCRIPT_UNDER_TEST"; then
+
+    # Content signals
+    confidence=$((confidence + dot_count * 5))
+
+    if printf '%s\n' "$script" | grep -q -E '^[[:space:]]*[wqQ][[:space:]]*$'; then
         confidence=$((confidence + 20))
     fi
-    
-    if echo "$script" | grep -q "@test\\|#!/usr/bin/env bats"; then
-        confidence=$((confidence + 15))
-    fi
-    
-    # Look for ed command patterns in content (tutorial/documentation style)
-    if echo "$script" | grep -qE "ed [a-zA-Z_./]+|1a\\\\n.*\\\\n\\."; then
-        confidence=$((confidence + 15))
-    fi
-    
-    # Check for shell/bash context indicators  
-    if echo "$script" | grep -qE "\\$\\(|\\\\n|EOF|heredoc"; then
+
+    if printf '%s\n' "$script" | grep -q -E '^[[:space:]]*[0-9,]*[[:space:]]*[aciACI][[:space:]]*$'; then
         confidence=$((confidence + 10))
     fi
-    
-    # === CONTEXT-BASED HEURISTICS (0-30 points) ===
-    
-    # Multiple dots is necessary but not sufficient
-    local dot_count
-    dot_count=$(echo "$script" | grep -c "^\\.$")
-    if [ "$dot_count" -gt 1 ]; then
-        confidence=$((confidence + 10))
-    elif [ "$dot_count" -eq 0 ]; then
-        # No dots means this is not the scenario we're designed for
-        confidence=0
+
+    if printf '%s\n' "$script" | grep -q -E 'run[[:space:]].*SCRIPT_UNDER_TEST|@test|#!/usr/bin/env bats|```bash|ed[[:space:]]+[[:alnum:]._/~-]+'; then
+        confidence=$((confidence + 20))
     fi
-    
-    # Presence of w/q commands suggests complete ed scripts (tutorials often have these)
-    if echo "$script" | grep -qE "^[wqQ]$"; then
-        confidence=$((confidence + 15))
-    fi
-    
-    # Very short scripts are less likely to be tutorials
-    local line_count
-    line_count=$(echo "$script" | wc -l)
-    if [ "$line_count" -lt 3 ]; then
-        confidence=$((confidence - 10))
-    elif [ "$line_count" -gt 10 ]; then
+
+    if printf '%s\n' "$script" | grep -q '<<' || printf '%s\n' "$script" | grep -q 'EOF'; then
         confidence=$((confidence + 5))
     fi
-    
-    # Cap confidence at 100
+
+    # Penalize extremely short scripts
+    local line_count
+    line_count=$(printf '%s\n' "$script" | wc -l)
+    if [ "$line_count" -lt 2 ]; then
+        confidence=$((confidence - 10))
+    fi
+
+    # Clamp
     [ "$confidence" -gt 100 ] && confidence=100
     [ "$confidence" -lt 0 ] && confidence=0
-    
+
     echo "$confidence"
-    
-    # Return success if confidence >= 70
     return $([ "$confidence" -ge 70 ] && echo 0 || echo 1)
 }
 
@@ -128,24 +155,31 @@ transform_content_dots() {
     local has_w_command=false
     local substitution_added=false
     
+    local -i idx=0
+    local -i last_w_index=-1
+    local -i first_q_index=-1
+
     while IFS= read -r line; do
-        # Check if this is a write command (we'll add substitution before first w)
-        if [[ "$line" =~ ^[[:space:]]*w([[:space:]]|$) ]] && [ "$substitution_added" = false ]; then
-            output_lines+=("s/$marker/./g")
-            substitution_added=true
-            has_w_command=true
-        fi
-        
-        # Handle input mode state transitions
+        # Handle input mode state transitions first
         if [ "$in_input_mode" = false ]; then
             # Check if this line starts input mode (a, c, i commands)
             if [[ "$line" =~ ^[[:space:]]*[0-9,\$]*[[:space:]]*[aAcCiI]([[:space:]]|$) ]]; then
                 in_input_mode=true
                 output_lines+=("$line")
+                idx=$((idx + 1))
                 continue
             else
-                # Regular command line
+                # We're not in input mode -> this is a command line.
+                # Record write/quit indices based on the current output length
+                if [[ "$line" =~ ^[[:space:]]*w([[:space:]]|$) ]]; then
+                    last_w_index=${#output_lines[@]}
+                fi
+                if [[ "$line" =~ ^[[:space:]]*[qQ]([[:space:]]|$) ]] && (( first_q_index == -1 )); then
+                    first_q_index=${#output_lines[@]}
+                fi
+
                 output_lines+=("$line")
+                idx=$((idx + 1))
                 continue
             fi
         else
@@ -161,25 +195,50 @@ transform_content_dots() {
                 output_lines+=("$transformed_line")
             fi
         fi
+        idx=$((idx + 1))
     done <<< "$script"
-    
-    # Handle case where w command comes at the end or is missing
-    if [ "$has_w_command" = false ]; then
-        # Look for q command to add substitution before it
+
+    # Only add substitution if the marker was actually used in content.
+    # This avoids inserting a noop substitution for empty input blocks.
+    local marker_used=0
+    for l in "${output_lines[@]}"; do
+        if [[ "$l" == *"$marker"* ]]; then
+            marker_used=1
+            break
+        fi
+    done
+
+    # If no marker was used (no content dots were replaced), return the original script
+    # unchanged to avoid inserting any substitution lines or altering structure.
+    if [ "$marker_used" -eq 0 ]; then
+        printf '%s\n' "${output_lines[@]}"
+        return 0
+    fi
+
+    # Decide best insertion point for the substitution command:
+    # 1) before the last 'w' if present
+    # 2) else before the first 'q'/'Q' if present
+    # 3) else append at end
+    if (( last_w_index >= 0 )); then
         local -a final_output=()
-        local q_found=false
-        
-        for line in "${output_lines[@]}"; do
-            if [[ "$line" =~ ^[[:space:]]*[qQ]([[:space:]]|$) ]] && [ "$q_found" = false ]; then
+        for i in "${!output_lines[@]}"; do
+            if [ "$i" -eq "$last_w_index" ]; then
                 final_output+=("s/$marker/./g")
-                final_output+=("$line")
-                q_found=true
-            else
-                final_output+=("$line")
             fi
+            final_output+=("${output_lines[$i]}")
         done
-        
         output_lines=("${final_output[@]}")
+    elif (( first_q_index >= 0 )); then
+        local -a final_output=()
+        for i in "${!output_lines[@]}"; do
+            if [ "$i" -eq "$first_q_index" ]; then
+                final_output+=("s/$marker/./g")
+            fi
+            final_output+=("${output_lines[$i]}")
+        done
+        output_lines=("${final_output[@]}")
+    else
+        output_lines+=("s/$marker/./g")
     fi
     
     # Output the transformed script
