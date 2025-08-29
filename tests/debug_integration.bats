@@ -318,15 +318,53 @@ q'
   # Previously forced failure to show output — disabled
   :
 }
+
+@test "debug: complex script messaging" {
+  echo "line1" > test_file.txt
+  echo "line2" >> test_file.txt  
+  echo "line3" >> test_file.txt
+
+  script='g/line2/d
+w
+q'
+
+  echo "=== Testing complex script with force ==="
+  run $SCRIPT_UNDER_TEST --force test_file.txt "$script"
+  echo "Exit status: $status"
+  echo "Full output:"
+  printf "%s\n" "$output"
+  
+  echo "=== Checking for complex message ==="
+  if [[ "$output" =~ "Complex script detected" ]]; then
+    echo "✓ Found expected complex message"
+  else
+    echo "✗ Missing complex message"
+  fi
+  
+  if [[ "$output" =~ force.*disabled ]]; then
+    echo "✓ Found force disabled message"
+  else  
+    echo "✗ Missing force disabled message"
+  fi
+  
+  # Test passes - complex script detection works correctly
+  [[ "$output" =~ "Complex script detected" ]]
+  [[ "$output" =~ force.*disabled ]]
+}
+
 # Migrated from tests/test_complex_messages_cleanup.bats - original @test "complex script with --force shows only one clear message"
 @test "complex script with --force shows only one clear message (migrated)" {
+    echo "line1" > test_file.txt
+    echo "line2" >> test_file.txt
+    echo "line3" >> test_file.txt
+    
     script='g/line2/d
 w
 q'
 
-    run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' --force test_file.txt - 2>&1"
+    run $SCRIPT_UNDER_TEST --force test_file.txt "$script"
 
-    # Should show only ONE user-friendly message about force being disabled (stderr merged into $output)
+    # Should show only ONE user-friendly message about force being disabled
     [[ "$output" =~ "Complex script detected" ]]
     [[ "$output" =~ force.*disabled ]]
 
@@ -337,7 +375,12 @@ q'
 # Migrated from [`tests/test_eed.bats`](tests/test_eed.bats:261) - original @test "file creation for non-existent file"
 @test "file creation for non-existent file (migrated)" {
     # Test that eed can create new files
-    run bash -lc "printf '%s\n' '1i' 'first line' '.' 'w' 'q' | '$SCRIPT_UNDER_TEST' --force newfile.txt - 2>&1"
+    script='1i
+first line
+.
+w
+q'
+    run $SCRIPT_UNDER_TEST --force newfile.txt "$script"
     [ "$status" -eq 0 ]
     [ -f newfile.txt ]
     run grep -q "first line" newfile.txt
@@ -345,26 +388,34 @@ q'
 }
 # Migrated from tests/test_complex_messages_cleanup.bats - original @test "complex script without --force is silent about complexity"
 @test "complex script without --force is silent about complexity (migrated)" {
+    echo "line1" > test_file.txt
+    echo "line2" >> test_file.txt
+    echo "line3" >> test_file.txt
+    
     script='g/line2/d
 w
 q'
 
-    run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' test_file.txt - 2>&1"
+    run $SCRIPT_UNDER_TEST test_file.txt "$script"
 
-    # Should show preview workflow without complexity noise (stderr merged into $output)
+    # Should show preview workflow without complexity noise
     [[ "$output" =~ "preview" ]] || [[ "$output" =~ "diff" ]]
 
-    # Should NOT mention "complex" to the user at all (no complex messages even in merged output)
+    # Should NOT mention "complex" to the user at all
     ! [[ "$output" =~ [Cc]omplex ]]
 }
 
 # Migrated from tests/test_complex_messages_cleanup.bats - original @test "debug mode can show technical details"
 @test "debug mode can show technical details (migrated)" {
+    echo "line1" > test_file.txt
+    echo "line2" >> test_file.txt
+    echo "line3" >> test_file.txt
+    
     script='g/line2/d
 w
 q'
 
-    run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' --debug test_file.txt - 2>&1"
+    run $SCRIPT_UNDER_TEST --debug test_file.txt "$script"
 
     # Debug mode can show technical COMPLEX: messages
     [[ "$output" =~ "COMPLEX:" ]] || [[ "$output" =~ "Debug" ]]
