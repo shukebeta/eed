@@ -419,8 +419,7 @@ q'
     ! [[ "$output" =~ [Cc]omplex ]]
 }
 
-# Migrated from tests/test_complex_messages_cleanup.bats - original @test "debug mode can show technical details"
-@test "debug mode can show technical details (migrated)" {
+@test "debug: debug mode technical details" {
     echo "line1" > test_file.txt
     echo "line2" >> test_file.txt
     echo "line3" >> test_file.txt
@@ -429,8 +428,12 @@ q'
 w
 q'
 
+    echo "=== Testing debug mode ==="
     run $SCRIPT_UNDER_TEST --debug test_file.txt "$script"
-
-    # Debug mode can show technical COMPLEX: messages
-    [[ "$output" =~ "COMPLEX:" ]] || [[ "$output" =~ "Debug" ]]
+    echo "Exit status: $status"
+    echo "Full output:"
+    printf "%s\n" "$output"
+    
+    # Debug mode shows technical details about complex patterns
+    [[ "$output" =~ "Skipping auto-reorder due to complex patterns" ]]
 }
