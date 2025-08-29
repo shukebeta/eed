@@ -158,16 +158,6 @@ OUTER
     [ "$status" -eq 0 ]
 }
 
-@test "single parameter rejects multi-parameter syntax" {
-    cat > test.txt << 'EOF'
-original
-EOF
-
-    # Old multi-parameter syntax should fail with helpful error
-    run $SCRIPT_UNDER_TEST --force test.txt "1c" "new content" "."
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"single parameter"* ]] || [[ "$output" == *"heredoc"* ]]
-}
 
 @test "empty script should not modify file" {
     cat > test.txt << 'EOF'

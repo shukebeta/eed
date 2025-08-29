@@ -437,3 +437,4 @@ q'
     # Debug mode shows technical details about complex patterns
     [[ "$output" =~ "Skipping auto-reorder due to complex patterns" ]]
 }
+
