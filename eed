@@ -141,8 +141,7 @@ fi
 
 
 # --- Auto-fix unterminated input blocks (a/c/i)
-FIXED_SCRIPT=$(detect_and_fix_unterminated_input "$ED_SCRIPT")
-if [ $? -ne 0 ]; then
+if ! FIXED_SCRIPT=$(detect_and_fix_unterminated_input "$ED_SCRIPT"); then
     exit 1
 fi
 ED_SCRIPT="$FIXED_SCRIPT"

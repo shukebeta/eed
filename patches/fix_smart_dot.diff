@@ -1,0 +1,29 @@
+diff --git a/lib/eed_smart_dot_protection.sh b/lib/eed_smart_dot_protection.sh
+index 0000000..1111111 100644
+--- a/lib/eed_smart_dot_protection.sh
++++ b/lib/eed_smart_dot_protection.sh
+@@ -225,11 +225,11 @@
+             else
+                 # We're in input mode (and not inside quoted blocks)
+                 if [[ "$line" == "." ]]; then
+                     # Terminator for the current input block; preserve it and exit input mode.
+                     output_lines+=("$line")
+                     in_input_mode=false
+                 else
+-                # This is content - check for dots to replace with markers
+-                local transformed_line
+-                transformed_line="${line//\./${marker}}"
+-                output_lines+=("$transformed_line")
+-                if [[ "$line" != "$transformed_line" ]]; then
+-                    marker_used=1
+-                fi
++                # This is content - only replace a standalone '.' terminator with marker
++                if [[ "$line" == "." ]]; then
++                    output_lines+=("$marker")
++                    marker_used=1
++                else
++                    output_lines+=("$line")
++                fi
+             fi
+         fi
+         idx=$((idx + 1))

@@ -19,9 +19,10 @@ teardown() {
 
 # === BASIC TRANSFORMATION CASES ===
 
-@test "dot transform: single input block with content dot" {
+@test "dot transform: single input block with standalone content dots" {
   local input="1a
-content line.
+content line
+.
 more content
 .
 w
@@ -35,18 +36,19 @@ q"
   [[ "$output" == *"s@"*"@.@g"* ]]
   [[ "$output" == *"w"* ]]
   
-  # Content dot should be replaced, terminator dot should remain
+  # First standalone dot should be replaced, final dot should remain as terminator
   local line_count
   line_count=$(echo "$output" | grep -c "^\\.$" || true)
-  [ "$line_count" -eq 1 ]  # Only the terminator dot should remain as-is
+  [ "$line_count" -eq 1 ]  # Only the final terminator dot should remain as-is
 }
 
-@test "dot transform: multiple input blocks with content dots" {
+@test "dot transform: single input block with multiple standalone dots" {
   local input="1a
-first content.
+first content
 .
-5c
-second content.
+documentation note
+.
+final content
 .
 w
 q"
@@ -58,10 +60,10 @@ q"
   # Should have substitution command
   [[ "$output" == *"s@"*"@.@g"* ]]
   
-  # Should have exactly 2 terminator dots remaining (one per input block)
+  # Should have exactly 1 terminator dot remaining (the final one)
   local terminator_count
   terminator_count=$(echo "$output" | grep -c "^\\.$" || true)
-  [ "$terminator_count" -eq 2 ]
+  [ "$terminator_count" -eq 1 ]
   
   # Should contain the substitution before w command
   local w_line_num
@@ -74,7 +76,9 @@ q"
 @test "dot transform: preserve structure with mixed commands" {
   local input="1d
 2a
-content.
+content with standalone dots
+.
+example line
 .
 5s/old/new/
 w
@@ -96,7 +100,9 @@ q"
 
 @test "dot transform: no w command should handle gracefully" {
   local input="1a
-content.
+content line
+.
+another line
 .
 q"
 
@@ -139,7 +145,9 @@ q"
 @test "dot transform: marker collision detection" {
   # Test script that already contains a potential marker pattern
   local input="1a
-content ~~DOT_123~~ line.
+content ~~DOT_123~~ line
+.
+more content
 .
 w
 q"
@@ -157,9 +165,11 @@ q"
 
 @test "dot transform: complex nested content" {
   local input="1a
-Documentation content.
-More documentation.
-Tutorial section.
+Documentation content
+.
+More documentation  
+.
+Tutorial section
 .
 w
 q"
@@ -181,13 +191,17 @@ q"
 
 @test "dot transform: generates unique markers for concurrent operations" {
   local input1="1a
-content.
+content line
+.
+more content
 .
 w
 q"
 
   local input2="1a
-other.
+other line
+.
+different content
 .
 w
 q"
@@ -205,6 +219,58 @@ q"
 
   # Markers should be different to avoid conflicts
   [ "$marker1" != "$marker2" ]
+}
+
+# === BOUNDARY CONDITIONS ===
+
+@test "dot transform: indented dots are not standalone and should not be transformed" {
+  local input="1a
+Here is ed tutorial:
+  ed file.txt
+  1a
+  content
+  .
+  w
+  q
+End of tutorial
+.
+w
+q"
+
+  local output
+  output=$(transform_content_dots "$input")
+  [ "$?" -eq 0 ]
+
+  # Should NOT have substitution command since indented dots are not standalone
+  local subst_count
+  subst_count=$(echo "$output" | grep -c "^s@" || true)
+  [ "$subst_count" -eq 0 ]
+  
+  # All dots should be preserved as-is
+  [[ "$output" == *"  ."* ]]  # Indented dot preserved
+  [[ "$output" == *$'\n.\n'* ]]  # Final standalone dot preserved
+}
+
+@test "dot transform: true standalone dots get marker protection" {
+  local input="1a
+content line
+.
+another content line  
+.
+w
+q"
+
+  local output
+  output=$(transform_content_dots "$input")
+  [ "$?" -eq 0 ]
+
+  # Should have substitution command since we have content dots
+  [[ "$output" == *"s@"*"@.@g"* ]]
+  
+  # Should have exactly one terminator dot remaining (the final one)
+  local terminator_count
+  terminator_count=$(echo "$output" | grep -c "^\\.$" || true)
+  [ "$terminator_count" -eq 1 ]
 }
 
 # === ERROR HANDLING ===

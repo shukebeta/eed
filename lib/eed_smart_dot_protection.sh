@@ -119,7 +119,7 @@ detect_ed_tutorial_context() {
     [ "$confidence" -lt 0 ] && confidence=0
 
     echo "$confidence"
-    return $([ "$confidence" -ge 70 ] && echo 0 || echo 1)
+    return "$([ "$confidence" -ge 70 ] && echo 0 || echo 1)"
 }
 
 # Transform content dots to unique markers while preserving ed terminator dots
@@ -149,17 +149,29 @@ transform_content_dots() {
         fi
     done
     
+    # First pass: find the line number of the last standalone dot
+    local -i last_dot_line=-1
+    local -i line_num=0
+    while IFS= read -r line; do
+        line_num=$((line_num + 1))
+        if [[ "$line" == "." ]]; then
+            last_dot_line=$line_num
+        fi
+    done <<< "$script"
+    
     # Parse script and identify input blocks
     local -a output_lines=()
     local in_input_mode=false
     local in_double_quote_block=false
     local in_single_quote_block=false
 
-    local -i idx=0
+    local -i current_line=0
     local -i last_w_index=-1
     local -i first_q_index=-1
+    local marker_used=0
 
     while IFS= read -r line; do
+        current_line=$((current_line + 1))
         # Simple heuristic: avoid transforming content that is inside multi-line
         # quoted strings. We toggle quote-block state when the line contains an
         # odd number of unescaped quote characters. This is conservative but
@@ -192,7 +204,6 @@ transform_content_dots() {
         # If we are inside any quoted block, treat line as opaque content.
         if [ "$in_double_quote_block" = true ] || [ "$in_single_quote_block" = true ]; then
             output_lines+=("$line")
-            idx=$((idx + 1))
             continue
         fi
 
@@ -202,8 +213,7 @@ transform_content_dots() {
             if [[ "$line" =~ ^[[:space:]]*[0-9,\$]*[[:space:]]*[aAcCiI]([[:space:]]|$) ]]; then
                 in_input_mode=true
                 output_lines+=("$line")
-                idx=$((idx + 1))
-                continue
+                    continue
             else
                 # We're not in input mode -> this is a command line.
                 # Record write/quit indices based on the current output length
@@ -215,31 +225,29 @@ transform_content_dots() {
                 fi
 
                 output_lines+=("$line")
-                idx=$((idx + 1))
-                continue
+                    continue
             fi
         else
             # We're in input mode (and not inside quoted blocks)
             if [[ "$line" == "." ]]; then
-                # Terminator for the current input block; preserve it and exit input mode.
-                output_lines+=("$line")
-                in_input_mode=false
-            else
-                # This is content - check for dots to replace with markers
-                local transformed_line
-                transformed_line="${line//\./${marker}}"
-                output_lines+=("$transformed_line")
-                if [[ "$line" != "$transformed_line" ]]; then
+                if [ "$current_line" -eq "$last_dot_line" ]; then
+                    # This is the final dot - preserve as terminator and exit input mode
+                    output_lines+=("$line")
+                    in_input_mode=false
+                else
+                    # This is a content dot - replace with marker but stay in input mode
+                    output_lines+=("${marker}")
                     marker_used=1
                 fi
+            else
+                # Regular content lines - preserve as-is
+                output_lines+=("$line")
             fi
         fi
-        idx=$((idx + 1))
     done <<< "$script"
 
     # Only add substitution if the marker was actually used in content.
     # This avoids inserting a noop substitution for empty input blocks.
-    local marker_used=0
     for l in "${output_lines[@]}"; do
         if [[ "$l" == *"$marker"* ]]; then
             marker_used=1
@@ -298,8 +306,7 @@ apply_smart_dot_protection() {
     if [ "$confidence" -ge 70 ]; then
         # High confidence - apply transformation
         local transformed_script
-        transformed_script=$(transform_content_dots "$script")
-        if [ $? -eq 0 ]; then
+        if transformed_script=$(transform_content_dots "$script"); then
             echo "✨ Smart dot protection applied for ed tutorial editing (confidence: ${confidence}%)" >&2
             echo "$transformed_script"
             return 0

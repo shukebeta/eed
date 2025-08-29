@@ -263,8 +263,7 @@ apply_smart_dot_handling() {
     if [ "$detection_result" -eq 0 ]; then
         # High confidence - attempt transformation
         local transformed_script
-        transformed_script=$(transform_content_dots "$script")
-        if [ $? -eq 0 ]; then
+        if transformed_script=$(transform_content_dots "$script"); then
             echo "✨ Smart dot protection applied for ed tutorial editing (confidence: ${confidence}%)" >&2
             echo "$transformed_script"
             return 0
@@ -363,7 +362,7 @@ detect_complex_patterns() {
     # Check for same-address conflicts
     local -A addr_count
     for addr in "${addresses[@]}"; do
-        ((addr_count[$addr]++))
+        addr_count[$addr]=$((${addr_count[$addr]:-0} + 1))
         if (( addr_count[$addr] > 1 )); then
             echo "COMPLEX: Multiple operations on same address: $addr" >&2
             return 1
