@@ -258,15 +258,3 @@ q"
     [ "$status" -eq 0 ]
 }
 
-@test "file creation for non-existent file" {
-    # Test that eed can create new files
-    run $SCRIPT_UNDER_TEST --force newfile.txt "1i
-first line
-.
-w
-q"
-    [ "$status" -eq 0 ]
-    [ -f newfile.txt ]
-    run grep -q "first line" newfile.txt
-    [ "$status" -eq 0 ]
-}

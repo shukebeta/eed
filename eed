@@ -38,13 +38,13 @@ ARGUMENTS:
 EXAMPLES:
   # Preview mode (default - safe)
   eed file.txt "1a\nHello\n.\nw\nq"
-  
+
   # Direct mode (skip preview)
   eed --force file.txt "1d\nw\nq"
-  
+
   # Read from stdin
   echo "1a\nContent\n.\nw\nq" | eed file.txt -
-  
+
 WORKFLOW:
   1. Validates ed commands for safety
   2. Creates preview in file.eed.preview
@@ -153,19 +153,19 @@ if [ -z "$ED_SCRIPT" ] || [ "$ED_SCRIPT" = "" ]; then
 fi
 
 # --- Dot Trap Detection and Smart Handling ---
-if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
-    # Try smart dot protection first for appropriate contexts
-    SMART_HANDLED_SCRIPT=$(apply_smart_dot_handling "$ED_SCRIPT" "$FILE_PATH")
-    smart_handling_result=$?
-    
-    if [ $smart_handling_result -eq 0 ]; then
-        # Smart protection was applied successfully
-        ED_SCRIPT="$SMART_HANDLED_SCRIPT"
-    else
-        # Smart protection not applied, fall back to standard guidance
-        suggest_dot_fix "$ED_SCRIPT"
-    fi
-fi
+#if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
+#    # Try smart dot protection first for appropriate contexts
+#    SMART_HANDLED_SCRIPT=$(apply_smart_dot_handling "$ED_SCRIPT" "$FILE_PATH")
+#    smart_handling_result=$?
+#
+#    if [ $smart_handling_result -eq 0 ]; then
+#        # Smart protection was applied successfully
+#        ED_SCRIPT="$SMART_HANDLED_SCRIPT"
+#    else
+#        # Smart protection not applied, fall back to standard guidance
+#        suggest_dot_fix "$ED_SCRIPT"
+#    fi
+#fi
 
 # --- Log Commands for Analysis ---
 # --- EARLY COMMAND VALIDATION ---
@@ -199,6 +199,14 @@ effective_force_mode="$FORCE_MODE"
 if [ "$FORCE_OVERRIDE" = true ]; then
     effective_force_mode=true
     echo "⚠️  FORCE_OVERRIDE enabled - bypassing all safety checks" >&2
+fi
+
+# If complex patterns are detected, disable force mode to avoid destructive changes.
+# Emit a single, clear user-facing message so CI and users can detect this condition.
+# Do not disable if FORCE_OVERRIDE is explicitly set.
+if [ "$HAS_COMPLEX_PATTERNS" -ne 0 ] && [ "$effective_force_mode" = true ] && [ "$FORCE_OVERRIDE" != true ]; then
+    effective_force_mode=false
+    echo "💡 Complex script detected (--force disabled)" >&2
 fi
 
 # --- Automatic Script Reordering for Line Number Safety ---
@@ -246,14 +254,14 @@ if [ "$effective_force_mode" = true ]; then
     # Force mode: automatically apply changes
     if ! diff -q "$FILE_PATH" "$PREVIEW_FILE" >/dev/null 2>&1; then
         mv "$PREVIEW_FILE" "$FILE_PATH"
-        
+
         # Git integration for force mode
         if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
             git add "$FILE_PATH" 2>/dev/null || true
         fi
-        
+
         echo "✨ Changes applied successfully"
-        
+
         # Show what changed in force mode
         if [ "$DEBUG_MODE" = true ]; then
             echo "Applied changes:"
@@ -282,12 +290,12 @@ else
         echo
         echo "To apply these changes, run:"
         echo "  mv '$PREVIEW_FILE' '$FILE_PATH'"
-        
+
         # Add git staging hint if in a git repository
         if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
             echo " && git add '$FILE_PATH'"
         fi
-        
+
         echo
         echo "To discard these changes, run:"
         echo "  rm '$PREVIEW_FILE'"

@@ -18,7 +18,7 @@ teardown() {
 #!/usr/bin/env bats
 # Test: existing test
 function existing_test() {
-  run echo "hello"  
+  run echo "hello"
   [ "$status" -eq 0 ]
 }
 EOF
@@ -31,15 +31,15 @@ q'
 
   echo "File before eed:"
   cat -n test_file.bats
-  
+
   echo "=== Running eed with full bash trace ==="
   bash -x "$SCRIPT_UNDER_TEST" --debug --force test_file.bats "$script"
   local eed_exit=$?
   echo "Direct eed exit code: $eed_exit"
-  
+
   echo "=== File after eed ==="
   cat -n test_file.bats
-  
+
   # Check if content was inserted
   if grep -q "content line" test_file.bats; then
     echo "✓ Content was inserted"
@@ -49,23 +49,151 @@ q'
   fi
 }
 
-@test "debug: isolate addr_count issue" {
-  source "$REPO_ROOT/lib/eed_validator.sh"
-  
-  script='3a
-content line  
+@test "debug: edge case malformed script" {
+  # From integration tests line 238 issue
+  cat > edge_case.bats <<'EOF'
+# Test: edge case
+function test_edge_case() {
+  echo "test"
+}
+EOF
+
+  # Script that might cause transform failure
+  script='1a
+complex
+malformed.
+script.
+that.
+might.
+fail.
 .
 w
 q'
-  
+
+  echo "File before:"
+  cat -n edge_case.bats
+
+  echo "=== Testing edge case ==="
+  run $SCRIPT_UNDER_TEST edge_case.bats "$script"
+  echo "Exit status: $status"
+  echo "Output: $output"
+
+  echo "=== File after ==="
+  cat edge_case.bats
+
+  # Should handle gracefully (either succeed or fail cleanly)
+  if [ "$status" -eq 0 ]; then
+    echo "✓ Edge case handled successfully"
+  else
+    echo "✓ Edge case failed cleanly (expected behavior)"
+  fi
+}
+
+@test "debug: isolate addr_count issue" {
+  source "$REPO_ROOT/lib/eed_validator.sh"
+
+  script='3a
+content line
+.
+w
+q'
+
   echo "=== Testing detect_complex_patterns directly ==="
   echo "Script:"
   printf "%s\n" "$script"
-  
+
   echo "=== Function result ==="
   detect_complex_patterns "$script" 2>&1
   echo "Exit code: $?"
 }
+
+@test "debug: complex ed examples case" {
+  cat > docs.txt <<'EOF'
+Documentation file
+line2
+line3
+line4
+line5
+EOF
+
+  # Complex case with multiple input blocks - from integration tests
+  script='1a
+Example 1:
+  1a
+  content.
+  .
+  w
+
+Example 2:
+  5c
+  other content.
+  .
+  w
+  q
+.
+w
+q'
+
+  echo "File before:"
+  cat -n docs.txt
+
+  echo "=== Testing complex case ==="
+  run $SCRIPT_UNDER_TEST --force docs.txt "$script"
+  echo "Exit status: $status"
+  echo "Output: $output"
+
+  echo "=== File after ==="
+  cat docs.txt
+
+  # Check if content was inserted
+  if grep -q "content." docs.txt; then
+    echo "✓ Complex case worked"
+  else
+    echo "✗ Complex case failed"
+    return 1
+  fi
+}
+
+
+@test "debug: marker conflicts case" {
+  # From integration tests line 181 issue
+  cat > conflict_test.bats <<'EOF'
+# Test: contains marker-like strings
+function test_markers() {
+  echo "~~DOT_123~~"
+}
+EOF
+
+  script='2a
+# Test: new test with dots
+function test_with_dots() {
+  content.
+  more content.
+}
+.
+w
+q'
+
+  echo "File before:"
+  cat -n conflict_test.bats
+
+  echo "=== Testing marker conflicts ==="
+  run $SCRIPT_UNDER_TEST --force conflict_test.bats "$script"
+  echo "Exit status: $status"
+  echo "Output: $output"
+
+  echo "=== File after ==="
+  cat conflict_test.bats
+
+  # Check if content was inserted
+  if grep -q "test_with_dots" conflict_test.bats; then
+    echo "✓ Marker conflicts case worked"
+  else
+    echo "✗ Marker conflicts case failed"
+    return 1
+  fi
+}
+
 
 @test "debug: reproduce original failing scenario" {
   # Exact copy of original test but with clean @test definitions
@@ -80,7 +208,7 @@ function existing_test() {
 EOF
 
   script='3a
-# Test case demonstrates ed command usage  
+# Test case demonstrates ed command usage
 # Example: eed file.txt with multiple dots
 content line
 .
@@ -94,15 +222,15 @@ q'
   cat test_example.bats
   echo "Script to apply:"
   printf "%q\n" "$script"
-  
-  echo "Running eed with bash trace:"  
+
+  echo "Running eed with bash trace:"
   bash -x "$SCRIPT_UNDER_TEST" --debug --force test_example.bats "$script" 2>&1
   local eed_status=$?
   echo "Direct eed exit status: $eed_status"
-  
+
   echo "File after (if exists):"
   cat test_example.bats 2>/dev/null || echo "File not found"
-  
+
   # Check if content was inserted
   if grep -q "content line" test_example.bats; then
     echo "✓ Content was inserted successfully"
@@ -110,6 +238,7 @@ q'
     echo "✗ Content was NOT inserted"
   fi
 }
+
 
 @test "debug: step by step execution trace" {
   cat > simple_file.txt <<'EOF'
@@ -124,18 +253,18 @@ simple content
 .
 w
 q'
-  
+
   echo "Script to test:"
   printf "%s\n" "$script"
-  
+
   echo "=== Full bash trace ==="
   bash -x "$SCRIPT_UNDER_TEST" --debug --force simple_file.txt "$script" 2>&1 | tail -50
   local exit_code=$?
   echo "Exit code: $exit_code"
-  
+
   echo "=== File result ==="
   cat simple_file.txt
-  
+
   # Check if content was actually inserted
   if grep -q "simple content" simple_file.txt; then
     echo "✓ Simple content was inserted"
@@ -143,6 +272,7 @@ q'
     echo "✗ Simple content was NOT inserted - eed succeeded but did nothing!"
   fi
 }
+
 
 @test "debug: direct ed execution test" {
   cat > test_file.txt <<'EOF'
@@ -153,26 +283,26 @@ EOF
 
   echo "File before ed:"
   cat -n test_file.txt
-  
+
   # Prepare instruction stream like our smart dot protection would
   script='3a
 content line
 .
 w
 q'
-  
+
   echo "=== Testing direct ed execution ==="
   echo "Script to execute:"
   printf "%s\n" "$script"
-  
+
   echo "=== Running ed directly ==="
   printf '%s\n' "$script" | ed -s test_file.txt
   local ed_exit_code=$?
   echo "Direct ed exit code: $ed_exit_code"
-  
+
   echo "=== File after ed ==="
   cat -n test_file.txt
-  
+
   # Check result
   if [ $ed_exit_code -eq 0 ]; then
     echo "✓ Ed command succeeded"
@@ -184,7 +314,58 @@ q'
   else
     echo "✗ Ed command failed with code $ed_exit_code"
   fi
-  
-  # Force failure to see output
-  [ 1 -eq 2 ]
+
+  # Previously forced failure to show output — disabled
+  :
+}
+# Migrated from tests/test_complex_messages_cleanup.bats - original @test "complex script with --force shows only one clear message"
+@test "complex script with --force shows only one clear message (migrated)" {
+    script='g/line2/d
+w
+q'
+
+    run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' --force test_file.txt - 2>&1"
+
+    # Should show only ONE user-friendly message about force being disabled (stderr merged into $output)
+    [[ "$output" =~ "Complex script detected" ]]
+    [[ "$output" =~ force.*disabled ]]
+
+    # Should show exactly ONE user-visible complex message
+    complex_count=$(echo "$output" | grep -c -i "complex" || true)
+    [ "$complex_count" -eq 1 ]
+}
+# Migrated from [`tests/test_eed.bats`](tests/test_eed.bats:261) - original @test "file creation for non-existent file"
+@test "file creation for non-existent file (migrated)" {
+    # Test that eed can create new files
+    run bash -lc "printf '%s\n' '1i' 'first line' '.' 'w' 'q' | '$SCRIPT_UNDER_TEST' --force newfile.txt - 2>&1"
+    [ "$status" -eq 0 ]
+    [ -f newfile.txt ]
+    run grep -q "first line" newfile.txt
+    [ "$status" -eq 0 ]
+}
+# Migrated from tests/test_complex_messages_cleanup.bats - original @test "complex script without --force is silent about complexity"
+@test "complex script without --force is silent about complexity (migrated)" {
+    script='g/line2/d
+w
+q'
+
+    run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' test_file.txt - 2>&1"
+
+    # Should show preview workflow without complexity noise (stderr merged into $output)
+    [[ "$output" =~ "preview" ]] || [[ "$output" =~ "diff" ]]
+
+    # Should NOT mention "complex" to the user at all (no complex messages even in merged output)
+    ! [[ "$output" =~ [Cc]omplex ]]
+}
+
+# Migrated from tests/test_complex_messages_cleanup.bats - original @test "debug mode can show technical details"
+@test "debug mode can show technical details (migrated)" {
+    script='g/line2/d
+w
+q'
+
+    run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' --debug test_file.txt - 2>&1"
+
+    # Debug mode can show technical COMPLEX: messages
+    [[ "$output" =~ "COMPLEX:" ]] || [[ "$output" =~ "Debug" ]]
 }
