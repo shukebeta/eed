@@ -141,16 +141,6 @@ if [ "$FORCE_MODE" = true ] && [ "$DEBUG_MODE" = true ]; then
     echo "--force mode enabled" >&2
 fi
 
-# --- File Creation and Validation ---
-if [ ! -f "$FILE_PATH" ]; then
-    # Create file and any necessary parent directories
-    mkdir -p "$(dirname "$FILE_PATH")"
-    # First create then show message (test expects exact message)
-    # Create file with single empty line to avoid ed line number issues
-    echo "" > "$FILE_PATH"
-    echo "Creating new file: $FILE_PATH" >&2
-fi
-
 # --- Script Validation ---
 validation_result=$(validate_ed_script "$ED_SCRIPT")
 validation_code=$?
@@ -198,6 +188,16 @@ if [ "$SCRIPT_TYPE" = "invalid_command" ]; then
     echo "✗ Error: Invalid ed command detected" >&2
     echo "Please check your ed script syntax" >&2
     exit 1
+fi
+
+# --- File Creation (after script validation) ---
+if [ ! -f "$FILE_PATH" ]; then
+    # Create file and any necessary parent directories
+    mkdir -p "$(dirname "$FILE_PATH")"
+    # First create then show message (test expects exact message)
+    # Create file with single empty line to avoid ed line number issues
+    echo "" > "$FILE_PATH"
+    echo "Creating new file: $FILE_PATH" >&2
 fi
 
 # --- Line Number Validation ---
