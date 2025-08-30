@@ -225,7 +225,9 @@ q"
     
     # Changes should be automatically staged by eed
     run git status --porcelain
-    [[ "$output" == *"M app.py"* ]]
+    echo "git status output: '$output'" >&3
+    echo "git status exit code: $status" >&3
+    [[ "$output" == *"M  app.py"* ]]
     
     # Verify the change was made
     run grep -q "AI-added comment" app.py
