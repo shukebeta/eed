@@ -237,7 +237,7 @@ q"
     run $SCRIPT_UNDER_TEST --unknown sample.txt "p"
     [ "$status" -ne 0 ]
 
-    [[ "$output" == *"Error: Unknown option --unknown"* ]]
+    [[ "$output" == *"Error: Unknown option '--unknown'"* ]]
 }
 
 @test "preview mode - complex diff shows properly" {
