@@ -41,18 +41,15 @@ detect_ed_tutorial_context() {
     # Require at least one strong contextual indicator (filename/path OR content markers)
     local has_strong_indicator=0
 
-    # filename-level signals (include markdown/tutorial hints)
+    # Check for strong contextual indicators using short-circuit evaluation
     if [[ "$filename" == *.bats ]] || [[ "$filename" == test_* ]] || [[ "$filename" == *.md ]] || [[ "$filename" == *tutorial* ]] || [[ "$filename" == *ed* ]]; then
+        # filename-level signals (include markdown/tutorial hints)
         has_strong_indicator=1
-    fi
-
-    # path-level signals
-    if [[ "$file_path" == tests/* ]] || [[ "$file_path" == */tests/* ]] || [[ "$file_path" == docs/* ]] || [[ "$file_path" == */docs/* ]]; then
+    elif [[ "$file_path" == tests/* ]] || [[ "$file_path" == */tests/* ]] || [[ "$file_path" == docs/* ]] || [[ "$file_path" == */docs/* ]]; then
+        # path-level signals
         has_strong_indicator=1
-    fi
-
-    # script content signals (explicit bats/tutorial markers)
-    if printf '%s\n' "$script" | grep -q -E 'run[[:space:]].*SCRIPT_UNDER_TEST|@test|#!/usr/bin/env bats|```bash|ed[[:space:]]+[[:alnum:]._/~-]+'; then
+    elif printf '%s\n' "$script" | grep -q -E 'run[[:space:]].*SCRIPT_UNDER_TEST|@test|#!/usr/bin/env bats|```bash|ed[[:space:]]+[[:alnum:]._/~-]+'; then
+        # script content signals (explicit bats/tutorial markers) - expensive check last
         has_strong_indicator=1
     fi
 
