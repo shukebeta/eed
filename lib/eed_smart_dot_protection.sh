@@ -159,8 +159,11 @@ transform_content_dots() {
         fi
     done <<< "$script"
     
-    # Parse script and identify input blocks
+    # Parse script and identify input blocks, while tracking whether each output line
+    # is a command (1) or input/content (0). This allows safe insertion of substitution
+    # commands outside input blocks.
     local -a output_lines=()
+    local -a line_is_command=()
     local in_input_mode=false
 
     local -i current_line=0
@@ -171,49 +174,53 @@ transform_content_dots() {
     while IFS= read -r line; do
         current_line=$((current_line + 1))
 
-        # Handle input mode state transitions (only when not inside quoted blocks)
         if [ "$in_input_mode" = false ]; then
             # Check if this line starts input mode (a, c, i commands)
             if [[ "$line" =~ ^[[:space:]]*[0-9,\$]*[[:space:]]*[aAcCiI]([[:space:]]|$) ]]; then
                 in_input_mode=true
                 output_lines+=("$line")
-                    continue
-            else
-                # We're not in input mode -> this is a command line.
-                # Record write/quit indices based on the current output length
-                if [[ "$line" =~ ^[[:space:]]*w([[:space:]]|$) ]]; then
-                    last_w_index=${#output_lines[@]}
-                fi
-                if [[ "$line" =~ ^[[:space:]]*[qQ]([[:space:]]|$) ]] && (( first_q_index == -1 )); then
-                    first_q_index=${#output_lines[@]}
-                fi
-
-                output_lines+=("$line")
-                    continue
+                line_is_command+=("1")
+                continue
             fi
+
+            # We're not in input mode -> this is a command line.
+            # Record write/quit indices based on the current output length
+            if [[ "$line" =~ ^[[:space:]]*w([[:space:]]|$) ]]; then
+                last_w_index=${#output_lines[@]}
+            fi
+            if [[ "$line" =~ ^[[:space:]]*[qQ]([[:space:]]|$) ]] && (( first_q_index == -1 )); then
+                first_q_index=${#output_lines[@]}
+            fi
+
+            output_lines+=("$line")
+            line_is_command+=("1")
+            continue
         else
             # We're in input mode (and not inside quoted blocks)
             if [[ "$line" == "." ]]; then
                 if [ "$current_line" -eq "$last_dot_line" ]; then
                     # This is the final dot - preserve as terminator and exit input mode
                     output_lines+=("$line")
+                    line_is_command+=("1")
                     in_input_mode=false
                 else
                     # This is a content dot - replace with marker but stay in input mode
                     output_lines+=("${marker}")
+                    line_is_command+=("0")
                     marker_used=1
                 fi
             else
-                # Regular content lines - preserve as-is
+                # Regular content lines - preserve as-is (content)
                 output_lines+=("$line")
+                line_is_command+=("0")
             fi
         fi
     done <<< "$script"
 
     # Only add substitution if the marker was actually used in content.
     # This avoids inserting a noop substitution for empty input blocks.
-    for l in "${output_lines[@]}"; do
-        if [[ "$l" == *"$marker"* ]]; then
+    for idx in "${!output_lines[@]}"; do
+        if [[ "${output_lines[$idx]}" == *"$marker"* ]]; then
             marker_used=1
             break
         fi
@@ -226,30 +233,72 @@ transform_content_dots() {
         return 0
     fi
 
-    # Decide best insertion point for the substitution command:
-    # 1) before the last 'w' if present
-    # 2) else before the first 'q'/'Q' if present
-    # 3) else append at end
-    if (( last_w_index >= 0 )); then
-        local -a final_output=()
-        for i in "${!output_lines[@]}"; do
-            if [ "$i" -eq "$last_w_index" ]; then
-                final_output+=("s@${marker}@.@g")
+    # Decide best insertion point for the substitution command.
+    # Ensure the substitution is placed outside any input (a/c/i) blocks so ed
+    # treats it as a command and not as text content.
+    local safe_insert_idx=-1
+    local in_input_state=false
+
+    for i in "${!output_lines[@]}"; do
+        line="${output_lines[$i]}"
+
+        # Detect start of input mode when not already in one
+        if [ "$in_input_state" = false ]; then
+            if [[ "$line" =~ ^[[:space:]]*[0-9,\$]*[[:space:]]*[aAcCiI]([[:space:]]|$) ]]; then
+                in_input_state=true
+                continue
             fi
-            final_output+=("${output_lines[$i]}")
-        done
-        output_lines=("${final_output[@]}")
-    elif (( first_q_index >= 0 )); then
+        else
+            # Inside input mode; look for terminator
+            if [[ "$line" == "." ]]; then
+                in_input_state=false
+            fi
+            continue
+        fi
+
+        # Only consider candidate command lines when not in input mode
+        if [ "$in_input_state" = false ]; then
+            if [[ "$line" =~ ^[[:space:]]*w([[:space:]]|$) ]] && [[ "${line_is_command[$i]}" == "1" ]]; then
+                safe_insert_idx=$i
+                break
+            fi
+            if [[ "$line" =~ ^[[:space:]]*[qQ]([[:space:]]|$) ]] && [ "$safe_insert_idx" -eq -1 ] && [[ "${line_is_command[$i]}" == "1" ]]; then
+                safe_insert_idx=$i
+            fi
+        fi
+    done
+
+        if [ "$safe_insert_idx" -ge 0 ]; then
         local -a final_output=()
         for i in "${!output_lines[@]}"; do
-            if [ "$i" -eq "$first_q_index" ]; then
-                final_output+=("s@${marker}@.@g")
+                if [ "$i" -eq "$safe_insert_idx" ]; then
+                final_output+=("1,\$s@${marker}@.@g")
             fi
             final_output+=("${output_lines[$i]}")
         done
         output_lines=("${final_output[@]}")
     else
-        output_lines+=("s@${marker}@.@g")
+        # No safe command position found; attempt to insert after the last terminating '.'
+        local -i insert_at_index=${#output_lines[@]}
+        for (( j=${#output_lines[@]}-1; j>=0; j-- )); do
+            if [[ "${output_lines[$j]}" == "." ]]; then
+                insert_at_index=$((j+1))
+                break
+            fi
+        done
+
+        if [ "$insert_at_index" -lt ${#output_lines[@]} ]; then
+            local -a final_output=()
+            for i in "${!output_lines[@]}"; do
+                if [ "$i" -eq "$insert_at_index" ]; then
+                    final_output+=("1,\$s@${marker}@.@g")
+                fi
+                final_output+=("${output_lines[$i]}")
+            done
+            output_lines=("${final_output[@]}")
+        else
+            output_lines+=("1,\$s@${marker}@.@g")
+        fi
     fi
     
     # Output the transformed script
@@ -290,4 +339,9 @@ apply_smart_dot_protection() {
         echo "$script"
         return 1
     fi
+}
+
+# Backwards-compatible wrapper for older callers
+apply_smart_dot_handling() {
+    apply_smart_dot_protection "$@"
 }

@@ -16,6 +16,10 @@ FORCE_OVERRIDE="${EED_FORCE_OVERRIDE:-false}"
 
 # Testing mode (prevents log file creation)
 TESTING_MODE="${EED_TESTING:-false}"
+# Flag set when smart-dot protection has been applied to the ED_SCRIPT.
+# When true, treat the script as tutorial-context and avoid classifying it as
+# "complex" which would disable --force behavior.
+SMART_PROTECTION_APPLIED=false
 
 # --- Help and Usage ---
 show_help() {
@@ -171,12 +175,13 @@ ED_SCRIPT="$FIXED_SCRIPT"
 # --- Dot Trap Detection and Smart Handling ---
 if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
     # Try smart dot protection first for appropriate contexts
-    SMART_HANDLED_SCRIPT=$(apply_smart_dot_handling "$ED_SCRIPT" "$FILE_PATH")
+    SMART_HANDLED_SCRIPT=$(apply_smart_dot_protection "$ED_SCRIPT" "$FILE_PATH")
     smart_handling_result=$?
 
     if [ $smart_handling_result -eq 0 ]; then
         # Smart protection was applied successfully
         ED_SCRIPT="$SMART_HANDLED_SCRIPT"
+        SMART_PROTECTION_APPLIED=true
     else
         # Smart protection not applied, fall back to standard guidance
         suggest_dot_fix "$ED_SCRIPT"
@@ -195,15 +200,6 @@ if [ "$SCRIPT_TYPE" = "invalid_command" ]; then
     exit 1
 fi
 
-# --- File Creation (after script validation) ---
-if [ ! -f "$FILE_PATH" ]; then
-    # Create file and any necessary parent directories
-    mkdir -p "$(dirname "$FILE_PATH")"
-    # First create then show message (test expects exact message)
-    # Create file with single empty line to avoid ed line number issues
-    echo "" > "$FILE_PATH"
-    echo "Creating new file: $FILE_PATH" >&2
-fi
 
 # --- Line Number Validation ---
 if ! validate_line_ranges "$ED_SCRIPT" "$FILE_PATH"; then
@@ -222,8 +218,14 @@ if [ "$FORCE_OVERRIDE" = 1 ]; then
     effective_force_mode=true
     echo "⚠️  FORCE_OVERRIDE enabled - bypassing all safety checks" >&2
 else
-    if ! detect_complex_patterns "$ED_SCRIPT" >/dev/null 2>&1; then
-        HAS_COMPLEX_PATTERNS=1
+    # If smart-dot protection was applied for tutorial contexts, treat as non-complex
+    # so that --force still applies the changes. Otherwise run normal detection.
+    if [ "$SMART_PROTECTION_APPLIED" = true ]; then
+        HAS_COMPLEX_PATTERNS=0
+    else
+        if ! detect_complex_patterns "$ED_SCRIPT" >/dev/null 2>&1; then
+            HAS_COMPLEX_PATTERNS=1
+        fi
     fi
 fi
 
@@ -266,6 +268,33 @@ elif [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
     if [ "$DEBUG_MODE" = true ]; then
         echo "ℹ️  Skipping auto-reorder due to complex patterns" >&2
     fi
+fi
+
+# --- File Creation (after script validation) ---
+if [ ! -f "$FILE_PATH" ]; then
+    # Create file and any necessary parent directories
+    mkdir -p "$(dirname "$FILE_PATH")"
+
+    # Determine required minimum line count from numeric addresses in the final ed script.
+    # Use the final ED_SCRIPT (after transforms/reordering) to compute the maximum numeric
+    # line referenced so the newly created file has enough blank lines for ed commands.
+    required_lines_candidates=$(printf '%s\n' "$ED_SCRIPT" | grep -oE '\b[0-9]+\b' || true)
+    if [ -z "$required_lines_candidates" ]; then
+        required_lines=1
+    else
+        required_lines=$(printf '%s\n' "$required_lines_candidates" | awk 'BEGIN{m=1} {n=$1+0; if(n>m) m=n} END{print m}')
+        required_lines=${required_lines:-1}
+    fi
+
+    # Create the file with the required number of blank lines.
+    : > "$FILE_PATH"
+    i=0
+    while [ $i -lt "$required_lines" ]; do
+        printf '\n' >> "$FILE_PATH"
+        i=$((i+1))
+    done
+
+    echo "Creating new file: $FILE_PATH" >&2
 fi
 
 # --- Ed Execution and Preview Generation ---
