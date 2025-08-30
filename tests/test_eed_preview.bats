@@ -389,24 +389,21 @@ q"
     [[ "$output" == *"-line2"* ]]
 }
 
-@test "line number validation - new file creation with invalid line" {
-    # Test line validation on newly created files
+@test "line number validation - reject invalid operations on non-existent files" {
+    # Test that we reject invalid operations without creating unnecessary files
     rm -f new_test_file.txt  # Ensure file doesn't exist
 
     run $SCRIPT_UNDER_TEST new_test_file.txt "5d
 q"
     [ "$status" -ne 0 ]
 
-    # Should show error for new file (which has only 1 line)
+    # Should show error for attempting to delete line 5 from non-existent/empty file
     [[ "$output" == *"Line number error in command '5d'"* ]]
     [[ "$output" == *"Line 5 does not exist (file has only 1 lines)"* ]]
+    [[ "$output" == *"Line number validation failed"* ]]
 
-    # Should show file creation message first
-    [[ "$output" == *"Creating new file: new_test_file.txt"* ]]
-
-    # File should exist but be unchanged (just the empty line)
-    [ -f new_test_file.txt ]
-    [[ "$(wc -l < new_test_file.txt)" == "1" ]]
+    # Should NOT create file for invalid operations
+    [ ! -f new_test_file.txt ]
 
     # Clean up
     rm -f new_test_file.txt

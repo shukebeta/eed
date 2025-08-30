@@ -270,32 +270,7 @@ elif [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
     fi
 fi
 
-# --- File Creation (after script validation) ---
-if [ ! -f "$FILE_PATH" ]; then
-    # Create file and any necessary parent directories
-    mkdir -p "$(dirname "$FILE_PATH")"
-
-    # Determine required minimum line count from numeric addresses in the final ed script.
-    # Use the final ED_SCRIPT (after transforms/reordering) to compute the maximum numeric
-    # line referenced so the newly created file has enough blank lines for ed commands.
-    required_lines_candidates=$(printf '%s\n' "$ED_SCRIPT" | grep -oE '\b[0-9]+\b' || true)
-    if [ -z "$required_lines_candidates" ]; then
-        required_lines=1
-    else
-        required_lines=$(printf '%s\n' "$required_lines_candidates" | awk 'BEGIN{m=1} {n=$1+0; if(n>m) m=n} END{print m}')
-        required_lines=${required_lines:-1}
-    fi
-
-    # Create the file with the required number of blank lines.
-    : > "$FILE_PATH"
-    i=0
-    while [ $i -lt "$required_lines" ]; do
-        printf '\n' >> "$FILE_PATH"
-        i=$((i+1))
-    done
-
-    echo "Creating new file: $FILE_PATH" >&2
-fi
+# File creation happens later, after validation passes
 
 # --- Ed Execution and Preview Generation ---
 
@@ -310,6 +285,13 @@ fi
 
 # For modifying commands, use preview workflow
 PREVIEW_FILE="${FILE_PATH}.eed.preview"
+
+# Create file if it doesn't exist (after all validation passes)
+if [ ! -f "$FILE_PATH" ]; then
+    mkdir -p "$(dirname "$FILE_PATH")"
+    echo "" > "$FILE_PATH"
+    echo "Creating new file: $FILE_PATH" >&2
+fi
 
 # Copy file and execute ed
 cp "$FILE_PATH" "$PREVIEW_FILE"
