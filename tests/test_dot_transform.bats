@@ -69,8 +69,8 @@ q"
   local w_line_num
   w_line_num=$(echo "$output" | grep -n "^w$" | cut -d: -f1)
   local subst_line_num  
-  subst_line_num=$(echo "$output" | grep -n "^s@" | cut -d: -f1)
-  [ "$subst_line_num" -lt "$w_line_num" ]
+  subst_line_num=$(echo "$output" | grep -nE "^(1,\\\$)?s@" | cut -d: -f1)
+  [ -n "$subst_line_num" ] && [ -n "$w_line_num" ] && [ "$subst_line_num" -lt "$w_line_num" ]
 }
 
 @test "dot transform: preserve structure with mixed commands" {
@@ -116,8 +116,8 @@ q"
     local q_line_num
     q_line_num=$(echo "$output" | grep -n "^q$" | cut -d: -f1)
     local subst_line_num
-    subst_line_num=$(echo "$output" | grep -n "^s@" | cut -d: -f1)
-    [ "$subst_line_num" -lt "$q_line_num" ]
+    subst_line_num=$(echo "$output" | grep -nE "^(1,\\\$)?s@" | cut -d: -f1)
+    [ -n "$subst_line_num" ] && [ -n "$q_line_num" ] && [ "$subst_line_num" -lt "$q_line_num" ]
   fi
 }
 
