@@ -207,19 +207,19 @@ if ! validate_line_ranges "$ED_SCRIPT" "$FILE_PATH"; then
     exit 1
 fi
 
-# --- Complex Pattern Analysis for Safety Override ---
-HAS_COMPLEX_PATTERNS=0
-if ! detect_complex_patterns "$ED_SCRIPT" >/dev/null 2>&1; then
-    HAS_COMPLEX_PATTERNS=1
-fi
-
 # Determine effective force mode (may be cancelled by safety measures)
 effective_force_mode="$FORCE_MODE"
 
+# --- Complex Pattern Analysis for Safety Override ---
+HAS_COMPLEX_PATTERNS=0
 # Override for testing/emergency use
-if [ "$FORCE_OVERRIDE" = true ]; then
+if [ "$FORCE_OVERRIDE" = 1 ]; then
     effective_force_mode=true
     echo "⚠️  FORCE_OVERRIDE enabled - bypassing all safety checks" >&2
+else
+    if ! detect_complex_patterns "$ED_SCRIPT" >/dev/null 2>&1; then
+        HAS_COMPLEX_PATTERNS=1
+    fi
 fi
 
 # If complex patterns are detected, disable force mode to avoid destructive changes.

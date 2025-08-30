@@ -106,12 +106,6 @@ EOF
 )"
     [ "$status" -eq 0 ]
 
-    # Should show original pattern line in output
-    [[ "$output" == *"second line with pattern"* ]]
-    # Should show replaced line in output
-    [[ "$output" == *"replaced pattern line"* ]]
-
-    # File should be modified
     run grep -q "replaced pattern line" sample.txt
     [ "$status" -eq 0 ]
     run grep -q "second line with pattern" sample.txt

@@ -1,0 +1,5 @@
+first line
+replaced pattern line
+third line
+fourth line with pattern
+fifth line
