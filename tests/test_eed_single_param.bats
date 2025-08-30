@@ -159,14 +159,16 @@ OUTER
 }
 
 
-@test "empty script should not modify file" {
+@test "empty script should return error" {
     cat > test.txt << 'EOF'
 original content
 EOF
 
-    # Empty ed script should do nothing
+    # Empty ed script should return error
     run $SCRIPT_UNDER_TEST --force test.txt ""
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Error: Empty ed script provided"* ]]
+    # File should remain unchanged
     run grep -q "original content" test.txt
     [ "$status" -eq 0 ]
 }

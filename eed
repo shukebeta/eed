@@ -64,6 +64,7 @@ EOF
 FORCE_MODE=false
 FILE_PATH=""
 ED_SCRIPT=""
+ED_SCRIPT_PROVIDED=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -87,8 +88,9 @@ while [[ $# -gt 0 ]]; do
             # Handle stdin marker as regular argument (Unix standard)
             if [ -z "$FILE_PATH" ]; then
                 FILE_PATH="$1"
-            elif [ -z "$ED_SCRIPT" ]; then
+            elif [ "$ED_SCRIPT_PROVIDED" = false ]; then
                 ED_SCRIPT="$1"
+                ED_SCRIPT_PROVIDED=true
             else
                 echo "✗ Error: Too many arguments" >&2
                 echo "Use 'eed --help' for usage information" >&2
@@ -104,8 +106,9 @@ while [[ $# -gt 0 ]]; do
         *)
             if [ -z "$FILE_PATH" ]; then
                 FILE_PATH="$1"
-            elif [ -z "$ED_SCRIPT" ]; then
+            elif [ "$ED_SCRIPT_PROVIDED" = false ]; then
                 ED_SCRIPT="$1"
+                ED_SCRIPT_PROVIDED=true
             else
                 echo "✗ Error: Too many arguments" >&2
                 echo "Use 'eed --help' for usage information" >&2
@@ -123,8 +126,15 @@ if [ -z "$FILE_PATH" ]; then
     exit 1
 fi
 
-# Handle stdin input
-if [ "$ED_SCRIPT" = "-" ] || [ -z "$ED_SCRIPT" ]; then
+# Handle empty script case first (only for explicitly provided empty string)
+if [ "$ED_SCRIPT_PROVIDED" = true ] && [ "$ED_SCRIPT" = "" ]; then
+    echo "✗ Error: Empty ed script provided" >&2
+    echo "Please provide valid ed commands to execute" >&2
+    exit 1
+fi
+
+# Handle stdin input (for missing ED_SCRIPT or explicit '-')
+if [ "$ED_SCRIPT" = "-" ] || [ "$ED_SCRIPT_PROVIDED" = false ]; then
     if [ -t 0 ]; then
         echo "✗ Error: Ed script is required (provide as argument or via stdin)" >&2
         echo "Use 'eed --help' for usage information" >&2
@@ -141,6 +151,7 @@ if [ "$FORCE_MODE" = true ] && [ "$DEBUG_MODE" = true ]; then
     echo "--force mode enabled" >&2
 fi
 
+
 # --- Script Validation ---
 validation_result=$(validate_ed_script "$ED_SCRIPT")
 validation_code=$?
@@ -156,12 +167,6 @@ if ! FIXED_SCRIPT=$(detect_and_fix_unterminated_input "$ED_SCRIPT"); then
     exit 1
 fi
 ED_SCRIPT="$FIXED_SCRIPT"
-
-# Handle empty script case
-if [ -z "$ED_SCRIPT" ] || [ "$ED_SCRIPT" = "" ]; then
-    echo "✨ No operations performed (empty script)"
-    exit 0
-fi
 
 # --- Dot Trap Detection and Smart Handling ---
 #if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
