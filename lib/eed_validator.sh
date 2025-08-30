@@ -203,27 +203,92 @@ classify_ed_script() {
 # but the dots got interpreted as ed terminators instead
 detect_dot_trap() {
     local script="$1"
+    local -a lines
+    local -a suspicious_line_numbers=()
+    local is_confirmed_tutorial=false
     local line_count=0
-    local dot_count=0
-    local suspicious_pattern=false
 
-    # Count lines and standalone dots
-    while IFS= read -r line; do
-        ((line_count++))
-        if [[ "$line" = "." ]]; then
-            ((dot_count++))
+    # Parse script into array
+    readarray -t lines <<< "$script"
+    
+    # Helper function to check if a line is a valid ed command
+    is_valid_ed_command() {
+        local cmd="$1"
+        [[ -z "$cmd" ]] && return 1
+        
+        # Match common ed commands: addresses, operations, combinations
+        [[ "$cmd" =~ ^[0-9]*[aicdspmtjklnpwqQ=].*$ ]] || \
+        [[ "$cmd" =~ ^\$[aicdspmtjklnpwqQ=].*$ ]] || \
+        [[ "$cmd" =~ ^/.*/.* ]] || \
+        [[ "$cmd" =~ ^[0-9]*,[0-9]*[aicdspmtjklnpwqQ=] ]] || \
+        [[ "$cmd" =~ ^g/.*/[dps] ]] || \
+        [[ "$cmd" =~ ^[wqQ]$ ]]
+    }
+    
+    for i in "${!lines[@]}"; do
+        local line="${lines[i]}"
+        line_count=$((line_count + 1))
+        
+        if [[ "$line" == "." ]]; then
+            local next_line="${lines[$((i+1))]:-}"
+            
+            if [[ "$is_confirmed_tutorial" == true ]]; then
+                # Already confirmed tutorial - this dot is suspicious
+                suspicious_line_numbers+=($i)
+            elif is_valid_ed_command "$next_line"; then
+                # Dot followed by valid ed command - potentially suspicious
+                suspicious_line_numbers+=($i)
+            else
+                # Dot not followed by valid ed command - immediately suspicious
+                suspicious_line_numbers+=($i)
+            fi
         fi
-
-        # Look for patterns suggesting heredoc usage attempt
-        if [[ "$line" =~ ${EED_REGEX_INPUT_BASIC} ]] || [[ "$line" =~ ${EED_REGEX_WRITE_BASIC} ]] || [[ "$line" =~ ${EED_REGEX_QUIT_BASIC} ]]; then
-            suspicious_pattern=true
+        
+        if [[ "$line" =~ ^[qQ]$ ]] && [[ "$is_confirmed_tutorial" == false ]]; then
+            # Found quit command, check if there's content after it
+            local has_content_after_q=false
+            for ((j=i+1; j<${#lines[@]}; j++)); do
+                local remaining_line="${lines[j]}"
+                # Skip empty lines and whitespace-only lines
+                if [[ -n "${remaining_line// /}" ]]; then
+                    has_content_after_q=true
+                    break
+                fi
+            done
+            
+            if [[ "$has_content_after_q" == true ]]; then
+                # Confirmed tutorial scenario - q followed by content
+                is_confirmed_tutorial=true
+            else
+                # Normal script ending - BUT keep suspicious dots if there are many
+                # This handles legitimate complex scripts that should still be flagged
+                if [ ${#suspicious_line_numbers[@]} -gt 2 ]; then
+                    # Keep the suspicious dots - this might be a complex script worth warning about
+                    break
+                else
+                    # Few dots in normal script ending - clear them
+                    suspicious_line_numbers=()
+                    break
+                fi
+            fi
         fi
-    done <<< "$script"
-
-    # Heuristic: if we have multiple standalone dots and ed commands,
-    # this might be a case where heredoc wasn't used properly
-    if [ $dot_count -gt 1 ] && [ "$suspicious_pattern" = true ] && [ $line_count -gt 5 ]; then
-        echo "POTENTIAL_DOT_TRAP:$line_count:$dot_count"
+    done
+    
+    # Handle case where script ends without q command
+    if [[ "$is_confirmed_tutorial" == false ]] && [ ${#suspicious_line_numbers[@]} -gt 0 ]; then
+        # Script ended without q/Q - decide based on number of suspicious dots
+        if [ ${#suspicious_line_numbers[@]} -gt 2 ]; then
+            # Many suspicious dots without proper ending - likely complex script needing warning
+            is_confirmed_tutorial=false  # Keep as potential complex script, not tutorial
+        else
+            # Few dots in script without q - probably normal, clear them
+            suspicious_line_numbers=()
+        fi
+    fi
+    
+    # If we found suspicious dots (either confirmed tutorial or immediate suspicious cases)
+    if [ ${#suspicious_line_numbers[@]} -gt 0 ]; then
+        echo "POTENTIAL_DOT_TRAP:$line_count:${#suspicious_line_numbers[@]}:tutorial=$is_confirmed_tutorial"
         return 1
     fi
 

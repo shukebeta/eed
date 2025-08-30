@@ -169,19 +169,19 @@ fi
 ED_SCRIPT="$FIXED_SCRIPT"
 
 # --- Dot Trap Detection and Smart Handling ---
-#if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
-#    # Try smart dot protection first for appropriate contexts
-#    SMART_HANDLED_SCRIPT=$(apply_smart_dot_handling "$ED_SCRIPT" "$FILE_PATH")
-#    smart_handling_result=$?
-#
-#    if [ $smart_handling_result -eq 0 ]; then
-#        # Smart protection was applied successfully
-#        ED_SCRIPT="$SMART_HANDLED_SCRIPT"
-#    else
-#        # Smart protection not applied, fall back to standard guidance
-#        suggest_dot_fix "$ED_SCRIPT"
-#    fi
-#fi
+if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
+    # Try smart dot protection first for appropriate contexts
+    SMART_HANDLED_SCRIPT=$(apply_smart_dot_handling "$ED_SCRIPT" "$FILE_PATH")
+    smart_handling_result=$?
+
+    if [ $smart_handling_result -eq 0 ]; then
+        # Smart protection was applied successfully
+        ED_SCRIPT="$SMART_HANDLED_SCRIPT"
+    else
+        # Smart protection not applied, fall back to standard guidance
+        suggest_dot_fix "$ED_SCRIPT"
+    fi
+fi
 
 # --- Log Commands for Analysis ---
 # --- EARLY COMMAND VALIDATION ---
