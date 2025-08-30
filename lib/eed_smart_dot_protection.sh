@@ -119,7 +119,7 @@ detect_ed_tutorial_context() {
     [ "$confidence" -lt 0 ] && confidence=0
 
     echo "$confidence"
-    return "$([ "$confidence" -ge 70 ] && echo 0 || echo 1)"
+    return 0
 }
 
 # Transform content dots to unique markers while preserving ed terminator dots
