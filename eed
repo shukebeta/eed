@@ -270,7 +270,7 @@ if [ "$SCRIPT_TYPE" = "view_only" ]; then
     if [ "$DEBUG_MODE" = true ]; then
         echo "Debug mode: executing view-only command" >&2
     fi
-    printf '%s\n' "$ED_SCRIPT" | ed -s "$FILE_PATH" 2>/dev/null
+    printf '%s\n' "$ED_SCRIPT" | ed -s "$FILE_PATH" 2>/dev/null || true
     exit 0
 fi
 
