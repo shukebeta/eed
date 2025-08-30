@@ -295,23 +295,6 @@ detect_dot_trap() {
     return 0
 }
 
-# Provide helpful guidance about dot usage
-suggest_dot_fix() {
-    local script="$1"
-
-    echo "⚠️  Detected multiple standalone dots in ed script" >&2
-    echo "   If you're using complex ed commands with multiple dots, consider:" >&2
-    echo "   1. Using heredoc syntax for simple cases:" >&2
-    echo "      eed file.txt \"\$(cat <<'EOF'" >&2
-    echo "      your ed commands here" >&2
-    echo "      EOF" >&2
-    echo "      )\"" >&2
-    echo "   2. For complex cases (e.g., editing test files), use Edit/Write tools instead" >&2
-    echo "" >&2
-    echo "   Proceeding with current script..." >&2
-
-    return 0
-}
 
 # Smart dot protection integration
 # Attempts to intelligently handle multiple dots in ed tutorial/documentation contexts

@@ -172,9 +172,9 @@ if ! FIXED_SCRIPT=$(detect_and_fix_unterminated_input "$ED_SCRIPT"); then
 fi
 ED_SCRIPT="$FIXED_SCRIPT"
 
-# --- Dot Trap Detection and Smart Handling ---
+# --- Smart Dot Protection ---
 if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
-    # Try smart dot protection first for appropriate contexts
+    # Try smart dot protection for appropriate contexts
     SMART_HANDLED_SCRIPT=$(apply_smart_dot_protection "$ED_SCRIPT" "$FILE_PATH")
     smart_handling_result=$?
 
@@ -182,10 +182,9 @@ if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
         # Smart protection was applied successfully
         ED_SCRIPT="$SMART_HANDLED_SCRIPT"
         SMART_PROTECTION_APPLIED=true
-    else
-        # Smart protection not applied, fall back to standard guidance
-        suggest_dot_fix "$ED_SCRIPT"
     fi
+    # Note: If smart protection fails, we proceed with original script
+    # The new detect_dot_trap is already intelligent enough to avoid false positives
 fi
 
 # --- Log Commands for Analysis ---
