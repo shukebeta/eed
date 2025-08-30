@@ -639,8 +639,8 @@ EOF
 }
 
 
-@test "classifier: G老师's edge case concerns verification" {
-    # Verify that the exact cases G老师 was worried about work correctly
+@test "classifier: code review edge case concerns verification" {
+    # Verify that the exact cases code review was worried about work correctly
     run classify_ed_script "5p"
     [ "$status" -eq 0 ]
     [ "$output" = "view_only" ]

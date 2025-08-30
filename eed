@@ -241,7 +241,7 @@ if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; the
     # Run reordering and capture its output
     REORDERED_OUTPUT=""
     REORDERED_OUTPUT_AND_STATUS=$(reorder_script "$ED_SCRIPT"; echo $?)
-    # 提取最后一行为返回值，其余为输出
+    # Extract last line as return value, rest as output
     reorder_result=$(echo "$REORDERED_OUTPUT_AND_STATUS" | tail -n1)
     REORDERED_OUTPUT=$(echo "$REORDERED_OUTPUT_AND_STATUS" | head -n -1)
     if [ "$reorder_result" -eq 1 ]; then

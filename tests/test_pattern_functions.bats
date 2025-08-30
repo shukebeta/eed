@@ -104,7 +104,7 @@ teardown() {
     [ "$?" -eq 0 ]
 }
 
-# Critical: Test alternative delimiters (G老师's key concern)
+# Critical: Test alternative delimiters (key concern from code review)
 @test "is_substitute_command: alternative delimiters must work" {
     # ed allows any non-space character as delimiter - this is CRITICAL functionality
     run is_substitute_command "s#old#new#"
@@ -169,9 +169,9 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
-# Edge case tests addressing G老师's concerns
-@test "pattern functions: edge cases that G老师 was concerned about" {
-    # These are the exact scenarios G老师 thought would fail
+# Edge case tests addressing code review concerns
+@test "pattern functions: edge cases that code review was concerned about" {
+    # These are the exact scenarios that were thought would fail
     run is_view_command "5p"
     [ "$status" -eq 0 ]
 
