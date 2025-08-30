@@ -89,10 +89,13 @@ q"
 
 # Test case 5: Verify transform behavior on tutorial content
 @test "improved detection: tutorial content gets properly transformed" {
+    # This script has a problematic standalone dot that should be transformed
     local script="1a
 Here's how to add text:
-First line.
-Second line.
+First line
+.
+Second line
+.
 .
 w
 q
@@ -105,7 +108,7 @@ That completes the editing."
     # Should succeed in transformation
     [ "$result" -eq 0 ]
     
-    # Should contain marker instead of standalone dots in content
+    # Should contain marker for the problematic content dots (not the final terminator)
     [[ "$transformed_script" == *"~~DOT_"* ]]
 }
 

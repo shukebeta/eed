@@ -132,10 +132,7 @@ replacement text
 w
 q"
 
-  run detect_ed_tutorial_context "$script" "data.txt"
-  [ "$status" -ne 0 ]
-  
-  confidence=$(detect_ed_tutorial_context "$script" "data.txt" || true)
+  confidence=$(detect_ed_tutorial_context "$script" "data.txt")
   [ "$confidence" -lt 50 ]
 }
 
@@ -146,10 +143,7 @@ simple content
 w
 q"
 
-  run detect_ed_tutorial_context "$script" "regular_file.txt"
-  [ "$status" -ne 0 ]
-  
-  confidence=$(detect_ed_tutorial_context "$script" "regular_file.txt" || true)
+  confidence=$(detect_ed_tutorial_context "$script" "regular_file.txt")
   [ "$confidence" -lt 50 ]
 }
 

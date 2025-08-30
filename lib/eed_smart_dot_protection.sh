@@ -88,8 +88,8 @@ detect_ed_tutorial_context() {
         confidence=$((confidence + 15))
     fi
 
-    # Content signals
-    confidence=$((confidence + dot_count * 5))
+    # Content signals - be more conservative with dot scoring
+    confidence=$((confidence + dot_count * 3))
 
     if printf '%s\n' "$script" | grep -q -E '^[[:space:]]*[wqQ][[:space:]]*$'; then
         confidence=$((confidence + 20))
@@ -162,8 +162,6 @@ transform_content_dots() {
     # Parse script and identify input blocks
     local -a output_lines=()
     local in_input_mode=false
-    local in_double_quote_block=false
-    local in_single_quote_block=false
 
     local -i current_line=0
     local -i last_w_index=-1
@@ -172,40 +170,6 @@ transform_content_dots() {
 
     while IFS= read -r line; do
         current_line=$((current_line + 1))
-        # Simple heuristic: avoid transforming content that is inside multi-line
-        # quoted strings. We toggle quote-block state when the line contains an
-        # odd number of unescaped quote characters. This is conservative but
-        # sufficient for our integration tests which use multi-line double-quoted
-        # strings for nested ed scripts.
-        local dq_count
-        local sq_count
-        dq_count=$(printf '%s' "$line" | tr -cd '"' | wc -c)
-        sq_count=$(printf '%s' "$line" | tr -cd "'" | wc -c)
-
-        if [ "$dq_count" -gt 0 ]; then
-            if (( dq_count % 2 == 1 )); then
-                if [ "$in_double_quote_block" = false ]; then
-                    in_double_quote_block=true
-                else
-                    in_double_quote_block=false
-                fi
-            fi
-        fi
-        if [ "$sq_count" -gt 0 ]; then
-            if (( sq_count % 2 == 1 )); then
-                if [ "$in_single_quote_block" = false ]; then
-                    in_single_quote_block=true
-                else
-                    in_single_quote_block=false
-                fi
-            fi
-        fi
-
-        # If we are inside any quoted block, treat line as opaque content.
-        if [ "$in_double_quote_block" = true ] || [ "$in_single_quote_block" = true ]; then
-            output_lines+=("$line")
-            continue
-        fi
 
         # Handle input mode state transitions (only when not inside quoted blocks)
         if [ "$in_input_mode" = false ]; then
