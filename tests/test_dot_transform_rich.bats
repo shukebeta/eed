@@ -46,10 +46,10 @@ q"
 
   # The substitution line must appear before the final 'w'
   local w_line_num
-  w_line_num=$(echo "$output" | grep -n "^w$" | cut -d: -f1 | head -n1 || true)
+  w_line_num=$(echo "$output" | grep -n "^w$" | cut -d: -f1 | tail -n1 || true)
   local subst_line_num
   # accept optional address form like "1,$s@marker@.@g" or "s@marker@.@g"
-  subst_line_num=$(echo "$output" | grep -nE '^(1,\\$)?s@' | cut -d: -f1 | head -n1 || true)
+  subst_line_num=$(echo "$output" | grep -nE '^(1,\$)?s@' | cut -d: -f1 | head -n1 || true)
   [ -n "$subst_line_num" ]
   [ -n "$w_line_num" ]
   [ "$subst_line_num" -lt "$w_line_num" ]
@@ -63,8 +63,8 @@ q"
   # e.g. lines "First line." or "Second line." should remain, but the standalone '.' inside the code block (terminator) is only the one for the inner block and should have been replaced
   # Confirm there is at least one marker occurrence referenced by the substitution command
   local marker
-  # extract marker whether substitution is "s@...@...@" or "1,$s@...@...@"
-  marker=$(echo "$output" | grep -nE '^(1,\\$)?s@' | sed -n 's/^\(1,\\$\)\?s@\([^@]*\)@.*$/\2/p' | head -n1 || true)
+  # extract marker using grep-only approach (avoid sed escaping issues)
+  marker=$(echo "$output" | grep -oE 's@~~DOT_[^@]+~~@' | sed 's/s@//;s/@//' | head -n1 || true)
   [ -n "$marker" ]
   echo "$output" | grep -qF "$marker"
 }

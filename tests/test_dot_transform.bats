@@ -211,11 +211,11 @@ q"
   output1=$(transform_content_dots "$input1")
   output2=$(transform_content_dots "$input2")
 
-  # Extract markers from both outputs
+  # Extract markers from both outputs (handle both s@ and 1,$s@ formats)
   local marker1
   local marker2
-  marker1=$(echo "$output1" | grep "^s@" | sed 's/s@\(.*\)@\.@g/\1/')
-  marker2=$(echo "$output2" | grep "^s@" | sed 's/s@\(.*\)@\.@g/\1/')
+  marker1=$(echo "$output1" | grep -oE "s@[^@]+@" | sed 's/s@\(.*\)@/\1/' | head -1)
+  marker2=$(echo "$output2" | grep -oE "s@[^@]+@" | sed 's/s@\(.*\)@/\1/' | head -1)
 
   # Markers should be different to avoid conflicts
   [ "$marker1" != "$marker2" ]
