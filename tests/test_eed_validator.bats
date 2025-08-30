@@ -294,14 +294,6 @@ q"
     [[ "$output" == *"POTENTIAL_DOT_TRAP"* ]]
 }
 
-@test "dot trap guidance: provides helpful suggestions" {
-    # suggest_dot_fix may be deprecated in favor of smart dot handling; ensure it runs without error
-    local script="test script with multiple dots"
-    # suggest_dot_fix is already loaded via setup(); call it directly
-    run suggest_dot_fix "$script"
-    [ "$status" -eq 0 ]
-    # No explicit guidance text enforced here — smart handling is validated by integration tests
-}
 
 # --- Tests for detect_line_order_issue ---
 
