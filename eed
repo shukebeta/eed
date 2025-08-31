@@ -17,15 +17,26 @@ source "$REPO_ROOT/lib/eed_validator.sh"
 # Environment:  EED_FORCE, EED_DEBUG, EED_DISABLE_AUTO_REORDER, EED_FORCE_OVERRIDE
 # Defaults:     false for all options
 #
+# Boolean Values: Recommended: true/false (strings). Compatibility: 1/0 also accepted.
 # Note: EED_FORCE_OVERRIDE is emergency-only and bypasses all safety checks
 
-DEBUG_MODE="${EED_DEBUG:-false}"
-DISABLE_AUTO_REORDER="${EED_DISABLE_AUTO_REORDER:-false}"  
-FORCE_MODE="${EED_FORCE:-false}"
-FORCE_OVERRIDE="${EED_FORCE_OVERRIDE:-false}"
+# Robust boolean parsing: accepts true/false (recommended) and 1/0 (compatibility)
+parse_boolean() {
+    local value="$1"
+    if [ "$value" = "true" ] || [ "$value" = "1" ]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+}
+
+DEBUG_MODE="$(parse_boolean "${EED_DEBUG:-false}")"
+DISABLE_AUTO_REORDER="$(parse_boolean "${EED_DISABLE_AUTO_REORDER:-false}")"
+FORCE_MODE="$(parse_boolean "${EED_FORCE:-false}")"
+FORCE_OVERRIDE="$(parse_boolean "${EED_FORCE_OVERRIDE:-false}")"
 
 # Testing mode (prevents log file creation)
-TESTING_MODE="${EED_TESTING:-false}"
+TESTING_MODE="$(parse_boolean "${EED_TESTING:-false}")"
 # Flag set when smart-dot protection has been applied to the ED_SCRIPT.
 # When true, treat the script as tutorial-context and avoid classifying it as
 # "complex" which would disable --force behavior.
