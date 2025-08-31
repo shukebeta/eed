@@ -75,9 +75,7 @@ while [[ $# -gt 0 ]]; do
                 ED_SCRIPT="$1"
                 ED_SCRIPT_PROVIDED=true
             else
-                echo "✗ Error: Too many arguments" >&2
-                echo "Use 'eed --help' for usage information" >&2
-                exit 1
+                error_exit "Too many arguments" 1 true
             fi
             shift
             ;;
@@ -93,9 +91,7 @@ while [[ $# -gt 0 ]]; do
                 ED_SCRIPT="$1"
                 ED_SCRIPT_PROVIDED=true
             else
-                echo "✗ Error: Too many arguments" >&2
-                echo "Use 'eed --help' for usage information" >&2
-                exit 1
+                error_exit "Too many arguments" 1 true
             fi
             shift
             ;;
@@ -104,9 +100,7 @@ done
 
 # Validate required arguments
 if [ -z "$FILE_PATH" ]; then
-    echo "✗ Error: File path is required" >&2
-    echo "Use 'eed --help' for usage information" >&2
-    exit 1
+    error_exit "File path is required" 1 true
 fi
 
 # Handle empty script case first (only for explicitly provided empty string)
