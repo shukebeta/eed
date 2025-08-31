@@ -30,17 +30,25 @@ ARGUMENTS:
 
 EXAMPLES:
   # Preview mode (default - safe)
-  eed file.txt "1a\nHello\n.\nw\nq"
+  eed file.txt $'1a\nHello\n.\nw\nq'
 
   # Direct mode (skip preview)
-  eed --force file.txt "1d\nw\nq"
+  eed --force file.txt $'1d\nw\nq'
 
   # Read from stdin
-  echo "1a\nContent\n.\nw\nq" | eed file.txt -
+  echo $'1a\nContent\n.\nw\nq' | eed file.txt -
+
+  # For complex scripts, use heredoc syntax - avoid nested heredocs
+  # (this prevents shell interpretation of the script content)
+  eed /unix/style/path/to/file - <<'EOF'
+  # ed commands here
+  w
+  q
+  EOF
 
 WORKFLOW:
   1. Validates ed commands for safety
-  2. Creates preview in file.eed.preview
+  2. Automatically creates preview in file.eed.preview
   3. Shows diff and instructions (unless --force)
   4. Provides clear next steps
 
