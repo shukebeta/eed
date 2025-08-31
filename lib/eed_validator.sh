@@ -28,8 +28,6 @@ is_ed_script_valid() {
     # Check if script ends with 'q' or 'Q' command
     if ! echo "$script" | grep -q '[qQ]$'; then
         echo "Warning: Ed script does not end with 'q' or 'Q' command" >&2
-        echo "This may cause ed to wait for input or hang" >&2
-        echo "Consider adding 'q' (save and quit) or 'Q' (quit without save) at the end" >&2
         # Don't fail - just warn, as user might intentionally want this
     fi
 
@@ -210,12 +208,12 @@ detect_dot_trap() {
 
     # Parse script into array
     readarray -t lines <<< "$script"
-    
+
     # Helper function to check if a line is a valid ed command
     is_valid_ed_command() {
         local cmd="$1"
         [[ -z "$cmd" ]] && return 1
-        
+
         # Match common ed commands: addresses, operations, combinations
         [[ "$cmd" =~ ^[0-9]*[aicdspmtjklnpwqQ=].*$ ]] || \
         [[ "$cmd" =~ ^\$[aicdspmtjklnpwqQ=].*$ ]] || \
@@ -224,14 +222,14 @@ detect_dot_trap() {
         [[ "$cmd" =~ ^g/.*/[dps] ]] || \
         [[ "$cmd" =~ ^[wqQ]$ ]]
     }
-    
+
     for i in "${!lines[@]}"; do
         local line="${lines[i]}"
         line_count=$((line_count + 1))
-        
+
         if [[ "$line" == "." ]]; then
             local next_line="${lines[$((i+1))]:-}"
-            
+
             if [[ "$is_confirmed_tutorial" == true ]]; then
                 # Already confirmed tutorial - this dot is suspicious
                 suspicious_line_numbers+=($i)
@@ -243,7 +241,7 @@ detect_dot_trap() {
                 suspicious_line_numbers+=($i)
             fi
         fi
-        
+
         if [[ "$line" =~ ^[qQ]$ ]] && [[ "$is_confirmed_tutorial" == false ]]; then
             # Found quit command, check if there's content after it
             local has_content_after_q=false
@@ -255,7 +253,7 @@ detect_dot_trap() {
                     break
                 fi
             done
-            
+
             if [[ "$has_content_after_q" == true ]]; then
                 # Confirmed tutorial scenario - q followed by content
                 is_confirmed_tutorial=true
@@ -273,7 +271,7 @@ detect_dot_trap() {
             fi
         fi
     done
-    
+
     # Handle case where script ends without q command
     if [[ "$is_confirmed_tutorial" == false ]] && [ ${#suspicious_line_numbers[@]} -gt 0 ]; then
         # Script ended without q/Q - decide based on number of suspicious dots
@@ -285,7 +283,7 @@ detect_dot_trap() {
             suspicious_line_numbers=()
         fi
     fi
-    
+
     # If we found suspicious dots (either confirmed tutorial or immediate suspicious cases)
     if [ ${#suspicious_line_numbers[@]} -gt 0 ]; then
         echo "POTENTIAL_DOT_TRAP:$line_count:${#suspicious_line_numbers[@]}:tutorial=$is_confirmed_tutorial"
@@ -302,12 +300,12 @@ detect_dot_trap() {
 apply_smart_dot_handling() {
     local script="$1"
     local file_path="$2"
-    
+
     # First check if we should attempt smart protection
     local confidence
     confidence=$(detect_ed_tutorial_context "$script" "$file_path")
     local detection_result=$?
-    
+
     if [ "$detection_result" -eq 0 ]; then
         # High confidence - attempt transformation
         local transformed_script
@@ -323,7 +321,7 @@ apply_smart_dot_handling() {
         echo "🤔 Detected possible ed tutorial editing (confidence: ${confidence}%)" >&2
         echo "   For complex cases with multiple dots, consider using Edit/Write tools instead" >&2
     fi
-    
+
     # Default: return original script unchanged
     echo "$script"
     return 1
@@ -475,7 +473,7 @@ _perform_reordering_from_records() {
     for record in "${records[@]}"; do
         # Skip empty records (from trailing NUL)
         [ -z "$record" ] && continue
-        
+
         if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
             script_lines+=("${BASH_REMATCH[1]}")
         elif [[ "$record" =~ ^MODIFYING_CMD:([0-9]+):([0-9]+):(.*)$ ]]; then
@@ -551,12 +549,12 @@ reorder_script() {
     # Capture records once to avoid double parsing (NUL-delimited)
     local -a records=()
     mapfile -t -d '' records < <(_get_modifying_command_info "$script")
-    
+
     # Parse records to extract what we need for decision making
     for record in "${records[@]}"; do
         # Skip empty records (from trailing NUL)
         [ -z "$record" ] && continue
-        
+
         if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
             script_lines+=("${BASH_REMATCH[1]}")
         elif [[ "$record" =~ ^MODIFYING_CMD:[0-9]+:([0-9]+):.*$ ]]; then
