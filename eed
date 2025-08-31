@@ -103,9 +103,7 @@ fi
 
 # Handle empty script case first (only for explicitly provided empty string)
 if [ "$ED_SCRIPT_PROVIDED" = true ] && [ "$ED_SCRIPT" = "" ]; then
-    echo "✗ Error: Empty ed script provided" >&2
-    echo "Please provide valid ed commands to execute" >&2
-    exit 1
+    error_exit "Empty ed script provided" 1 "Please provide valid ed commands to execute"
 fi
 
 # Handle stdin input (for missing ED_SCRIPT or explicit '-')
@@ -161,17 +159,13 @@ SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
 
 # Handle invalid commands immediately (before any complex analysis)
 if [ "$SCRIPT_TYPE" = "invalid_command" ]; then
-    echo "✗ Error: Invalid ed command detected" >&2
-    echo "Please check your ed script syntax" >&2
-    exit 1
+    error_exit "Invalid ed command detected" 1 "Please check your ed script syntax"
 fi
 
 
 # --- Line Number Validation ---
 if ! validate_line_ranges "$ED_SCRIPT" "$FILE_PATH"; then
-    echo "✗ Error: Line number validation failed" >&2
-    echo "Please check that line numbers exist in the file" >&2
-    exit 1
+    error_exit "Line number validation failed" 1 "Please check that line numbers exist in the file"
 fi
 
 # --- Force Mode Safety Analysis ---

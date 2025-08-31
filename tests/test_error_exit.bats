@@ -49,3 +49,11 @@ teardown() {
     [[ "$output" != *"Location:"* ]]
 }
 
+@test "error_exit: custom second message" {
+    run error_exit "Test error" 1 "This is a custom message"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"✗ Error: Test error"* ]]
+    [[ "$output" == *"This is a custom message"* ]]
+    [[ "$output" != *"Use 'eed --help'"* ]]
+}
+
