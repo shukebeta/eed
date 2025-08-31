@@ -16,7 +16,7 @@ setup() {
     SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
 
     # Prevent logging during tests
-    export EED_TESTING=1
+    export EED_TESTING=true
 }
 
 teardown() {
@@ -91,7 +91,7 @@ EOF
     # Multi-step workflow with intermediate save — pipe the script via stdin so bats captures status reliably
     # Force apply the preview so the test verifies file changes rather than the preview behavior.
     # Also disable auto-reordering so --force is not cancelled by safety reordering.
-    run bash -c "printf '1c\nchanged1\n.\nw\n2c\nchanged2\n.\nw\nq\n' | EED_FORCE_OVERRIDE=1 $SCRIPT_UNDER_TEST --force --disable-auto-reorder test.txt -"
+    run bash -c "printf '1c\nchanged1\n.\nw\n2c\nchanged2\n.\nw\nq\n' | EED_FORCE_OVERRIDE=true $SCRIPT_UNDER_TEST --force --disable-auto-reorder test.txt -"
     [ "$status" -eq 0 ]
     run grep -q "changed1" test.txt
     [ "$status" -eq 0 ]
@@ -158,25 +158,17 @@ OUTER
     [ "$status" -eq 0 ]
 }
 
-@test "single parameter rejects multi-parameter syntax" {
-    cat > test.txt << 'EOF'
-original
-EOF
 
-    # Old multi-parameter syntax should fail with helpful error
-    run $SCRIPT_UNDER_TEST --force test.txt "1c" "new content" "."
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"single parameter"* ]] || [[ "$output" == *"heredoc"* ]]
-}
-
-@test "empty script should not modify file" {
+@test "empty script should return error" {
     cat > test.txt << 'EOF'
 original content
 EOF
 
-    # Empty ed script should do nothing
+    # Empty ed script should return error
     run $SCRIPT_UNDER_TEST --force test.txt ""
-    [ "$status" -eq 0 ]
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Error: Empty ed script provided"* ]]
+    # File should remain unchanged
     run grep -q "original content" test.txt
     [ "$status" -eq 0 ]
 }

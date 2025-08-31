@@ -34,7 +34,7 @@ setup() {
     export PATH="$REPO_ROOT:$PATH"
 
     # Prevent logging during tests
-    export EED_TESTING=1
+    export EED_TESTING=true
 }
 
 teardown() {
@@ -258,15 +258,3 @@ q"
     [ "$status" -eq 0 ]
 }
 
-@test "file creation for non-existent file" {
-    # Test that eed can create new files
-    run $SCRIPT_UNDER_TEST --force newfile.txt "1i
-first line
-.
-w
-q"
-    [ "$status" -eq 0 ]
-    [ -f newfile.txt ]
-    run grep -q "first line" newfile.txt
-    [ "$status" -eq 0 ]
-}

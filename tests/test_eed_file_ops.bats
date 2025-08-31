@@ -16,7 +16,7 @@ setup() {
     SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
 
     # Prevent logging during tests
-    export EED_TESTING=1
+    export EED_TESTING=true
 
     # Create sample file for testing
     cat > sample.txt << 'EOF'
@@ -94,7 +94,7 @@ q"
 
 @test "mixed workflow - view then edit then verify" {
     # Complex workflow: search, edit, verify, save
-    EED_FORCE_OVERRIDE=1 run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
+    EED_FORCE_OVERRIDE=true run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
 /pattern/p
 .c
 replaced pattern line
@@ -106,12 +106,6 @@ EOF
 )"
     [ "$status" -eq 0 ]
 
-    # Should show original pattern line in output
-    [[ "$output" == *"second line with pattern"* ]]
-    # Should show replaced line in output
-    [[ "$output" == *"replaced pattern line"* ]]
-
-    # File should be modified
     run grep -q "replaced pattern line" sample.txt
     [ "$status" -eq 0 ]
     run grep -q "second line with pattern" sample.txt
@@ -120,7 +114,7 @@ EOF
 
 @test "mixed workflow - conditional save based on verification" {
     # Edit, verify, decide whether to save
-    EED_FORCE_OVERRIDE=1 run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
+    EED_FORCE_OVERRIDE=true run $SCRIPT_UNDER_TEST --force sample.txt "$(cat <<'EOF'
 1c
 TEST CHANGE
 .

@@ -8,13 +8,15 @@ fi
 EED_VALIDATOR_LOADED=1
 # Source the shared regex patterns
 source "$(dirname "${BASH_SOURCE[0]}")/eed_regex_patterns.sh"
+# Source smart dot protection functionality
+source "$(dirname "${BASH_SOURCE[0]}")/eed_smart_dot_protection.sh"
 
 
 # Disable history expansion to prevent ! character escaping
 set +H
 
 # Validate ed script for basic requirements
-validate_ed_script() {
+is_ed_script_valid() {
     local script="$1"
 
     # Check for empty script - treat as no-op, not error
@@ -112,7 +114,7 @@ detect_and_fix_unterminated_input() {
 }
 
 # TODO: Implement enhanced validator with parsing stack
-# validate_ed_script_enhanced() {
+# is_ed_script_valid_enhanced() {
 #     # The enhanced validator from user's example will go here
 # }
 
@@ -201,52 +203,134 @@ classify_ed_script() {
 # but the dots got interpreted as ed terminators instead
 detect_dot_trap() {
     local script="$1"
+    local -a lines
+    local -a suspicious_line_numbers=()
+    local is_confirmed_tutorial=false
     local line_count=0
-    local dot_count=0
-    local suspicious_pattern=false
 
-    # Count lines and standalone dots
-    while IFS= read -r line; do
-        ((line_count++))
-        if [[ "$line" = "." ]]; then
-            ((dot_count++))
+    # Parse script into array
+    readarray -t lines <<< "$script"
+    
+    # Helper function to check if a line is a valid ed command
+    is_valid_ed_command() {
+        local cmd="$1"
+        [[ -z "$cmd" ]] && return 1
+        
+        # Match common ed commands: addresses, operations, combinations
+        [[ "$cmd" =~ ^[0-9]*[aicdspmtjklnpwqQ=].*$ ]] || \
+        [[ "$cmd" =~ ^\$[aicdspmtjklnpwqQ=].*$ ]] || \
+        [[ "$cmd" =~ ^/.*/.* ]] || \
+        [[ "$cmd" =~ ^[0-9]*,[0-9]*[aicdspmtjklnpwqQ=] ]] || \
+        [[ "$cmd" =~ ^g/.*/[dps] ]] || \
+        [[ "$cmd" =~ ^[wqQ]$ ]]
+    }
+    
+    for i in "${!lines[@]}"; do
+        local line="${lines[i]}"
+        line_count=$((line_count + 1))
+        
+        if [[ "$line" == "." ]]; then
+            local next_line="${lines[$((i+1))]:-}"
+            
+            if [[ "$is_confirmed_tutorial" == true ]]; then
+                # Already confirmed tutorial - this dot is suspicious
+                suspicious_line_numbers+=($i)
+            elif is_valid_ed_command "$next_line"; then
+                # Dot followed by valid ed command - potentially suspicious
+                suspicious_line_numbers+=($i)
+            else
+                # Dot not followed by valid ed command - immediately suspicious
+                suspicious_line_numbers+=($i)
+            fi
         fi
-
-        # Look for patterns suggesting heredoc usage attempt
-        if [[ "$line" =~ ${EED_REGEX_INPUT_BASIC} ]] || [[ "$line" =~ ${EED_REGEX_WRITE_BASIC} ]] || [[ "$line" =~ ${EED_REGEX_QUIT_BASIC} ]]; then
-            suspicious_pattern=true
+        
+        if [[ "$line" =~ ^[qQ]$ ]] && [[ "$is_confirmed_tutorial" == false ]]; then
+            # Found quit command, check if there's content after it
+            local has_content_after_q=false
+            for ((j=i+1; j<${#lines[@]}; j++)); do
+                local remaining_line="${lines[j]}"
+                # Skip empty lines and whitespace-only lines
+                if [[ -n "${remaining_line// /}" ]]; then
+                    has_content_after_q=true
+                    break
+                fi
+            done
+            
+            if [[ "$has_content_after_q" == true ]]; then
+                # Confirmed tutorial scenario - q followed by content
+                is_confirmed_tutorial=true
+            else
+                # Normal script ending - BUT keep suspicious dots if there are many
+                # This handles legitimate complex scripts that should still be flagged
+                if [ ${#suspicious_line_numbers[@]} -gt 2 ]; then
+                    # Keep the suspicious dots - this might be a complex script worth warning about
+                    break
+                else
+                    # Few dots in normal script ending - clear them
+                    suspicious_line_numbers=()
+                    break
+                fi
+            fi
         fi
-    done <<< "$script"
-
-    # Heuristic: if we have multiple standalone dots and ed commands,
-    # this might be a case where heredoc wasn't used properly
-    if [ $dot_count -gt 1 ] && [ "$suspicious_pattern" = true ] && [ $line_count -gt 5 ]; then
-        echo "POTENTIAL_DOT_TRAP:$line_count:$dot_count"
+    done
+    
+    # Handle case where script ends without q command
+    if [[ "$is_confirmed_tutorial" == false ]] && [ ${#suspicious_line_numbers[@]} -gt 0 ]; then
+        # Script ended without q/Q - decide based on number of suspicious dots
+        if [ ${#suspicious_line_numbers[@]} -gt 2 ]; then
+            # Many suspicious dots without proper ending - likely complex script needing warning
+            is_confirmed_tutorial=false  # Keep as potential complex script, not tutorial
+        else
+            # Few dots in script without q - probably normal, clear them
+            suspicious_line_numbers=()
+        fi
+    fi
+    
+    # If we found suspicious dots (either confirmed tutorial or immediate suspicious cases)
+    if [ ${#suspicious_line_numbers[@]} -gt 0 ]; then
+        echo "POTENTIAL_DOT_TRAP:$line_count:${#suspicious_line_numbers[@]}:tutorial=$is_confirmed_tutorial"
         return 1
     fi
 
     return 0
 }
 
-# Provide helpful guidance about dot usage
-suggest_dot_fix() {
+
+# Smart dot protection integration
+# Attempts to intelligently handle multiple dots in ed tutorial/documentation contexts
+# Returns the (possibly transformed) script on stdout
+apply_smart_dot_handling() {
     local script="$1"
-
-    echo "⚠️  Detected multiple standalone dots in ed script" >&2
-    echo "   If you're using complex ed commands, consider using heredoc syntax:" >&2
-    echo "   eed file.txt \"\$(cat <<'EOF'" >&2
-    echo "   your ed commands here" >&2
-    echo "   use actual . (dot) for content termination in ed commands" >&2
-    echo "   EOF" >&2
-    echo "   )\"" >&2
-    echo "" >&2
-    echo "   Proceeding with current script..." >&2
-
-    return 0
+    local file_path="$2"
+    
+    # First check if we should attempt smart protection
+    local confidence
+    confidence=$(detect_ed_tutorial_context "$script" "$file_path")
+    local detection_result=$?
+    
+    if [ "$detection_result" -eq 0 ]; then
+        # High confidence - attempt transformation
+        local transformed_script
+        if transformed_script=$(transform_content_dots "$script"); then
+            echo "✨ Smart dot protection applied for ed tutorial editing (confidence: ${confidence}%)" >&2
+            echo "$transformed_script"
+            return 0
+        else
+            echo "⚠️  Smart dot protection failed, falling back to standard guidance" >&2
+        fi
+    elif [ "$confidence" -ge 40 ]; then
+        # Medium confidence - provide enhanced guidance
+        echo "🤔 Detected possible ed tutorial editing (confidence: ${confidence}%)" >&2
+        echo "   For complex cases with multiple dots, consider using Edit/Write tools instead" >&2
+    fi
+    
+    # Default: return original script unchanged
+    echo "$script"
+    return 1
 }
 
 # Detect complex patterns that are unsafe for automatic reordering
-detect_complex_patterns() {
+no_complex_patterns() {
     local script="$1"
     local line
     local -a addresses=()
@@ -326,7 +410,7 @@ detect_complex_patterns() {
     # Check for same-address conflicts
     local -A addr_count
     for addr in "${addresses[@]}"; do
-        ((addr_count[$addr]++))
+        addr_count[$addr]=$((${addr_count[$addr]:-0} + 1))
         if (( addr_count[$addr] > 1 )); then
             echo "COMPLEX: Multiple operations on same address: $addr" >&2
             return 1
@@ -391,7 +475,7 @@ _perform_reordering_from_records() {
     for record in "${records[@]}"; do
         # Skip empty records (from trailing NUL)
         [ -z "$record" ] && continue
-
+        
         if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
             script_lines+=("${BASH_REMATCH[1]}")
         elif [[ "$record" =~ ^MODIFYING_CMD:([0-9]+):([0-9]+):(.*)$ ]]; then
@@ -467,12 +551,12 @@ reorder_script() {
     # Capture records once to avoid double parsing (NUL-delimited)
     local -a records=()
     mapfile -t -d '' records < <(_get_modifying_command_info "$script")
-
+    
     # Parse records to extract what we need for decision making
     for record in "${records[@]}"; do
         # Skip empty records (from trailing NUL)
         [ -z "$record" ] && continue
-
+        
         if [[ "$record" =~ ^SCRIPT_LINE:(.*)$ ]]; then
             script_lines+=("${BASH_REMATCH[1]}")
         elif [[ "$record" =~ ^MODIFYING_CMD:[0-9]+:([0-9]+):.*$ ]]; then
@@ -544,10 +628,15 @@ validate_line_ranges() {
     local max_lines
     local line
 
-    # Get file line count (file should exist by now due to creation logic)
-    max_lines=$(wc -l < "$file_path")
-    # Handle empty files: ed treats them as having 1 empty line
-    [ "$max_lines" -eq 0 ] && max_lines=1
+    # Get file line count (handle case where file doesn't exist yet)
+    if [ -f "$file_path" ]; then
+        max_lines=$(wc -l < "$file_path")
+        # Handle empty files: ed treats them as having 1 empty line
+        [ "$max_lines" -eq 0 ] && max_lines=1
+    else
+        # File doesn't exist yet - assume it will be created as empty (1 line)
+        max_lines=1
+    fi
 
     while IFS= read -r line; do
         # Trim whitespace and skip empty lines
@@ -585,30 +674,6 @@ validate_line_ranges() {
 }
 
 # --- COMPLEX PATTERN DETECTION FUNCTIONS ---
-
-# Check if script contains complex patterns that make it unpredictable
-has_complex_patterns() {
-    local script="$1"
-    local line
-
-    while IFS= read -r line; do
-        line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        [ -z "$line" ] && continue
-
-        # Detect global/visual commands
-        if [[ "$line" =~ ^[gvGV]/ ]]; then
-            return 0
-        fi
-
-        # Detect move/transfer commands
-        if [[ "$line" =~ [mMtT] ]]; then
-            return 0
-        fi
-
-    done <<< "$script"
-
-    return 1
-}
 
 # Determine ordering pattern of line numbers
 determine_ordering() {

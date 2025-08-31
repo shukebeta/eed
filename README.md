@@ -44,7 +44,7 @@ Both preview and force modes use a consistent workflow:
 ### 🧠 Intelligent Script Processing
 - **Auto-reordering**: Automatically reorders ascending line operations to prevent conflicts
 - **Complex pattern detection**: Identifies potentially unsafe scripts and provides safety guidance
-- **Override support**: Use `EED_FORCE_OVERRIDE=1` to bypass safety checks when needed
+- **Override support**: Use `EED_FORCE_OVERRIDE=true` to bypass safety checks when needed
 
 ### 📊 Enhanced Preview Experience
 - **Intelligent diff**: Uses `git diff --no-index` for superior code movement visualization
