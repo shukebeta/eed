@@ -30,8 +30,6 @@ is_ed_script_valid() {
     # Check if script ends with 'q' or 'Q' command
     if ! echo "$script" | grep -q '[qQ]$'; then
         echo "Warning: Ed script does not end with 'q' or 'Q' command" >&2
-        echo "This may cause ed to wait for input or hang" >&2
-        echo "Consider adding 'q' (save and quit) or 'Q' (quit without save) at the end" >&2
         # Don't fail - just warn, as user might intentionally want this
     fi
 
@@ -421,7 +419,6 @@ no_complex_patterns() {
 
     return 0  # No complex patterns detected
 }
-
 # Validate line number ranges in ed script
 validate_line_ranges() {
     local script="$1"
