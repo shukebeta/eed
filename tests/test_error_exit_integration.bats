@@ -42,5 +42,6 @@ teardown() {
     [[ "$output" == *"✗ Error: File path is required"* ]]
     [[ "$output" == *"Location:"* ]]
     [[ "$output" == *"eed:"* ]]
+
 }
 

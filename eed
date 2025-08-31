@@ -113,9 +113,7 @@ fi
 # Handle stdin input (for missing ED_SCRIPT or explicit '-')
 if [ "$ED_SCRIPT" = "-" ] || [ "$ED_SCRIPT_PROVIDED" = false ]; then
     if [ -t 0 ]; then
-        echo "✗ Error: Ed script is required (provide as argument or via stdin)" >&2
-        echo "Use 'eed --help' for usage information" >&2
-        exit 1
+        error_exit "Ed script is required (provide as argument or via stdin)" 1 true
     fi
     ED_SCRIPT=$(cat)
 fi
