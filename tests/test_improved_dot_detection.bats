@@ -8,7 +8,7 @@ setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
     source "$REPO_ROOT/lib/eed_smart_dot_protection.sh"
     source "$REPO_ROOT/lib/eed_validator.sh"
-    export EED_TESTING=1
+    export EED_TESTING=true
 }
 
 # Test case 1: Normal AI editor script (should NOT trigger smart dot)

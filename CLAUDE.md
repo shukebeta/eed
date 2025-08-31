@@ -71,7 +71,7 @@ bats --tap tests/test_eed_preview.bats
 ### Debugging Issues
 - Use `--debug` flag to see detailed execution steps
 - Check test output with `bats --tap tests/`
-- Use `EED_TESTING=1` to prevent log file creation during tests
+- Use `EED_TESTING=true` to prevent log file creation during tests
 
 ### Safety Considerations
 - Never modify original files directly

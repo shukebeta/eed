@@ -15,7 +15,7 @@ setup() {
     SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
 
     # Prevent logging during tests
-    export EED_TESTING=1
+    export EED_TESTING=true
 
     # Create sample file for testing
     cat > sample.txt << 'EOF'

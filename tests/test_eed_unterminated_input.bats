@@ -8,7 +8,7 @@ setup() {
   cd "$TEST_DIR"
 
   SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
-  export EED_TESTING=1
+  export EED_TESTING=true
 }
 
 teardown() {

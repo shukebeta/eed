@@ -185,7 +185,7 @@ EFFECTIVE_FORCE_MODE="$FORCE_MODE"
 HAS_COMPLEX_PATTERNS=0
 
 # Emergency override bypasses all safety checks
-if [ "$FORCE_OVERRIDE" = true ] || [ "$FORCE_OVERRIDE" = "1" ]; then
+if [ "$FORCE_OVERRIDE" = true ]; then
     EFFECTIVE_FORCE_MODE=true
     HAS_COMPLEX_PATTERNS=0  # Override treats everything as non-complex
     echo "⚠️  FORCE_OVERRIDE enabled - bypassing all safety checks" >&2

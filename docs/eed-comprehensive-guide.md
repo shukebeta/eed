@@ -502,7 +502,7 @@ q' | eed --force file.txt -
 
 **Environment Variable:**
 ```bash
-EED_FORCE_OVERRIDE=1 eed --force file.txt script.ed
+EED_FORCE_OVERRIDE=true eed --force file.txt script.ed
 ```
 
 **Script Simplification:**
@@ -513,7 +513,7 @@ EED_FORCE_OVERRIDE=1 eed --force file.txt script.ed
 
 CI/automation scripts can:
 - Check stderr for `Complex script detected` message
-- Set `EED_FORCE_OVERRIDE=1` to bypass when appropriate  
+- Set `EED_FORCE_OVERRIDE=true` to bypass when appropriate  
 - Exit codes remain unchanged (preview success = 0)
 
 This system prevents accidental file corruption while maintaining full user control.

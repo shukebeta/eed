@@ -34,7 +34,7 @@ setup() {
     export PATH="$REPO_ROOT:$PATH"
 
     # Prevent logging during tests
-    export EED_TESTING=1
+    export EED_TESTING=true
 }
 
 teardown() {

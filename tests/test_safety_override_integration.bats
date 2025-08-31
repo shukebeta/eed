@@ -58,7 +58,7 @@ teardown() {
 @test "EED_FORCE_OVERRIDE bypasses safety checks" {
     script=$'g/line/d\n1d\n3d\nw\nq'
     
-    run bash -c "echo '$script' | EED_FORCE_OVERRIDE=1 '$SCRIPT_UNDER_TEST' --force '$TEST_FILE' -"
+    run bash -c "echo '$script' | EED_FORCE_OVERRIDE=true '$SCRIPT_UNDER_TEST' --force '$TEST_FILE' -"
     
     # Should not contain safety override message when override is set
     [[ ! "$output" =~ "SAFETY.*--force ignored" ]]
