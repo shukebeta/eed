@@ -10,50 +10,47 @@ EED_COMMON_LOADED=1
 # Ed command logging configuration
 EED_LOG_FILE="$HOME/.eed_command_log.txt"
 
-# Show usage information
-show_usage() {
-    echo "Usage: eed [--debug] [--force] [--disable-auto-reorder] FILE {SCRIPT|-}"
-    echo ""
-    echo "Modes (preferred examples first):"
-    echo ""
-    echo "  1) Pipe a simple instruction stream (quick):"
-    echo "     printf '1d\nw\nq\n' | eed FILE -"
-    echo ""
-    echo "  2) Use heredoc with '-' to pass complex scripts via stdin:"
-    echo "     eed FILE - <<'EOF'"
-    echo "     3c"
-    echo "     new content"
-    echo "     ."
-    echo "     w"
-    echo "     q"
-    echo "     EOF"
-    echo ""
-    echo "  3) Single-parameter heredoc/inline (legacy):"
-    echo "     eed FILE \"\$(cat <<'EOF'"
-    echo "     3c"
-    echo "     new content"
-    echo "     ."
-    echo "     w"
-    echo "     q"
-    echo "     EOF"
-    echo "     )\""
-    echo ""
-    echo "Options:"
-    echo "  --debug    Enable debug mode (preserve temp files, verbose errors)"
-    echo "  --force    Skip preview-confirm workflow, edit file directly"
-    echo "  --disable-auto-reorder  Disable automatic script reordering"
-    echo ""
-    echo "Common ed commands (examples):"
-    echo "  Nd             - Delete line N"
-    echo "  N,Md           - Delete lines N through M"
-    echo "  Nc <text> .    - Replace line N with <text>"
-    echo "  Na <text> .    - Insert <text> after line N"
-    echo "  Ni <text> .    - Insert <text> before line N"
-    echo "  ,p             - Print all lines (view file)"
-    echo "  N,Mp           - Print lines N through M"
-    echo "  /pattern/p     - Print lines matching pattern"
-    echo "  s/old/new/g    - Replace all 'old' with 'new' on current line"
-    echo "  1,\$s/old/new/g - Replace all 'old' with 'new' in entire file"
+# Show help information
+show_help() {
+    cat << 'EOF'
+Usage: eed [OPTIONS] <file> [ed_script | -]
+
+AI-oriented text editor with bulletproof safety guarantees
+
+OPTIONS:
+  --force         Apply changes directly (skip preview mode)
+  --debug         Show detailed debugging information
+  --disable-auto-reorder  Disable automatic command reordering
+  --help          Show this help message
+
+ARGUMENTS:
+  file            Target file to edit (will be created if it doesn't exist)
+  ed_script       Ed commands as string, or '-' to read from stdin
+  -               Read ed script from stdin (alternative to ed_script)
+
+EXAMPLES:
+  # Preview mode (default - safe)
+  eed file.txt "1a\nHello\n.\nw\nq"
+
+  # Direct mode (skip preview)
+  eed --force file.txt "1d\nw\nq"
+
+  # Read from stdin
+  echo "1a\nContent\n.\nw\nq" | eed file.txt -
+
+WORKFLOW:
+  1. Validates ed commands for safety
+  2. Creates preview in file.eed.preview
+  3. Shows diff and instructions (unless --force)
+  4. Provides clear next steps
+
+SAFETY FEATURES:
+  - Original files never corrupted
+  - Preview-first workflow
+  - Automatic command reordering
+  - Line number validation
+  - Git integration
+EOF
 }
 
 # Log ed commands for analysis and debugging
