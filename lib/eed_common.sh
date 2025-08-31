@@ -58,6 +58,12 @@ log_ed_commands() {
     local script_content="$1"
     local log_file="${2:-$EED_LOG_FILE}"  # Optional log file parameter, defaults to global setting
 
+    # Skip logging to the default user log during tests unless an explicit log file is provided.
+    # This prevents tests from polluting the user's home directory when EED_TESTING/TESTING_MODE is set.
+    if { [ "${EED_TESTING:-}" = "1" ] || [ "${EED_TESTING:-}" = "true" ] || [ "${TESTING_MODE:-}" = "1" ] || [ "${TESTING_MODE:-}" = "true" ]; } && [ $# -lt 2 ]; then
+        return 0
+    fi
+
     local timestamp
     timestamp=$(date --iso-8601=seconds)
 
