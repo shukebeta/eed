@@ -16,7 +16,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/eed_smart_dot_protection.sh"
 set +H
 
 # Validate ed script for basic requirements
-validate_ed_script() {
+is_ed_script_valid() {
     local script="$1"
 
     # Check for empty script - treat as no-op, not error
@@ -114,7 +114,7 @@ detect_and_fix_unterminated_input() {
 }
 
 # TODO: Implement enhanced validator with parsing stack
-# validate_ed_script_enhanced() {
+# is_ed_script_valid_enhanced() {
 #     # The enhanced validator from user's example will go here
 # }
 

@@ -136,14 +136,10 @@ fi
 
 
 # --- Script Validation ---
-validation_result=$(validate_ed_script "$ED_SCRIPT")
-validation_code=$?
-echo "$validation_result" >&2
-
-if [ $validation_code -ne 0 ]; then
+if ! validation_result=$(is_ed_script_valid "$ED_SCRIPT"); then
+    echo "$validation_result" >&2
     exit 1
 fi
-
 
 # --- Auto-fix unterminated input blocks (a/c/i)
 if ! FIXED_SCRIPT=$(detect_and_fix_unterminated_input "$ED_SCRIPT"); then

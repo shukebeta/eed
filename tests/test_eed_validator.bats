@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 # Unit tests for eed validator functions
-# Direct testing of classify_ed_script and validate_ed_script
+# Direct testing of classify_ed_script and is_ed_script_valid
 
 setup() {
     # Determine repository root using BATS_TEST_DIRNAME
@@ -200,23 +200,23 @@ EOF
     [ "$output" = "view_only" ]
 }
 
-# Test validate_ed_script function directly
+# Test is_ed_script_valid function directly
 
 @test "validator: valid script with q terminator" {
-    run validate_ed_script "5d
+    run is_ed_script_valid "5d
 w
 q"
     [ "$status" -eq 0 ]
 }
 
 @test "validator: valid script with Q terminator" {
-    run validate_ed_script "5d
+    run is_ed_script_valid "5d
 Q"
     [ "$status" -eq 0 ]
 }
 
 @test "validator: script without terminator shows warning" {
-    run validate_ed_script "5d
+    run is_ed_script_valid "5d
 w"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Warning"* ]]
@@ -224,7 +224,7 @@ w"
 }
 
 @test "validator: empty script" {
-    run validate_ed_script ""
+    run is_ed_script_valid ""
     [ "$status" -eq 0 ]
     [[ "$output" == *"Warning: Empty ed script"* ]]
 }
