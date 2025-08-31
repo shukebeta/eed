@@ -44,4 +44,11 @@ teardown() {
     [[ "$output" == *"eed:"* ]]
 
 }
+@test "error_exit integration: Unknown option" {
+    run $SCRIPT_UNDER_TEST --invalid-flag
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"✗ Error: Unknown option '--invalid-flag'"* ]]
+    [[ "$output" == *"Use 'eed --help' for usage information"* ]]
+}
+
 

@@ -80,9 +80,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -*)
-            echo "Error: Unknown option '$1'" >&2
-            echo "Use 'eed --help' for usage information" >&2
-            exit 1
+            error_exit "Unknown option '$1'" 1 true
             ;;
         *)
             if [ -z "$FILE_PATH" ]; then
