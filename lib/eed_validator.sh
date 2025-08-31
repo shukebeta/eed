@@ -675,30 +675,6 @@ validate_line_ranges() {
 
 # --- COMPLEX PATTERN DETECTION FUNCTIONS ---
 
-# Check if script contains complex patterns that make it unpredictable
-has_complex_patterns() {
-    local script="$1"
-    local line
-
-    while IFS= read -r line; do
-        line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        [ -z "$line" ] && continue
-
-        # Detect global/visual commands
-        if [[ "$line" =~ ^[gvGV]/ ]]; then
-            return 0
-        fi
-
-        # Detect move/transfer commands
-        if [[ "$line" =~ [mMtT] ]]; then
-            return 0
-        fi
-
-    done <<< "$script"
-
-    return 1
-}
-
 # Determine ordering pattern of line numbers
 determine_ordering() {
     local script="$1"
