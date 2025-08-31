@@ -605,21 +605,21 @@ EOF
 
 @test "improved detection: g/pattern/d should still be detected as complex" {
     local script="$(printf 'g/function/d\n1d\n5d\nw\nq')"
-    # Test the unified architecture: detect_complex_patterns should identify this as complex
-    run detect_complex_patterns "$script" 2>/dev/null
+    # Test the unified architecture: no_complex_patterns should identify this as complex
+    run no_complex_patterns "$script" 2>/dev/null
     [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
 }
 
 @test "improved detection: non-numeric address with delete should still be detected as complex" {
     local script="$(printf '/pattern/d\n1d\n5d\nw\nq')"
-    # Test the unified architecture: detect_complex_patterns should identify this as complex
-    run detect_complex_patterns "$script" 2>/dev/null
+    # Test the unified architecture: no_complex_patterns should identify this as complex
+    run no_complex_patterns "$script" 2>/dev/null
     [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
 }
 
 @test "improved detection: offset address with delete should still be detected as complex" {
     local script="$(printf '.-5,.+5d\n1d\n5d\nw\nq')"
-    run detect_complex_patterns "$script" 2>/dev/null
+    run no_complex_patterns "$script" 2>/dev/null
     [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
 
     # Verify reorder_script still reorders the numeric parts (that's its job)

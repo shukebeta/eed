@@ -98,12 +98,12 @@ content line
 w
 q'
 
-  echo "=== Testing detect_complex_patterns directly ==="
+  echo "=== Testing no_complex_patterns directly ==="
   echo "Script:"
   printf "%s\n" "$script"
 
   echo "=== Function result ==="
-  detect_complex_patterns "$script" 2>&1
+  no_complex_patterns "$script" 2>&1
   echo "Exit code: $?"
 }
 

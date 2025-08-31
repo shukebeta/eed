@@ -45,8 +45,6 @@ q"
     [ "$status" -eq 0 ]
     
     run cat "$TEMP_LOG_FILE"
-    # Debug: show what was actually logged
-    echo "Actual log output: $output" >&3
     [[ "$output" =~ "2c" ]]           # Should record change command
     [[ "$output" =~ "1,3d" ]]         # Should record delete range command
     [[ ! "$output" =~ "replaced line" ]] # Should NOT record content data

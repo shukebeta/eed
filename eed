@@ -203,7 +203,7 @@ else
     if [ "$SMART_PROTECTION_APPLIED" = true ]; then
         HAS_COMPLEX_PATTERNS=0
     else
-        if ! detect_complex_patterns "$ED_SCRIPT" >/dev/null 2>&1; then
+        if ! no_complex_patterns "$ED_SCRIPT" >/dev/null 2>&1; then
             HAS_COMPLEX_PATTERNS=1  # Detection failed = complex patterns
         else
             HAS_COMPLEX_PATTERNS=0  # Detection succeeded = no complex patterns

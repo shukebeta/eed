@@ -225,8 +225,6 @@ q"
     
     # Changes should be automatically staged by eed
     run git status --porcelain
-    echo "git status output: '$output'" >&3
-    echo "git status exit code: $status" >&3
     [[ "$output" == *"M  app.py"* ]]
     
     # Verify the change was made

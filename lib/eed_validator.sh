@@ -330,7 +330,7 @@ apply_smart_dot_handling() {
 }
 
 # Detect complex patterns that are unsafe for automatic reordering
-detect_complex_patterns() {
+no_complex_patterns() {
     local script="$1"
     local line
     local -a addresses=()
