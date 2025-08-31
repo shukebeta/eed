@@ -8,7 +8,7 @@ setup() {
   cd "$TEST_DIR"
 
   SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
-  export EED_TESTING=1
+  export EED_TESTING=true
 }
 
 teardown() {
@@ -43,7 +43,7 @@ q"
   [ "$status" -eq 0 ]
 }
 
-@test "heredoc leftover without w/q errors" {
+@test "unterminated input block without w/q command errors" {
   run $SCRIPT_UNDER_TEST --force newfile.txt "1a
 line
 EOF"

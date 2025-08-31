@@ -114,15 +114,13 @@ EOF
 - Use `--debug` flag to troubleshoot issues
 - Backup / preview files are written as `file.eed.preview` (in preview mode)
 
-### Heredoc nesting trap (AI users)
+### Heredoc nesting considerations (AI users)
 
-- When embedding ed scripts via heredoc, avoid reusing the same delimiter for nested heredocs. A line that is a standalone heredoc delimiter (for example, `EOF`) found inside the final ED script very likely indicates a nested-heredoc mistake where the shell terminated an inner heredoc early.
-- Validator behavior:
-  - If eed detects a standalone heredoc marker in the ED script, it will halt and refuse to auto-fix. This is intentionally strict because heredoc leftovers usually indicate a truncated ED script and auto-fixing would mask data loss.
-  - eed will only auto-insert a missing `.` to terminate an open a/c/i input block when there is an explicit write/quit (`w` or `q`) command present in the script (high-confidence auto-fix). If no `w`/`q` is present, eed will error and ask you to correct the script.
-- Short guidance:
-  - Prefer unique delimiters for nested heredocs (e.g. `INNER` / `OUTER`).
-  - Prefer writing the ed script to a temporary file and passing it via stdin (`-`) to avoid nesting entirely.
+- When embedding ed scripts via heredoc, avoid reusing the same delimiter for nested heredocs. If you accidentally nest heredocs with the same delimiter, the shell will terminate the inner heredoc early, truncating your ed script.
+- eed will only auto-insert a missing `.' to terminate an open a/c/i input block when there is an explicit write/quit (`w` or `q`) command present in the script (high-confidence auto-fix). If no `w`/`q` is present, eed will error and ask you to correct the script.
+- Best practices:
+  - Use unique delimiters for nested heredocs (e.g. `INNER` / `OUTER`).
+  - Or avoid nesting entirely: write the ed script to a temporary file and pass it via stdin (`-`).
 
 Example (correct — use unique delimiters):
 ```bash

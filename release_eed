@@ -2,4 +2,4 @@ cp -v eed ~/bin
 cp -v lib/* ~/bin/lib
 cp -v tests/* ~/bin/tests
 chmod  +x ~/bin/eed
-cp docs/eed.md ~/.claude/commands
+cp docs/eed-comprehensive-guide.md ~/.claude

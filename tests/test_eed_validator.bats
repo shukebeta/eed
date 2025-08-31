@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 # Unit tests for eed validator functions
-# Direct testing of classify_ed_script and validate_ed_script
+# Direct testing of classify_ed_script and is_ed_script_valid
 
 setup() {
     # Determine repository root using BATS_TEST_DIRNAME
@@ -19,7 +19,7 @@ setup() {
     SCRIPT_UNDER_TEST="$REPO_ROOT/eed"
 
     # Prevent logging during tests
-    export EED_TESTING=1
+    export EED_TESTING=true
 }
 
 teardown() {
@@ -200,23 +200,23 @@ EOF
     [ "$output" = "view_only" ]
 }
 
-# Test validate_ed_script function directly
+# Test is_ed_script_valid function directly
 
 @test "validator: valid script with q terminator" {
-    run validate_ed_script "5d
+    run is_ed_script_valid "5d
 w
 q"
     [ "$status" -eq 0 ]
 }
 
 @test "validator: valid script with Q terminator" {
-    run validate_ed_script "5d
+    run is_ed_script_valid "5d
 Q"
     [ "$status" -eq 0 ]
 }
 
 @test "validator: script without terminator shows warning" {
-    run validate_ed_script "5d
+    run is_ed_script_valid "5d
 w"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Warning"* ]]
@@ -224,7 +224,7 @@ w"
 }
 
 @test "validator: empty script" {
-    run validate_ed_script ""
+    run is_ed_script_valid ""
     [ "$status" -eq 0 ]
     [[ "$output" == *"Warning: Empty ed script"* ]]
 }
@@ -294,15 +294,6 @@ q"
     [[ "$output" == *"POTENTIAL_DOT_TRAP"* ]]
 }
 
-@test "dot trap guidance: provides helpful suggestions" {
-    # Should provide clear guidance about heredoc usage
-    local script="test script with multiple dots"
-    # suggest_dot_fix is already loaded via setup(); call it directly
-    run suggest_dot_fix "$script"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"consider using heredoc syntax"* ]]
-    [[ "$output" == *". (dot) for content"* ]]
-}
 
 # --- Tests for detect_line_order_issue ---
 
@@ -614,23 +605,23 @@ EOF
 
 @test "improved detection: g/pattern/d should still be detected as complex" {
     local script="$(printf 'g/function/d\n1d\n5d\nw\nq')"
-    # Test the unified architecture: detect_complex_patterns should identify this as complex
-    run detect_complex_patterns "$script" 2>/dev/null
+    # Test the unified architecture: no_complex_patterns should identify this as complex
+    run no_complex_patterns "$script" 2>/dev/null
     [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
 }
 
 @test "improved detection: non-numeric address with delete should still be detected as complex" {
     local script="$(printf '/pattern/d\n1d\n5d\nw\nq')"
-    # Test the unified architecture: detect_complex_patterns should identify this as complex
-    run detect_complex_patterns "$script" 2>/dev/null
+    # Test the unified architecture: no_complex_patterns should identify this as complex
+    run no_complex_patterns "$script" 2>/dev/null
     [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
 }
 
 @test "improved detection: offset address with delete should still be detected as complex" {
     local script="$(printf '.-5,.+5d\n1d\n5d\nw\nq')"
-    run detect_complex_patterns "$script" 2>/dev/null
+    run no_complex_patterns "$script" 2>/dev/null
     [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
-    
+
     # Verify reorder_script still reorders the numeric parts (that's its job)
     run reorder_script "$script"
     [ "$status" -eq 1 ]  # Reordering was performed (1d,5d -> 5d,1d)
@@ -640,8 +631,8 @@ EOF
 }
 
 
-@test "classifier: G老师's edge case concerns verification" {
-    # Verify that the exact cases G老师 was worried about work correctly
+@test "classifier: code review edge case concerns verification" {
+    # Verify that the exact cases code review was worried about work correctly
     run classify_ed_script "5p"
     [ "$status" -eq 0 ]
     [ "$output" = "view_only" ]
