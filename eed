@@ -7,6 +7,7 @@ set -euo pipefail
 
 # --- Configuration ---
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 source "$REPO_ROOT/lib/eed_common.sh"
 source "$REPO_ROOT/lib/eed_validator.sh"
 
@@ -33,10 +34,9 @@ parse_boolean() {
 DEBUG_MODE="$(parse_boolean "${EED_DEBUG:-false}")"
 DISABLE_AUTO_REORDER="$(parse_boolean "${EED_DISABLE_AUTO_REORDER:-false}")"
 FORCE_MODE="$(parse_boolean "${EED_FORCE:-false}")"
+
 FORCE_OVERRIDE="$(parse_boolean "${EED_FORCE_OVERRIDE:-false}")"
 
-# Testing mode (prevents log file creation)
-TESTING_MODE="$(parse_boolean "${EED_TESTING:-false}")"
 # Flag set when smart-dot protection has been applied to the ED_SCRIPT.
 # When true, treat the script as tutorial-context and avoid classifying it as
 # "complex" which would disable --force behavior.
