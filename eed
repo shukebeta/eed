@@ -7,6 +7,7 @@ set -euo pipefail
 
 # --- Configuration ---
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$REPO_ROOT/lib/eed_common.sh"
 source "$REPO_ROOT/lib/eed_validator.sh"
 
 # Global settings
@@ -188,6 +189,8 @@ if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
 fi
 
 # --- Log Commands for Analysis ---
+log_ed_commands "$ED_SCRIPT"
+
 # --- EARLY COMMAND VALIDATION ---
 
 SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")

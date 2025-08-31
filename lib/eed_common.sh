@@ -59,11 +59,7 @@ show_usage() {
 # Log ed commands for analysis and debugging
 log_ed_commands() {
     local script_content="$1"
-
-    # Skip logging during tests
-    if [[ "${EED_TESTING:-}" == "1" ]]; then
-        return 0
-    fi
+    local log_file="${2:-$EED_LOG_FILE}"  # Optional log file parameter, defaults to global setting
 
     local timestamp
     timestamp=$(date --iso-8601=seconds)
@@ -74,18 +70,18 @@ log_ed_commands() {
         line="${line#"${line%%[![:space:]]*}"}"
         line="${line%"${line##*[![:space:]]}"}"
 
-        # --- Rule 1: Skip boilerplate ---
-        # If the line is exactly '.', 'w', 'q', or 'Q', ignore it.
-        if [[ "$line" == "." || "$line" == "w" || "$line" == "q" || "$line" == "Q" ]]; then
-            continue
-        fi
-
-        # --- Rule 2: Skip data lines (for a, c, i) ---
+        # --- Rule 2: Handle input mode FIRST (before boilerplate filtering) ---
         if [ "$in_input_mode" = true ]; then
             if [[ "$line" == "." ]]; then
                 in_input_mode=false
             fi
-            continue # Don't log the content being inserted
+            continue # Don't log the content being inserted or terminators
+        fi
+
+        # --- Rule 1: Skip boilerplate (after input mode handling) ---
+        # If the line is exactly '.', 'w', 'q', or 'Q', ignore it.
+        if [[ "$line" == "." || "$line" == "w" || "$line" == "q" || "$line" == "Q" ]]; then
+            continue
         fi
 
         # Check for commands that enter input mode *after* trying to log the command itself
@@ -96,7 +92,7 @@ log_ed_commands() {
         # --- Rule 3: Log the command if it's not empty and hasn't been skipped ---
         if [ -n "$line" ]; then
             # Log format: TIMESTAMP | COMMAND
-            echo "$timestamp | $line" >> "$EED_LOG_FILE"
+            echo "$timestamp | $line" >> "$log_file"
         fi
     done <<< "$script_content"
 }
