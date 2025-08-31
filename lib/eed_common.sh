@@ -107,3 +107,26 @@ log_ed_commands() {
         fi
     done <<< "$script_content"
 }
+# Unified error reporting function
+# Usage: error_exit "message" [exit_code] [show_usage]
+error_exit() {
+    local message="$1"
+    local exit_code="${2:-1}"
+    local show_usage="${3:-false}"
+    
+    # Standardized error format
+    echo "✗ Error: $message" >&2
+    
+    # Debug mode: show basic stack info
+    if [ "${DEBUG_MODE:-}" = "true" ]; then
+        echo "  Location: ${BASH_SOURCE[1]##*/}:${BASH_LINENO[0]} in ${FUNCNAME[1]}()" >&2
+    fi
+    
+    # Optional usage hint
+    if [ "$show_usage" = "true" ]; then
+        echo "Use 'eed --help' for usage information" >&2
+    fi
+    
+    exit "$exit_code"
+}
+
