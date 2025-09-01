@@ -138,3 +138,42 @@ q"
 }
 
 # === ERROR RECOVERY ===
+
+@test "debug: marker conflicts case (moved from debug_integration.bats)" {
+  # From integration tests line 181 issue
+  cat > conflict_test.bats <<'EOF'
+# Test: contains marker-like strings
+function test_markers() {
+  echo "~~DOT_123~~"
+}
+EOF
+
+  script='2a
+# Test: new test with dots
+function test_with_dots() {
+  content.
+  more content.
+}
+.
+w
+q'
+
+  echo "File before:"
+  cat -n conflict_test.bats
+
+  echo "=== Testing marker conflicts ==="
+  run "$SCRIPT_UNDER_TEST" --force conflict_test.bats "$script"
+  echo "Exit status: $status"
+  echo "Output: $output"
+
+  echo "=== File after ==="
+  cat conflict_test.bats
+
+  # Check if content was inserted
+  if grep -q "test_with_dots" conflict_test.bats; then
+    echo "✓ Marker conflicts case worked"
+  else
+    echo "✗ Marker conflicts case failed"
+    return 1
+  fi
+}

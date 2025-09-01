@@ -258,3 +258,148 @@ q"
     [ "$status" -eq 0 ]
 }
 
+
+@test "debug: edge case malformed script (moved from debug_integration.bats)" {
+  # From integration tests line 238 issue
+  cat > edge_case.bats <<'EOF'
+# Test: edge case
+function test_edge_case() {
+  echo "test"
+}
+EOF
+
+  # Script that might cause transform failure
+  script='1a
+complex
+malformed.
+script.
+that.
+might.
+fail.
+.
+w
+q'
+
+  echo "File before:"
+  cat -n edge_case.bats
+
+  echo "=== Testing edge case ==="
+  run "$SCRIPT_UNDER_TEST" edge_case.bats "$script"
+  echo "Exit status: $status"
+  echo "Output: $output"
+
+  echo "=== File after ==="
+  cat edge_case.bats
+
+  # Should handle gracefully (either succeed or fail cleanly)
+  if [ "$status" -eq 0 ]; then
+    echo "✓ Edge case handled successfully"
+  else
+    echo "✓ Edge case failed cleanly (expected behavior)"
+  fi
+}
+
+@test "debug: reproduce original failing scenario (moved from debug_integration.bats)" {
+  # Exact copy of original test but with clean @test definitions
+  cat > test_example.bats <<'EOF'
+#!/usr/bin/env bats
+
+# Test: existing test (cleaned from @test)
+function existing_test() {
+  run echo "hello"
+  [ "$status" -eq 0 ]
+}
+EOF
+
+  script='3a
+# Test case demonstrates ed command usage
+# Example: eed file.txt with multiple dots
+content line
+.
+w
+q'
+
+  echo "Current directory: $(pwd)"
+  echo "Test files in directory:"
+  ls -la
+  echo "File before eed:"
+  cat test_example.bats
+  echo "Script to apply:"
+  printf "%q\n" "$script"
+
+  echo "Running eed with bash trace:"
+  bash -x "$SCRIPT_UNDER_TEST" --debug --force test_example.bats "$script" 2>&1
+  local eed_status=$?
+  echo "Direct eed exit status: $eed_status"
+
+  echo "File after (if exists):"
+  cat test_example.bats 2>/dev/null || echo "File not found"
+
+  # Check if content was inserted
+  if grep -q "content line" test_example.bats; then
+    echo "✓ Content was inserted successfully"
+  else
+    echo "✗ Content was NOT inserted"
+  fi
+}
+
+@test "debug: step by step execution trace (moved from debug_integration.bats)" {
+  cat > simple_file.txt <<'EOF'
+line1
+line2
+line3
+EOF
+
+  echo "=== Simple script test ==="
+  script='3a
+simple content
+.
+w
+q'
+
+  echo "Script to test:"
+  printf "%s\n" "$script"
+
+  echo "=== Full bash trace ==="
+  bash -x "$SCRIPT_UNDER_TEST" --debug --force simple_file.txt "$script" 2>&1 | tail -50
+  local exit_code=$?
+  echo "Exit code: $exit_code"
+
+  echo "=== File result ==="
+  cat simple_file.txt
+
+  # Check if content was actually inserted
+  if grep -q "simple content" simple_file.txt; then
+    echo "✓ Simple content was inserted"
+  else
+    echo "✗ Simple content was NOT inserted - eed succeeded but did nothing!"
+  fi
+}
+
+@test "debug: file creation issue (moved from debug_integration.bats)" {
+    # Test that eed can create new files
+    script='1i
+first line
+.
+w
+q'
+    echo "=== Testing file creation ==="
+    run "$SCRIPT_UNDER_TEST" --force newfile.txt "$script"
+    echo "Exit status: $status"
+    echo "Output: $output"
+    
+    echo "=== File check ==="
+    if [ -f newfile.txt ]; then
+        echo "✓ File was created"
+        echo "File contents:"
+        cat newfile.txt
+    else
+        echo "✗ File was NOT created"
+        ls -la *.txt 2>/dev/null || echo "No txt files found"
+    fi
+    
+    # Test should pass now
+    [ "$status" -eq 0 ]
+    [ -f newfile.txt ]
+    grep -q "first line" newfile.txt
+}

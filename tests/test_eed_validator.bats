@@ -655,3 +655,19 @@ EOF
     [ "$output" = "has_modifying" ]
 }
 
+
+@test "debug: isolate addr_count issue (moved from debug_integration.bats)" {
+  script='3a
+content line
+.
+w
+q'
+
+  echo "=== Testing no_complex_patterns directly ==="
+  echo "Script:"
+  printf "%s\n" "$script"
+
+  echo "=== Function result ==="
+  no_complex_patterns "$script" 2>&1
+  echo "Exit code: $?"
+}

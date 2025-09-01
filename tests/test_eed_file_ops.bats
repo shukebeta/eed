@@ -194,3 +194,131 @@ EOF
     [[ "$output" == *"second line with pattern"* ]]
     [[ "$output" == *"fourth line with pattern"* ]]
 }
+
+@test "debug: simple integration test (moved from debug_integration.bats)" {
+  cat > test_file.bats <<'EOF'
+#!/usr/bin/env bats
+# Test: existing test
+function existing_test() {
+  run echo "hello"
+  [ "$status" -eq 0 ]
+}
+EOF
+
+  script='3a
+content line
+.
+w
+q'
+
+  echo "File before eed:"
+  cat -n test_file.bats
+
+  echo "=== Running eed with full bash trace ==="
+  bash -x "$SCRIPT_UNDER_TEST" --debug --force test_file.bats "$script"
+  local eed_exit=$?
+  echo "Direct eed exit code: $eed_exit"
+
+  echo "=== File after eed ==="
+  cat -n test_file.bats
+
+  # Check if content was inserted
+  if grep -q "content line" test_file.bats; then
+    echo "✓ Content was inserted"
+  else
+    echo "✗ Content was NOT inserted"
+    return 1
+  fi
+}
+
+@test "debug: complex ed examples case (moved from debug_integration.bats)" {
+  cat > docs.txt <<'EOF'
+Documentation file
+line2
+line3
+line4
+line5
+EOF
+
+  # Complex case with multiple input blocks - from integration tests
+  script='1a
+Example 1:
+  1a
+  content.
+  .
+  w
+
+Example 2:
+  5c
+  other content.
+  .
+  w
+  q
+.
+w
+q'
+
+  echo "File before:"
+  cat -n docs.txt
+
+  echo "=== Testing complex case ==="
+  run "$SCRIPT_UNDER_TEST" --force docs.txt "$script"
+  echo "Exit status: $status"
+  echo "Output: $output"
+
+  echo "=== File after ==="
+  cat docs.txt
+
+  # Check if content was inserted
+  if grep -q "content." docs.txt; then
+    echo "✓ Complex case worked"
+  else
+    echo "✗ Complex case failed"
+    return 1
+  fi
+}
+
+@test "debug: direct ed execution test (moved from debug_integration.bats)" {
+  cat > test_file.txt <<'EOF'
+line1
+line2
+line3
+EOF
+
+  echo "File before ed:"
+  cat -n test_file.txt
+
+  # Prepare instruction stream like our smart dot protection would
+  script='3a
+content line
+.
+w
+q'
+
+  echo "=== Testing direct ed execution ==="
+  echo "Script to execute:"
+  printf "%s\n" "$script"
+
+  echo "=== Running ed directly ==="
+  printf '%s\n' "$script" | ed -s test_file.txt
+  local ed_exit_code=$?
+  echo "Direct ed exit code: $ed_exit_code"
+
+  echo "=== File after ed ==="
+  cat -n test_file.txt
+
+  # Check result
+  if [ $ed_exit_code -eq 0 ]; then
+    echo "✓ Ed command succeeded"
+    if grep -q "content line" test_file.txt; then
+      echo "✓ Content was inserted correctly"
+    else
+      echo "✗ Ed succeeded but content missing!"
+    fi
+  else
+    echo "✗ Ed command failed with code $ed_exit_code"
+  fi
+
+  # Previously forced failure to show output — disabled
+  :
+}
