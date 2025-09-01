@@ -114,6 +114,9 @@ if [ "$ED_SCRIPT" = "-" ] || [ "$ED_SCRIPT_PROVIDED" = false ]; then
     ED_SCRIPT=$(cat)
 fi
 
+
+# Normalize line endings for cross-platform compatibility (Git Bash/Windows)  
+ED_SCRIPT=$(echo "$ED_SCRIPT" | tr -d '\r')
 # Print debug info early if enabled
 if [ "$DEBUG_MODE" = true ]; then
     echo "Debug mode: executing ed" >&2

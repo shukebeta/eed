@@ -52,6 +52,14 @@ WORKFLOW:
   3. Shows diff and instructions (unless --force)
   4. Provides clear next steps
 
+
+# Cross-platform line normalization for Git Bash/Windows compatibility
+# Removes trailing \r characters that cause CRLF issues
+normalize_line() {
+    local line="$1"
+    # Remove trailing \r if present (CRLF -> LF)
+    echo "${line%$'\r'}"
+}
 SAFETY FEATURES:
   - Original files never corrupted
   - Preview-first workflow
