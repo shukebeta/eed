@@ -138,9 +138,24 @@ is_substitute_command() {
     # Strip range prefix if present
     if [[ "$line" =~ ^${EED_RANGE} ]]; then
         rest="${line:${#BASH_REMATCH[0]}}"
-    # Otherwise strip single address prefix if present  
+    # Otherwise strip single address prefix if present
     elif [[ "$line" =~ ^${EED_ADDR} ]]; then
         rest="${line:${#BASH_REMATCH[0]}}"
+    fi
+
+    # Trim leading whitespace
+    rest="${rest#"${rest%%[![:space:]]*}"}"
+
+    # Remove a leftover leading comma (e.g. when address parsing left ",$" )
+    if [[ "$rest" == ,* ]]; then
+        rest="${rest#,}"
+    fi
+
+    # Remove optional escaped or plain dollar that may precede the 's' (handles heredoc-escaped '\$' cases)
+    if [[ "$rest" == \\$* ]]; then
+        rest="${rest#\\$}"
+    elif [[ "$rest" == \$* ]]; then
+        rest="${rest#\$}"
     fi
 
     # Use fixed core regex to check s command
