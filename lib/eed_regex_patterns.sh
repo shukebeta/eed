@@ -147,15 +147,16 @@ is_substitute_command() {
     rest="${rest#"${rest%%[![:space:]]*}"}"
 
     # Remove a leftover leading comma (e.g. when address parsing left ",$" )
-    if [[ "$rest" == ,* ]]; then
+    while [[ "$rest" == ,* ]]; do
         rest="${rest#,}"
-    fi
+    done
 
-    # Remove optional escaped or plain dollar that may precede the 's' (handles heredoc-escaped '\$' cases)
-    if [[ "$rest" == \\$* ]]; then
-        rest="${rest#\\$}"
-    elif [[ "$rest" == \$* ]]; then
-        rest="${rest#\$}"
+    # Remove optional escaped or plain dollar that may precede the 's'
+    # Use regex anchors to robustly detect a literal backslash + dollar (handles '\$' from here-doc with single quotes)
+    if [[ "$rest" =~ ^\\\$ ]]; then
+        rest="${rest:2}"   # drop leading backslash and dollar
+    elif [[ "$rest" =~ ^\$ ]]; then
+        rest="${rest:1}"   # drop leading dollar
     fi
 
     # Use fixed core regex to check s command
