@@ -146,18 +146,29 @@ is_substitute_command() {
     # Trim leading whitespace
     rest="${rest#"${rest%%[![:space:]]*}"}"
 
-    # Remove a leftover leading comma (e.g. when address parsing left ",$" )
-    while [[ "$rest" == ,* ]]; do
-        rest="${rest#,}"
-    done
+    # Canonicalize leftovers before 's':
+    # - leading commas from range split (",")
+    # - escaped dollar from here-doc literal ("\$")
+    # - plain dollar ("$")
+    # Repeat until clean so we end up at the real 's'
+    while true; do
+        # Trim any leading whitespace
+        rest="${rest#"${rest%%[![:space:]]*}"}"
 
-    # Remove optional escaped or plain dollar that may precede the 's'
-    # Use regex anchors to robustly detect a literal backslash + dollar (handles '\$' from here-doc with single quotes)
-    if [[ "$rest" =~ ^\\\$ ]]; then
-        rest="${rest:2}"   # drop leading backslash and dollar
-    elif [[ "$rest" =~ ^\$ ]]; then
-        rest="${rest:1}"   # drop leading dollar
-    fi
+        if [[ "$rest" == ,* ]]; then
+            rest="${rest#,}"
+            continue
+        fi
+        if [[ "$rest" =~ ^\\\$ ]]; then
+            rest="${rest:2}"
+            continue
+        fi
+        if [[ "$rest" =~ ^\$ ]]; then
+            rest="${rest:1}"
+            continue
+        fi
+        break
+    done
 
     # Use fixed core regex to check s command
     [[ "$rest" =~ ^${EED_REGEX_SUBSTITUTE_CORE} ]]
