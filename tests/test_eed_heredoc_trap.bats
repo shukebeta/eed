@@ -17,7 +17,7 @@ teardown() {
 }
 
 @test "user can insert EOF as normal text content" {
-  run $SCRIPT_UNDER_TEST --force test.txt "1a
+  run "$SCRIPT_UNDER_TEST" --force test.txt "1a
 content line
 EOF
 .
@@ -35,7 +35,7 @@ q"
   cat > good.txt <<'EOF'
 line1
 EOF
-  run $SCRIPT_UNDER_TEST --force good.txt "1a
+  run "$SCRIPT_UNDER_TEST" --force good.txt "1a
 ok line
 .
 w

@@ -52,7 +52,7 @@ teardown() {
 
 @test "auto-reordering - ascending line numbers get reordered" {
     # AI provides commands in ascending order (dangerous)
-    run $SCRIPT_UNDER_TEST --force code.js "2d
+    run "$SCRIPT_UNDER_TEST" --force code.js "2d
 3d
 4d
 w
@@ -84,7 +84,7 @@ q"
 
 @test "auto-reordering - force mode disabled during reordering" {
     # AI uses --force but reordering disables it for safety
-    run $SCRIPT_UNDER_TEST --force code.js "1d
+    run "$SCRIPT_UNDER_TEST" --force code.js "1d
 2d
 3d
 w
@@ -106,7 +106,7 @@ q"
 
 @test "auto-reordering - correct order requires no reordering" {
     # AI provides commands in descending order (safe)
-    run $SCRIPT_UNDER_TEST --force code.js "4d
+    run "$SCRIPT_UNDER_TEST" --force code.js "4d
 3d
 2d
 w
@@ -125,7 +125,7 @@ q"
 
 @test "smart dot protection - tutorial content editing" {
     # AI edits tutorial content with multiple dots
-    run $SCRIPT_UNDER_TEST tutorial.md "7a
+    run "$SCRIPT_UNDER_TEST" tutorial.md "7a
 2a
 New content
 .
@@ -146,7 +146,7 @@ q"
 
 @test "complex pattern detection - disables force mode" {
     # AI provides complex script that should trigger safety measures
-    run $SCRIPT_UNDER_TEST --force code.js "g/console/d
+    run "$SCRIPT_UNDER_TEST" --force code.js "g/console/d
 w
 q"
     [ "$status" -eq 0 ]

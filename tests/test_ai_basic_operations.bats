@@ -41,7 +41,7 @@ teardown() {
 
 @test "basic insert - append line to end of file" {
     # AI commonly adds new lines at the end of files
-    run $SCRIPT_UNDER_TEST --force code.js "\$a
+    run "$SCRIPT_UNDER_TEST" --force code.js "\$a
 // New function added by AI
 function newFeature() {
     return 'feature';
@@ -60,7 +60,7 @@ q"
 
 @test "basic insert - insert line at specific position" {
     # AI often inserts imports or comments at specific lines
-    run $SCRIPT_UNDER_TEST --force code.js "1i
+    run "$SCRIPT_UNDER_TEST" --force code.js "1i
 // Added import statement
 const util = require('util');
 
@@ -78,7 +78,7 @@ q"
 
 @test "basic insert - insert after specific line" {
     # AI frequently adds code after existing lines
-    run $SCRIPT_UNDER_TEST --force code.js "2a
+    run "$SCRIPT_UNDER_TEST" --force code.js "2a
     // Debug output
     console.log('Function called');
 .
@@ -95,7 +95,7 @@ q"
 
 @test "basic delete - remove single line" {
     # AI often removes specific lines (like console.log statements)
-    run $SCRIPT_UNDER_TEST --force code.js "2d
+    run "$SCRIPT_UNDER_TEST" --force code.js "2d
 w
 q"
     [ "$status" -eq 0 ]
@@ -110,7 +110,7 @@ q"
 
 @test "basic delete - remove range of lines" {
     # AI sometimes removes entire blocks
-    run $SCRIPT_UNDER_TEST --force code.js "2,3d
+    run "$SCRIPT_UNDER_TEST" --force code.js "2,3d
 w
 q"
     [ "$status" -eq 0 ]
@@ -127,7 +127,7 @@ q"
 
 @test "basic replace - change entire line" {
     # AI frequently replaces lines with improved versions
-    run $SCRIPT_UNDER_TEST --force code.js "2c
+    run "$SCRIPT_UNDER_TEST" --force code.js "2c
     console.log('Hello, improved world!');
 .
 w
@@ -143,7 +143,7 @@ q"
 
 @test "basic substitute - pattern replacement" {
     # AI commonly does find-and-replace operations
-    run $SCRIPT_UNDER_TEST --force code.js "1,\$s/Hello World/Greetings, Universe/g
+    run "$SCRIPT_UNDER_TEST" --force code.js "1,\$s/Hello World/Greetings, Universe/g
 w
 q"
     [ "$status" -eq 0 ]

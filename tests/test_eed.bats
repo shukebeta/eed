@@ -52,7 +52,7 @@ line4
 line5
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test1.txt "3a
+    run "$SCRIPT_UNDER_TEST" --force test1.txt "3a
 inserted_line
 .
 w
@@ -71,7 +71,7 @@ line4
 line5
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test1.txt "2d
+    run "$SCRIPT_UNDER_TEST" --force test1.txt "2d
 w
 q"
     [ "$status" -eq 0 ]
@@ -88,7 +88,7 @@ line4
 line5
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test1.txt "1,\$s/line1/replaced_line1/
+    run "$SCRIPT_UNDER_TEST" --force test1.txt "1,\$s/line1/replaced_line1/
 w
 q"
     [ "$status" -eq 0 ]
@@ -101,7 +101,7 @@ q"
 normal line
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test2.txt "1a
+    run "$SCRIPT_UNDER_TEST" --force test2.txt "1a
 line with 'single quotes'
 .
 w
@@ -116,7 +116,7 @@ q"
 normal line
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test2.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" --force test2.txt "$(cat <<'EOF'
 1a
 line with "double quotes"
 .
@@ -134,7 +134,7 @@ EOF
 normal line
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test2.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" --force test2.txt "$(cat <<'EOF'
 1a
 line with \backslash
 .
@@ -152,7 +152,7 @@ EOF
 normal line
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test2.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" --force test2.txt "$(cat <<'EOF'
 1a
 line with $dollar sign
 .
@@ -170,7 +170,7 @@ EOF
 old_path=/usr/local/bin
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test3.txt "s|old_path=.*|new_path=C:\\Users\\Test\$User\\Documents|
+    run "$SCRIPT_UNDER_TEST" --force test3.txt "s|old_path=.*|new_path=C:\\Users\\Test\$User\\Documents|
 w
 q"
     [ "$status" -eq 0 ]
@@ -184,7 +184,7 @@ original content
 EOF
 
     # Invalid command should be detected and rejected before execution
-    run $SCRIPT_UNDER_TEST --force test4.txt "invalid_command"
+    run "$SCRIPT_UNDER_TEST" --force test4.txt "invalid_command"
     [ "$status" -ne 0 ]
 
     # Original content should be preserved (file never modified)
@@ -200,7 +200,7 @@ function newName() {
 }
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test5.txt "1,\$s/.*console\.log.*;//
+    run "$SCRIPT_UNDER_TEST" --force test5.txt "1,\$s/.*console\.log.*;//
 w
 q"
     [ "$status" -eq 0 ]
@@ -215,7 +215,7 @@ function newName() {
 }
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test5.txt "2a
+    run "$SCRIPT_UNDER_TEST" --force test5.txt "2a
     // Added comment
 .
 w
@@ -231,7 +231,7 @@ safe content
 EOF
 
     # Attempt command injection - should be treated as literal text
-    run $SCRIPT_UNDER_TEST --force test6.txt "1a
+    run "$SCRIPT_UNDER_TEST" --force test6.txt "1a
 ; rm -rf /tmp; echo malicious
 .
 w
@@ -248,7 +248,7 @@ q"
 safe content
 EOF
 
-    run $SCRIPT_UNDER_TEST --force test6.txt "1a
+    run "$SCRIPT_UNDER_TEST" --force test6.txt "1a
 line with | & ; < > characters
 .
 w

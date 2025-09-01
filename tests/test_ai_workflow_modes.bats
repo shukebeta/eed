@@ -42,7 +42,7 @@ teardown() {
 
 @test "preview mode - shows diff and manual apply instructions" {
     # AI gets preview by default, then manually applies
-    run $SCRIPT_UNDER_TEST app.py "2c
+    run "$SCRIPT_UNDER_TEST" app.py "2c
     print('Hello, AI World!')
 .
 w
@@ -69,7 +69,7 @@ q"
 
 @test "preview mode - complete apply workflow" {
     # Test the full preview → apply workflow
-    run $SCRIPT_UNDER_TEST app.py "3a
+    run "$SCRIPT_UNDER_TEST" app.py "3a
     # Added by AI
     print('Debug info')
 .
@@ -95,7 +95,7 @@ q"
 
 @test "preview mode - complete discard workflow" {
     # Test the preview → discard workflow  
-    run $SCRIPT_UNDER_TEST app.py "1c
+    run "$SCRIPT_UNDER_TEST" app.py "1c
 # This change will be discarded
 .
 w
@@ -120,7 +120,7 @@ q"
 
 @test "force mode - direct application with success message" {
     # AI uses --force for direct application
-    run $SCRIPT_UNDER_TEST --force app.py "2s/Hello World/Hello, Force Mode/
+    run "$SCRIPT_UNDER_TEST" --force app.py "2s/Hello World/Hello, Force Mode/
 w
 q"
     [ "$status" -eq 0 ]
@@ -144,7 +144,7 @@ q"
 
 @test "debug mode - shows detailed execution information" {
     # AI uses --debug to understand what eed is doing
-    run $SCRIPT_UNDER_TEST --debug --force config.ini "2a
+    run "$SCRIPT_UNDER_TEST" --debug --force config.ini "2a
 user=testuser
 .
 w
@@ -162,7 +162,7 @@ q"
 
 @test "error handling - invalid command preserves original file" {
     # AI provides invalid ed command
-    run $SCRIPT_UNDER_TEST app.py "invalid_command_123"
+    run "$SCRIPT_UNDER_TEST" app.py "invalid_command_123"
     [ "$status" -ne 0 ]
     
     # Should show error message
@@ -180,7 +180,7 @@ q"
 
 @test "error handling - ed execution failure protects original" {
     # AI provides command that will fail during execution
-    run $SCRIPT_UNDER_TEST --force app.py "1c
+    run "$SCRIPT_UNDER_TEST" --force app.py "1c
 new content
 .
 999p
@@ -216,7 +216,7 @@ q"
     [ "$status" -eq 0 ]
     
     # AI makes changes in force mode
-    run $SCRIPT_UNDER_TEST --force app.py "1a
+    run "$SCRIPT_UNDER_TEST" --force app.py "1a
 # AI-added comment
 .
 w
@@ -234,7 +234,7 @@ q"
 
 @test "no changes scenario - handles gracefully" {
     # AI runs command that makes no actual changes
-    run $SCRIPT_UNDER_TEST app.py "w
+    run "$SCRIPT_UNDER_TEST" app.py "w
 q"
     [ "$status" -eq 0 ]
     

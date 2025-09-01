@@ -32,7 +32,7 @@ teardown() {
 
 @test "preview mode - modifying script shows diff and instructions" {
     # Test default preview mode behavior
-    run $SCRIPT_UNDER_TEST sample.txt "2c
+    run "$SCRIPT_UNDER_TEST" sample.txt "2c
 new line2
 .
 w
@@ -62,7 +62,7 @@ q"
 
 @test "preview mode - view-only script executes directly" {
     # View-only scripts should not use preview mode
-    run $SCRIPT_UNDER_TEST sample.txt ",p
+    run "$SCRIPT_UNDER_TEST" sample.txt ",p
 q"
     [ "$status" -eq 0 ]
 
@@ -81,7 +81,7 @@ q"
 
 @test "force mode - modifying script edits directly" {
     # Test --force flag behavior
-    run $SCRIPT_UNDER_TEST --force sample.txt "2c
+    run "$SCRIPT_UNDER_TEST" --force sample.txt "2c
 new line2
 .
 w
@@ -104,7 +104,7 @@ q"
 
 @test "force mode - view-only script still executes directly" {
     # View-only should behave same in force mode
-    run $SCRIPT_UNDER_TEST --force sample.txt ",p
+    run "$SCRIPT_UNDER_TEST" --force sample.txt ",p
 q"
     [ "$status" -eq 0 ]
 
@@ -119,7 +119,7 @@ q"
 
 @test "force mode - shows clear success message without confusing mv command" {
     # Test that --force mode shows clear message instead of confusing mv instruction
-    run $SCRIPT_UNDER_TEST --force sample.txt "2c
+    run "$SCRIPT_UNDER_TEST" --force sample.txt "2c
 new line2
 .
 w
@@ -138,7 +138,7 @@ q"
 
 @test "preview mode - error handling preserves original file" {
     # Test error in preview mode
-    run $SCRIPT_UNDER_TEST sample.txt "invalid_command"
+    run "$SCRIPT_UNDER_TEST" sample.txt "invalid_command"
     [ "$status" -ne 0 ]
 
     # Should show error message
@@ -154,7 +154,7 @@ q"
 @test "force mode - error handling restores preview" {
     # Create a scenario where ed fails in force mode
     # Use a command that will fail after modification
-    run $SCRIPT_UNDER_TEST --force sample.txt "2c
+    run "$SCRIPT_UNDER_TEST" --force sample.txt "2c
 new line2
 .
 999p
@@ -170,7 +170,7 @@ q"
 
 @test "preview mode - successful apply workflow" {
     # Test the complete workflow: preview then apply
-    run $SCRIPT_UNDER_TEST sample.txt "1c
+    run "$SCRIPT_UNDER_TEST" sample.txt "1c
 modified line1
 .
 w
@@ -194,7 +194,7 @@ q"
 
 @test "preview mode - successful discard workflow" {
     # Test the complete workflow: preview then discard
-    run $SCRIPT_UNDER_TEST sample.txt "1c
+    run "$SCRIPT_UNDER_TEST" sample.txt "1c
 modified line1
 .
 w
@@ -217,7 +217,7 @@ q"
 
 @test "flag parsing - combined flags work correctly" {
     # Test --debug --force combination
-    run $SCRIPT_UNDER_TEST --debug --force sample.txt "2c
+    run "$SCRIPT_UNDER_TEST" --debug --force sample.txt "2c
 debug test
 .
 w
@@ -234,7 +234,7 @@ q"
 
 @test "flag parsing - unknown flag rejected" {
     # Test unknown flag handling
-    run $SCRIPT_UNDER_TEST --unknown sample.txt "p"
+    run "$SCRIPT_UNDER_TEST" --unknown sample.txt "p"
     [ "$status" -ne 0 ]
 
     [[ "$output" == *"Error: Unknown option '--unknown'"* ]]
@@ -242,7 +242,7 @@ q"
 
 @test "preview mode - complex diff shows properly" {
     # Create a more complex change to test diff output
-    run $SCRIPT_UNDER_TEST sample.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" sample.txt "$(cat <<'EOF'
 1c
 CHANGED LINE 1
 .
@@ -280,7 +280,7 @@ EOF
     original_stat="$(stat sample.txt)"
 
     # Force mode with failing command - should not corrupt original
-    run $SCRIPT_UNDER_TEST --force sample.txt "1c
+    run "$SCRIPT_UNDER_TEST" --force sample.txt "1c
 new content
 .
 999p
@@ -295,7 +295,7 @@ q"
     [ ! -f sample.txt.eed.preview ]
 
     # Preview mode with failing command - should also not corrupt original
-    run $SCRIPT_UNDER_TEST sample.txt "1c
+    run "$SCRIPT_UNDER_TEST" sample.txt "1c
 another attempt
 .
 999p
@@ -312,7 +312,7 @@ q"
 
 @test "force mode - auto-reordering cancels force mode" {
     # Test that --force is cancelled when script reordering occurs
-    run $SCRIPT_UNDER_TEST --force sample.txt "1d
+    run "$SCRIPT_UNDER_TEST" --force sample.txt "1d
 2d
 3d
 w
@@ -335,7 +335,7 @@ q"
 
 @test "line number validation - single out-of-range line" {
     # Test line number validation with out-of-range line number
-    run $SCRIPT_UNDER_TEST sample.txt "5d
+    run "$SCRIPT_UNDER_TEST" sample.txt "5d
 q"
     [ "$status" -ne 0 ]
     
@@ -349,7 +349,7 @@ q"
 
 @test "line number validation - range with out-of-range end" {
     # Test range command with out-of-range end line
-    run $SCRIPT_UNDER_TEST sample.txt "1,10d
+    run "$SCRIPT_UNDER_TEST" sample.txt "1,10d
 q"
     [ "$status" -ne 0 ]
     
@@ -363,7 +363,7 @@ q"
 
 @test "line number validation - dollar sign should work" {
     # Test that $ (last line) is handled correctly
-    run $SCRIPT_UNDER_TEST sample.txt "1,\$d
+    run "$SCRIPT_UNDER_TEST" sample.txt "1,\$d
 w
 q"
     [ "$status" -eq 0 ]
@@ -377,7 +377,7 @@ q"
 
 @test "line number validation - valid ranges work normally" {
     # Test that valid line numbers work as expected
-    run $SCRIPT_UNDER_TEST sample.txt "2d
+    run "$SCRIPT_UNDER_TEST" sample.txt "2d
 w
 q"
     [ "$status" -eq 0 ]
@@ -393,7 +393,7 @@ q"
     # Test that we reject invalid operations without creating unnecessary files
     rm -f new_test_file.txt  # Ensure file doesn't exist
 
-    run $SCRIPT_UNDER_TEST new_test_file.txt "5d
+    run "$SCRIPT_UNDER_TEST" new_test_file.txt "5d
 q"
     [ "$status" -ne 0 ]
 
@@ -413,7 +413,7 @@ q"
     # Test that line 1 operations work on new files
     rm -f new_test_file2.txt  # Ensure file doesn't exist
 
-    run $SCRIPT_UNDER_TEST new_test_file2.txt "1a
+    run "$SCRIPT_UNDER_TEST" new_test_file2.txt "1a
 hello world
 .
 w
@@ -432,7 +432,7 @@ q"
 
 @test "preview mode - no changes results in empty diff" {
     # Test script that makes no actual changes
-    run $SCRIPT_UNDER_TEST sample.txt "w
+    run "$SCRIPT_UNDER_TEST" sample.txt "w
 q"
     [ "$status" -eq 0 ]
 
@@ -449,7 +449,7 @@ q"
 
 @test "preview mode - auto-reordering shows reorder message" {
     # Test that reordering message appears in preview mode (not just force mode)
-    run $SCRIPT_UNDER_TEST sample.txt "1d
+    run "$SCRIPT_UNDER_TEST" sample.txt "1d
 2d
 3d
 w
@@ -472,7 +472,7 @@ q"
 
 @test "preview mode - no reordering when already in reverse order" {
     # Test that reverse order commands don't trigger unnecessary reordering
-    run $SCRIPT_UNDER_TEST sample.txt "3d
+    run "$SCRIPT_UNDER_TEST" sample.txt "3d
 2d
 1d
 w

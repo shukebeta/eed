@@ -25,7 +25,7 @@ teardown() {
 
 @test "file creation - new JavaScript file" {
     # AI often creates new files from scratch
-    run $SCRIPT_UNDER_TEST --force new_script.js "1i
+    run "$SCRIPT_UNDER_TEST" --force new_script.js "1i
 // AI-generated JavaScript file
 function greet(name) {
     return \`Hello, \${name}!\`;
@@ -47,7 +47,7 @@ q"
 
 @test "file creation - new Python file" {
     # AI creates various file types
-    run $SCRIPT_UNDER_TEST --force new_module.py "1i
+    run "$SCRIPT_UNDER_TEST" --force new_module.py "1i
 #!/usr/bin/env python3
 # AI-generated Python module
 
@@ -74,7 +74,7 @@ q"
 
 @test "file creation - JSON configuration file" {
     # AI frequently creates config files
-    run $SCRIPT_UNDER_TEST --force config.json "1i
+    run "$SCRIPT_UNDER_TEST" --force config.json "1i
 {
   \"app_name\": \"ai-assistant\",
   \"version\": \"2.1.0\",
@@ -103,7 +103,7 @@ q"
 
 @test "file creation - YAML configuration file" {
     # AI also works with YAML files
-    run $SCRIPT_UNDER_TEST --force docker-compose.yml "1i
+    run "$SCRIPT_UNDER_TEST" --force docker-compose.yml "1i
 version: '3.8'
 services:
   app:
@@ -143,7 +143,7 @@ q"
 EOF
 
     # AI updates dependencies
-    run $SCRIPT_UNDER_TEST --force package.json "4a
+    run "$SCRIPT_UNDER_TEST" --force package.json "4a
     \"lodash\": \"^4.17.21\",
 .
 w
@@ -170,7 +170,7 @@ Run `npm install`.
 EOF
 
     # AI adds new section
-    run $SCRIPT_UNDER_TEST --force README.md "\$a
+    run "$SCRIPT_UNDER_TEST" --force README.md "\$a
 
 ## Usage
 
@@ -195,7 +195,7 @@ q"
 
 @test "empty file handling - initialize from scratch" {
     # Let eed create the file (no touch - eed's happy path)
-    run $SCRIPT_UNDER_TEST --force empty.txt "1i
+    run "$SCRIPT_UNDER_TEST" --force empty.txt "1i
 This file was empty.
 Now it has content added by AI.
 

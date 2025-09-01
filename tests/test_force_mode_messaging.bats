@@ -26,7 +26,7 @@ teardown() {
 
 @test "force mode shows clear success message without confusing mv command" {
     # Test that --force mode shows clear message instead of confusing mv instruction
-    run $SCRIPT_UNDER_TEST --force sample.txt "2c
+    run "$SCRIPT_UNDER_TEST" --force sample.txt "2c
 new line2
 .
 w

@@ -79,7 +79,7 @@ teardown() {
 
 @test "code refactoring - add new route with error handling" {
     # AI adds a new API route with proper error handling
-    run $SCRIPT_UNDER_TEST --force index.js "8a
+    run "$SCRIPT_UNDER_TEST" --force index.js "8a
 
 // New API endpoint added by AI
 app.get('/api/health', (req, res) => {
@@ -111,7 +111,7 @@ q"
 
 @test "configuration management - add new dependency" {
     # AI correctly adds dependency with proper JSON syntax
-    run $SCRIPT_UNDER_TEST --force package.json "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" --force package.json "$(cat <<'EOF'
 7s/$/,/
 8a
     "cors": "^2.8.5"
@@ -140,7 +140,7 @@ EOF
 
 @test "configuration management - update version and add script" {
     # AI performs multiple config updates with correct JSON syntax
-    run $SCRIPT_UNDER_TEST --force package.json "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" --force package.json "$(cat <<'EOF'
 3s/1.0.0/1.1.0/
 10s/$/,/
 11a
@@ -172,7 +172,7 @@ EOF
 
 @test "documentation maintenance - update README with new features" {
     # AI enhances README with additional sections
-    run $SCRIPT_UNDER_TEST --force README.md "\$a
+    run "$SCRIPT_UNDER_TEST" --force README.md "\$a
 
 ## API Endpoints
 

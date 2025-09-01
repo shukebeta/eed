@@ -43,7 +43,7 @@ q
 .
 w
 q'
-  run $SCRIPT_UNDER_TEST --force ed_guide.md "$script"
+  run "$SCRIPT_UNDER_TEST" --force ed_guide.md "$script"
 
   [ "$status" -eq 0 ]
   [ -f ed_guide.md ]
@@ -63,7 +63,7 @@ q'
   echo "regular content" > normal.txt
 
   # Regular multi-dot script should still warn (not use smart protection)
-  run $SCRIPT_UNDER_TEST normal.txt "1a
+  run "$SCRIPT_UNDER_TEST" normal.txt "1a
 line.
 .
 2a
@@ -103,7 +103,7 @@ function test_with_dots() {
 .
 w
 q'
-  run $SCRIPT_UNDER_TEST --force conflict_test.bats "$script"
+  run "$SCRIPT_UNDER_TEST" --force conflict_test.bats "$script"
 
   [ "$status" -eq 0 ]
   [ -f conflict_test.bats ]
@@ -121,7 +121,7 @@ q'
   # Ensure that normal eed operations still work exactly as before
   echo "line1" > simple.txt
 
-  run $SCRIPT_UNDER_TEST --force simple.txt "1c
+  run "$SCRIPT_UNDER_TEST" --force simple.txt "1c
 replaced
 .
 w

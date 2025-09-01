@@ -74,7 +74,7 @@ q'
   cat -n edge_case.bats
 
   echo "=== Testing edge case ==="
-  run $SCRIPT_UNDER_TEST edge_case.bats "$script"
+  run "$SCRIPT_UNDER_TEST" edge_case.bats "$script"
   echo "Exit status: $status"
   echo "Output: $output"
 
@@ -138,7 +138,7 @@ q'
   cat -n docs.txt
 
   echo "=== Testing complex case ==="
-  run $SCRIPT_UNDER_TEST --force docs.txt "$script"
+  run "$SCRIPT_UNDER_TEST" --force docs.txt "$script"
   echo "Exit status: $status"
   echo "Output: $output"
 
@@ -178,7 +178,7 @@ q'
   cat -n conflict_test.bats
 
   echo "=== Testing marker conflicts ==="
-  run $SCRIPT_UNDER_TEST --force conflict_test.bats "$script"
+  run "$SCRIPT_UNDER_TEST" --force conflict_test.bats "$script"
   echo "Exit status: $status"
   echo "Output: $output"
 
@@ -329,7 +329,7 @@ w
 q'
 
   echo "=== Testing complex script with force ==="
-  run $SCRIPT_UNDER_TEST --force test_file.txt "$script"
+  run "$SCRIPT_UNDER_TEST" --force test_file.txt "$script"
   echo "Exit status: $status"
   echo "Full output:"
   printf "%s\n" "$output"
@@ -362,7 +362,7 @@ q'
 w
 q'
 
-    run $SCRIPT_UNDER_TEST --force test_file.txt "$script"
+    run "$SCRIPT_UNDER_TEST" --force test_file.txt "$script"
 
     # Should show only ONE user-friendly message about force being disabled
     [[ "$output" =~ "Complex script detected" ]]
@@ -381,7 +381,7 @@ first line
 w
 q'
     echo "=== Testing file creation ==="
-    run $SCRIPT_UNDER_TEST --force newfile.txt "$script"
+    run "$SCRIPT_UNDER_TEST" --force newfile.txt "$script"
     echo "Exit status: $status"
     echo "Output: $output"
     
@@ -410,7 +410,7 @@ q'
 w
 q'
 
-    run $SCRIPT_UNDER_TEST test_file.txt "$script"
+    run "$SCRIPT_UNDER_TEST" test_file.txt "$script"
 
     # Should show preview workflow without complexity noise
     [[ "$output" =~ "preview" ]] || [[ "$output" =~ "diff" ]]
@@ -429,7 +429,7 @@ w
 q'
 
     echo "=== Testing debug mode ==="
-    run $SCRIPT_UNDER_TEST --debug test_file.txt "$script"
+    run "$SCRIPT_UNDER_TEST" --debug test_file.txt "$script"
     echo "Exit status: $status"
     echo "Full output:"
     printf "%s\n" "$output"

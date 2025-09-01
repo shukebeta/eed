@@ -40,7 +40,7 @@ teardown() {
 @test "backward compatibility works" {
     echo -e "line 1\nline 2\nline 3" > test.txt
 
-    run $SCRIPT_UNDER_TEST --force test.txt "2d
+    run "$SCRIPT_UNDER_TEST" --force test.txt "2d
 w
 q"
 
