@@ -7,6 +7,9 @@ if [ "${EED_COMMON_LOADED:-}" = "1" ]; then
 fi
 EED_COMMON_LOADED=1
 
+# Source regex patterns
+source "$(dirname "${BASH_SOURCE[0]}")/eed_regex_patterns.sh"
+
 # Ed command logging configuration
 EED_LOG_FILE="$HOME/.eed_command_log.txt"
 

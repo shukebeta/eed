@@ -16,7 +16,11 @@ teardown() {
 @test "stdin with pipeline" {
     echo -e "line 1\nline 2\nline 3" > test.txt
 
-    run bash -c "printf '1d\nw\nq\n' | $SCRIPT_UNDER_TEST --force test.txt -"
+    run "$SCRIPT_UNDER_TEST" --force test.txt - << 'EOF'
+1d
+w
+q
+EOF
     [ "$status" -eq 0 ]
 
     run cat test.txt
@@ -28,7 +32,11 @@ teardown() {
     echo -e "line 1\nline 2\nline 3" > test.txt
 
     # Pipe script but omit the '-' positional argument; eed should accept stdin.
-    run bash -c "printf '1d\nw\nq\n' | $SCRIPT_UNDER_TEST --force test.txt"
+    run "$SCRIPT_UNDER_TEST" --force test.txt << 'EOF'
+1d
+w
+q
+EOF
     [ "$status" -eq 0 ]
 
     # Verify the functionality worked correctly (file was edited)
@@ -57,7 +65,7 @@ q"
 
     # Note: This test may fail in restricted environments
     # but should work in normal shell environments
-    run bash -c "$SCRIPT_UNDER_TEST --force test.txt - < script.ed"
+    run bash -c '"$1" --force test.txt - < script.ed' bash "$SCRIPT_UNDER_TEST"
 
     # We expect this to work, but acknowledge it might fail in some environments
     if [ "$status" -eq 0 ]; then

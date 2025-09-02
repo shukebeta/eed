@@ -29,7 +29,8 @@ teardown() {
 @test "safety override does not trigger for simple operations" {
     script=$'5d\nw\nq'
     
-    run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' --force '$TEST_FILE' -"
+    # Use GPT's recommended approach: entire pipeline in bash -c with pipefail
+    run bash -c 'set -o pipefail; echo "$1" | "$2" --force "$3" -' bash "$script" "$SCRIPT_UNDER_TEST" "$TEST_FILE"
     
     # Should not contain safety override message
     [[ ! "$output" =~ "SAFETY.*--force ignored" ]]
@@ -38,7 +39,8 @@ teardown() {
 @test "safety override triggers for complex unordered operations" {
     script=$'g/line2/d\nw\nq'
     
-    run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' --force '$TEST_FILE' -"
+    # Use GPT's recommended approach: entire pipeline in bash -c with pipefail
+    run bash -c 'set -o pipefail; echo "$1" | "$2" --force "$3" -' bash "$script" "$SCRIPT_UNDER_TEST" "$TEST_FILE"
     
     # Should contain new simplified safety message
     [[ "$output" =~ "Complex script detected" ]]
@@ -48,7 +50,8 @@ teardown() {
 @test "simplified messaging - no machine tags in output" {
     script=$'g/line2/d\nw\nq'
     
-    run bash -c "echo '$script' | '$SCRIPT_UNDER_TEST' --force '$TEST_FILE' - 2>&1"
+    # Use GPT's recommended approach with stderr redirect
+    run bash -c 'set -o pipefail; echo "$1" | "$2" --force "$3" - 2>&1' bash "$script" "$SCRIPT_UNDER_TEST" "$TEST_FILE"
     
     # Should NOT contain old machine-readable tags (noise reduction)
     ! [[ "$output" =~ "EED-SAFETY-OVERRIDE" ]]
@@ -58,7 +61,8 @@ teardown() {
 @test "EED_FORCE_OVERRIDE bypasses safety checks" {
     script=$'g/line/d\n1d\n3d\nw\nq'
     
-    run bash -c "echo '$script' | EED_FORCE_OVERRIDE=true '$SCRIPT_UNDER_TEST' --force '$TEST_FILE' -"
+    # Use GPT's recommended approach with environment variable
+    run bash -c 'set -o pipefail; echo "$1" | EED_FORCE_OVERRIDE=true "$2" --force "$3" -' bash "$script" "$SCRIPT_UNDER_TEST" "$TEST_FILE"
     
     # Should not contain safety override message when override is set
     [[ ! "$output" =~ "SAFETY.*--force ignored" ]]

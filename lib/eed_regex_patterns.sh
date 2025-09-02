@@ -74,8 +74,8 @@ detect_substitute_regex() {
 
     probe="s/x/x/"
     strict='s(.)([^\\]|\\.)*\1([^\\]|\\.)*\1([0-9]+|[gp]+)?$'
-    # Fallback: be permissive and allow spaces in the replacement portion (fixes Git Bash false negatives)
-    fallback='s(.)[^\\]*\1.*\1([0-9gp]+)?$'
+    # Fallback: very permissive - allow any characters including backslashes, non-space delimiters
+    fallback='s([^[:space:]]).*\1.*\1([0-9gp]*)?$'
 
     # Require all probes to pass
     if [[ "s/.*console\.log.*;//" =~ $strict ]]; then

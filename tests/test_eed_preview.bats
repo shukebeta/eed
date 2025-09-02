@@ -267,17 +267,17 @@ EOF
     [[ "$content" == *"new line after line3"* ]]
 }
 
-@test "critical safety - edit failure never corrupts original file" {
-    # Test that original file is NEVER touched when edit fails
-    # This tests the bug fix where we used to mv corrupted preview over original
 
+@test "critical safety - force mode edit failure never corrupts original file" {
     # Create original content
     echo "CRITICAL_DATA_LINE_1" > sample.txt
     echo "CRITICAL_DATA_LINE_2" >> sample.txt
 
-    # Record original content and timestamp
+    # Record original content and file attributes (excluding access time which changes on read)
     original_content="$(cat sample.txt)"
-    original_stat="$(stat sample.txt)"
+    original_size="$(stat -c %s sample.txt)"
+    original_mtime="$(stat -c %Y sample.txt)"
+    original_inode="$(stat -c %i sample.txt)"
 
     # Force mode with failing command - should not corrupt original
     run "$SCRIPT_UNDER_TEST" --force sample.txt "1c
@@ -289,12 +289,26 @@ q"
 
     # Original file must be completely untouched
     [[ "$(cat sample.txt)" == "$original_content" ]]
-    [[ "$(stat sample.txt)" == "$original_stat" ]]
+    [[ "$(stat -c %s sample.txt)" == "$original_size" ]]     # Size unchanged
+    [[ "$(stat -c %Y sample.txt)" == "$original_mtime" ]]   # Modify time unchanged  
+    [[ "$(stat -c %i sample.txt)" == "$original_inode" ]]   # Inode unchanged
 
     # No preview file should remain
     [ ! -f sample.txt.eed.preview ]
+}
 
-    # Preview mode with failing command - should also not corrupt original
+@test "critical safety - preview mode edit failure never corrupts original file" {
+    # Create original content  
+    echo "CRITICAL_DATA_LINE_1" > sample.txt
+    echo "CRITICAL_DATA_LINE_2" >> sample.txt
+
+    # Record original content and file attributes
+    original_content="$(cat sample.txt)"
+    original_size="$(stat -c %s sample.txt)"
+    original_mtime="$(stat -c %Y sample.txt)"
+    original_inode="$(stat -c %i sample.txt)"
+
+    # Preview mode with failing command - should not corrupt original
     run "$SCRIPT_UNDER_TEST" sample.txt "1c
 another attempt
 .
@@ -302,11 +316,13 @@ another attempt
 q"
     [ "$status" -ne 0 ]
 
-    # Original file still completely untouched
+    # Original file must be completely untouched
     [[ "$(cat sample.txt)" == "$original_content" ]]
-    [[ "$(stat sample.txt)" == "$original_stat" ]]
+    [[ "$(stat -c %s sample.txt)" == "$original_size" ]]     # Size unchanged
+    [[ "$(stat -c %Y sample.txt)" == "$original_mtime" ]]   # Modify time unchanged
+    [[ "$(stat -c %i sample.txt)" == "$original_inode" ]]   # Inode unchanged
 
-    # No preview file should remain
+    # No preview file should remain  
     [ ! -f sample.txt.eed.preview ]
 }
 
