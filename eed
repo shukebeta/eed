@@ -115,7 +115,7 @@ if [ "$ED_SCRIPT" = "-" ] || [ "$ED_SCRIPT_PROVIDED" = false ]; then
 fi
 
 
-# Normalize line endings for cross-platform compatibility (Git Bash/Windows)  
+# Normalize line endings for cross-platform compatibility (Git Bash/Windows)
 ED_SCRIPT=$(echo "$ED_SCRIPT" | tr -d '\r')
 # Print debug info early if enabled
 if [ "$DEBUG_MODE" = true ]; then
@@ -185,7 +185,7 @@ if [ "$FORCE_OVERRIDE" = true ]; then
     echo "⚠️  FORCE_OVERRIDE enabled - bypassing all safety checks" >&2
 else
     # Complex pattern analysis for safety
-    
+
     # If smart-dot protection was applied, treat as non-complex (tutorial context)
     if [ "$SMART_PROTECTION_APPLIED" = true ]; then
         HAS_COMPLEX_PATTERNS=0
@@ -285,13 +285,13 @@ if [ "$EFFECTIVE_FORCE_MODE" = true ]; then
         echo "✨ No changes needed (file already matches desired state)"
         exit 0
     fi
-    
+
     # Apply changes
     mv "$PREVIEW_FILE" "$FILE_PATH"
-    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
         git add "$FILE_PATH" 2>/dev/null || true
     fi
-    
+
     echo "✨ Changes applied successfully"
     exit 0
 else
@@ -321,7 +321,7 @@ else
         echo "  mv '$PREVIEW_FILE' '$FILE_PATH'"
 
         # Add git staging hint if in a git repository
-        if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
             echo " && git add '$FILE_PATH'"
         fi
 

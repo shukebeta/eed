@@ -48,19 +48,19 @@ teardown() {
 w
 q"
     [ "$status" -eq 0 ]
-    
+
     # Should show diff output
     [[ "$output" == *"-"*"Hello World"* ]]
     [[ "$output" == *"+"*"Hello, AI World"* ]]
-    
+
     # Should show manual apply instructions
     [[ "$output" == *"To apply these changes, run:"* ]]
     [[ "$output" == *"mv 'app.py.eed.preview' 'app.py'"* ]]
-    
+
     # Original file unchanged
     run grep -q "Hello World" app.py
     [ "$status" -eq 0 ]
-    
+
     # Preview file created with changes
     [ -f app.py.eed.preview ]
     run grep -q "Hello, AI World" app.py.eed.preview
@@ -76,16 +76,16 @@ q"
 w
 q"
     [ "$status" -eq 0 ]
-    
+
     # Verify preview created
     [ -f app.py.eed.preview ]
     run grep -q "Added by AI" app.py.eed.preview
     [ "$status" -eq 0 ]
-    
+
     # Apply the changes manually (as AI would do)
     run mv app.py.eed.preview app.py
     [ "$status" -eq 0 ]
-    
+
     # Verify changes applied
     run grep -q "Added by AI" app.py
     [ "$status" -eq 0 ]
@@ -94,23 +94,23 @@ q"
 }
 
 @test "preview mode - complete discard workflow" {
-    # Test the preview → discard workflow  
+    # Test the preview → discard workflow
     run "$SCRIPT_UNDER_TEST" app.py "1c
 # This change will be discarded
 .
 w
 q"
     [ "$status" -eq 0 ]
-    
+
     # Verify preview created
     [ -f app.py.eed.preview ]
     run grep -q "discarded" app.py.eed.preview
     [ "$status" -eq 0 ]
-    
+
     # Discard the changes (as AI might do)
     run rm app.py.eed.preview
     [ "$status" -eq 0 ]
-    
+
     # Original file unchanged
     run grep -q "def main" app.py
     [ "$status" -eq 0 ]
@@ -124,20 +124,20 @@ q"
 w
 q"
     [ "$status" -eq 0 ]
-    
+
     # Should show success message
     [[ "$output" == *"✨"* ]]
-    
+
     # Should NOT show manual apply instructions
     [[ "$output" != *"To apply these changes, run:"* ]]
     [[ "$output" != *"mv"*".eed.preview"* ]]
-    
+
     # Changes applied directly
     run grep -q "Hello, Force Mode" app.py
     [ "$status" -eq 0 ]
     run grep -q "Hello World" app.py
     [ "$status" -ne 0 ]
-    
+
     # No preview file left behind
     [ ! -f app.py.eed.preview ]
 }
@@ -150,11 +150,11 @@ user=testuser
 w
 q"
     [ "$status" -eq 0 ]
-    
+
     # Should show debug messages
     [[ "$output" == *"Debug mode: executing ed"* ]]
     [[ "$output" == *"--force mode enabled"* ]]
-    
+
     # Changes should still be applied
     run grep -q "user=testuser" config.ini
     [ "$status" -eq 0 ]
@@ -164,16 +164,16 @@ q"
     # AI provides invalid ed command
     run "$SCRIPT_UNDER_TEST" app.py "invalid_command_123"
     [ "$status" -ne 0 ]
-    
+
     # Should show error message
     [[ "$output" == *"Invalid ed command detected"* ]]
-    
+
     # Original file completely unchanged
     run grep -q "def main" app.py
     [ "$status" -eq 0 ]
     run grep -q "Hello World" app.py
     [ "$status" -eq 0 ]
-    
+
     # No preview file created
     [ ! -f app.py.eed.preview ]
 }
@@ -186,16 +186,16 @@ new content
 999p
 q"
     [ "$status" -ne 0 ]
-    
+
     # Should show execution error
     [[ "$output" == *"Edit command failed"* ]]
     [[ "$output" == *"No changes were made to the original file"* ]]
-    
+
     # Original file completely preserved
     original_content=$(cat app.py)
     [[ "$original_content" == *"def main"* ]]
     [[ "$original_content" == *"Hello World"* ]]
-    
+
     # No corrupted files left behind
     [ ! -f app.py.eed.preview ]
 }
@@ -208,13 +208,13 @@ q"
     [ "$status" -eq 0 ]
     run git config user.name "Test User"
     [ "$status" -eq 0 ]
-    
+
     # Add file to git tracking first
     run git add app.py
     [ "$status" -eq 0 ]
     run git commit -m "Initial commit"
     [ "$status" -eq 0 ]
-    
+
     # AI makes changes in force mode
     run "$SCRIPT_UNDER_TEST" --force app.py "1a
 # AI-added comment
@@ -222,14 +222,33 @@ q"
 w
 q"
     [ "$status" -eq 0 ]
-    
+
     # Changes should be automatically staged by eed
     run git status --porcelain
     [[ "$output" == *"M  app.py"* ]]
-    
+
     # Verify the change was made
     run grep -q "AI-added comment" app.py
     [ "$status" -eq 0 ]
+}
+
+@test "git integration - detects repo from target file directory not cwd" {
+    # Create a subdirectory with git repo
+    mkdir -p gitdir
+    (cd gitdir && git init . && git config user.email "test@example.com" && git config user.name "Test User" && echo "initial" > testfile.txt && git add testfile.txt && git commit -m "Initial commit")
+
+    # Verify current directory is NOT a git repo
+    run git rev-parse --is-inside-work-tree
+    [ "$status" -ne 0 ]
+
+    # Test: eed should detect git repo from target file's directory and show git hint
+    run "$SCRIPT_UNDER_TEST" gitdir/testfile.txt "a
+# Added content
+.
+w
+q"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"&& git add"* ]]
 }
 
 @test "no changes scenario - handles gracefully" {
@@ -237,10 +256,10 @@ q"
     run "$SCRIPT_UNDER_TEST" app.py "w
 q"
     [ "$status" -eq 0 ]
-    
+
     # Should complete successfully
     [[ "$output" == *"Review the changes below"* ]]
-    
+
     # Files should be identical
     [ -f app.py.eed.preview ]
     run diff app.py app.py.eed.preview
