@@ -77,9 +77,14 @@ _perform_reordering_from_records() {
         fi
     done
 
-    # Produces reordered script on stdout and returns 1 to indicate reordering.
+    # Perform reordering
     local -a modifying_commands_sorted
-    mapfile -t modifying_commands_sorted < <(printf '%s\n' "${modifying_commands[@]}" | sort -s -t: -k2,2nr -k1,1n)
+    if ! mapfile -t modifying_commands_sorted < <(printf '%s\n' "${modifying_commands[@]}" | sort -s -t: -k2,2nr -k1,1n); then
+        [ "$DEBUG_MODE" = true ] && echo "⚠️ Reordering failed: sort operation failed" >&2
+        # Return original script as fallback
+        printf '%s\n' "${script_lines[@]}"
+        return 1
+    fi
 
     # Informative messaging, kept to match previous UX
     echo "✓ Auto-reordering script to prevent line numbering conflicts:" >&2
@@ -129,6 +134,17 @@ _perform_reordering_from_records() {
         fi
     done
 
+    # Validate content integrity: reordered script should have same length as original
+    local original_content=$(printf '%s\n' "${script_lines[@]}")
+    local reordered_content=$(printf '%s\n' "${reordered_script[@]}")
+
+    if [ ${#original_content} -ne ${#reordered_content} ]; then
+        [ "$DEBUG_MODE" = true ] && echo "⚠️ Reordering failed: content length mismatch" >&2
+        # Return original script as fallback
+        printf '%s\n' "${script_lines[@]}"
+        return 1
+    fi
+
     printf '%s\n' "${reordered_script[@]}"
     return 0
 }
@@ -140,7 +156,12 @@ reorder_script() {
 
     # Capture records once to avoid double parsing (NUL-delimited)
     local -a records=()
-    mapfile -t -d '' records < <(_get_modifying_command_info "$script")
+    if ! mapfile -t -d '' records < <(_get_modifying_command_info "$script"); then
+        [ "$DEBUG_MODE" = true ] && echo "⚠️ Reordering failed: command analysis failed" >&2
+        # Return original script as fallback
+        printf '%s\n' "$script"
+        return 1
+    fi
 
     # Parse records to extract what we need for decision making
     for record in "${records[@]}"; do
@@ -162,7 +183,10 @@ reorder_script() {
     fi
 
     # Perform reordering using pre-captured records
-    _perform_reordering_from_records "${records[@]}"
+    if ! _perform_reordering_from_records "${records[@]}"; then
+        # _perform_reordering_from_records already output fallback and error message
+        return 1
+    fi
     return 0
 }
 

@@ -209,21 +209,27 @@ fi
 if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; then
     # Run reordering and capture its output
     REORDERED_OUTPUT=$(reorder_script "$ED_SCRIPT")
-    if [ "$ED_SCRIPT" != "$REORDERED_OUTPUT" ]; then
-        # Reordering occurred, use the reordered script
-        ED_SCRIPT="$REORDERED_OUTPUT"
-        [ "$DEBUG_MODE" = true ] && echo "Debug mode: using reordered script:" >&2
-        [ "$DEBUG_MODE" = true ] && echo "$ED_SCRIPT" | sed 's/^/  /' >&2
+    reorder_status=$?
 
-        # Cancel --force when reordering occurs
-        if [ "$EFFECTIVE_FORCE_MODE" = true ]; then
-            echo "💡 Script reordered for safety (--force disabled)" >&2
-            EFFECTIVE_FORCE_MODE=false
-        fi
+    # Handle failure case (needs error message)
+    if [ $reorder_status -ne 0 ]; then
+        [ "$DEBUG_MODE" = true ] && echo "ℹ️ Using original script due to reordering failure" >&2
     else
-        # No reordering, use original script
-        ED_SCRIPT="$REORDERED_OUTPUT"
+        # Handle successful reordering case (needs success message + force cancellation)
+        if [ "$ED_SCRIPT" != "$REORDERED_OUTPUT" ]; then
+            [ "$DEBUG_MODE" = true ] && echo "Debug mode: using reordered script:" >&2
+            [ "$DEBUG_MODE" = true ] && echo "$REORDERED_OUTPUT" | sed 's/^/  /' >&2
+
+            # Cancel --force when reordering occurs
+            if [ "$EFFECTIVE_FORCE_MODE" = true ]; then
+                echo "💡 Script reordered for safety (--force disabled)" >&2
+                EFFECTIVE_FORCE_MODE=false
+            fi
+        fi
     fi
+
+    # Always use the reordering output (whether original, reordered, or fallback)
+    ED_SCRIPT="$REORDERED_OUTPUT"
     # Always succeed after reordering (treat as normal operation)
     true
 elif [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then

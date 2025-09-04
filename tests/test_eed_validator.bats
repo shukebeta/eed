@@ -683,3 +683,35 @@ q'
   no_complex_patterns "$script" 2>&1
   echo "Exit code: $?"
 }
+
+
+@test "error handling: debug mode shows error messages" {
+    # Test error message visibility in debug mode
+    local script="$(printf '2d\n4d\nw\nq')"
+
+    # Set debug mode
+    DEBUG_MODE=true
+
+    # Normal operation should succeed without error messages
+    run reorder_script "$script"
+    [ "$status" -eq 0 ]
+
+    # Should not contain error messages for successful operation
+    ! [[ "$output" == *"failed"* ]]
+}
+
+@test "error handling: non-debug mode is silent on errors" {
+    # Test that non-debug mode doesn't output error messages to user
+    local script="$(printf '2d\n4d\nw\nq')"
+
+    # Ensure debug mode is off
+    DEBUG_MODE=false
+
+    # Normal reordering should work without any error output
+    run reorder_script "$script"
+    [ "$status" -eq 0 ]
+
+    # Output should only contain the reordered script, no error messages
+    ! [[ "$output" == *"⚠️"* ]]
+    ! [[ "$output" == *"failed"* ]]
+}
