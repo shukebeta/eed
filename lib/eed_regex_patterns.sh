@@ -63,6 +63,7 @@ readonly EED_REGEX_ADDR_CMD='^([0-9]+)(,([0-9]+|\$))?([dDcCbBiIaAsS])'
 readonly EED_REGEX_MOVE_TRANSFER='^[[:space:]]*[0-9]*,?[0-9]*[mMtTrR]'
 
 # Input mode detection pattern (from eed_common.sh)
+# shellcheck disable=SC2034
 readonly EED_REGEX_INPUT_MODE='^(\.|[0-9]+)?,?(\$|[0-9]+)?[aAcCiI]$'
 
 # --- Substitute command regex detection ---

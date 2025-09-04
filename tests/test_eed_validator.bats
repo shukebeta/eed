@@ -361,7 +361,8 @@ q"
 @test "auto reorder: ascending deletions get automatically reordered" {
     local script="$(printf '2d\n4d\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Signal that reordering was performed
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Signal that reordering was performed
     # Verify the reordered output contains commands in correct order
     [[ "$output" == *"4d"* ]]
     [[ "$output" == *"2d"* ]]
@@ -382,7 +383,8 @@ q"
     # Test ascending line numbers that need reordering: 1d, 5a, 9c → 9c, 5a, 1d
     local script="$(printf '1d\n5a\nappended line\n.\n9c\nnew content\n.\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Reordering performed
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Reordering performed
     # Should reorder modifying commands by line number descending: 9c, 5a, 1d
     local output_lines=()
     while IFS= read -r line; do output_lines+=("$line"); done <<< "$output"
@@ -403,7 +405,8 @@ q"
 @test "auto reorder: no reordering needed for descending commands" {
     local script="$(printf '4d\n2d\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 0 ]  # No reordering needed
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" = "$script" ]  # No reordering needed
     # Output should be identical to input
     [ "$output" = "$script" ]
 }
@@ -411,7 +414,8 @@ q"
 @test "auto reorder: preserve non-modifying commands in original positions" {
     local script="$(printf '1p\n2d\n3p\n4d\n5p\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Reordering performed
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Reordering performed
     # Should contain all original commands
     [[ "$output" == *"1p"* ]]
     [[ "$output" == *"3p"* ]]
@@ -427,7 +431,8 @@ q"
     # Should reorder to: 15,20d, 8a, 3,5d to prevent line shifting issues
     local script="$(printf '3,5d\n8a\nline 1 added\nline 2 added\nline 3 added\n.\n15,20d\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Reordering performed
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Reordering performed
 
     # Parse output to verify command order
     local output_lines=()
@@ -457,7 +462,8 @@ q"
     # Expected order: 20i, 10,15d, 7c, 1,3d
     local script="$(printf '1,3d\n7c\nnew line 7\n.\n10,15d\n20i\ninserted at 20\n.\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Reordering performed
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Reordering performed
 
     local output_lines=()
     while IFS= read -r line; do output_lines+=("$line"); done <<< "$output"
@@ -488,7 +494,8 @@ q"
 @test "complex pattern detection: simple numeric patterns still allow reordering" {
     local script="$(printf '1d\n3d\n5d\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Reordering performed - no complex patterns detected
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Reordering performed - no complex patterns detected
     # Should be reordered to 5d, 3d, 1d
     local output_lines=()
     while IFS= read -r line; do output_lines+=("$line"); done <<< "$output"
@@ -514,7 +521,8 @@ q
 EOF
 )
     run reorder_script "$script"
-    [ "$status" -eq 0 ]  # No reordering needed for single command
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" = "$script" ]  # No reordering needed for single command
     # Verify the exclamation mark is preserved (literal ${!arr[@]}) and not escaped like '\!'
     [[ "$output" == *'${!arr[@]}'* ]]
     [[ "$output" != *'\\!'* ]]
@@ -561,7 +569,8 @@ EOF
 @test "improved detection: g/pattern/p with simple deletes should allow reordering" {
     local script="$(printf 'g/function/p\n1d\n5d\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Reordering performed - g/pattern/p is safe
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Reordering performed - g/pattern/p is safe
     # Should be reordered to 5d, 1d
     local output_lines=()
     while IFS= read -r line; do output_lines+=("$line"); done <<< "$output"
@@ -576,7 +585,8 @@ EOF
 @test "improved detection: /pattern/p with simple deletes should allow reordering" {
     local script="$(printf '/function/p\n1d\n5d\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Reordering performed - /pattern/p is safe
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Reordering performed - /pattern/p is safe
     # Should be reordered to 5d, 1d
     local output_lines=()
     while IFS= read -r line; do output_lines+=("$line"); done <<< "$output"
@@ -591,7 +601,8 @@ EOF
 @test "improved detection: offset address print with simple deletes should allow reordering" {
     local script="$(printf '$-5,$p\n1d\n5d\nw\nq')"
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Reordering performed - $-5,$p is safe
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Reordering performed - $-5,$p is safe
     # Should be reordered to 5d, 1d
     local output_lines=()
     while IFS= read -r line; do output_lines+=("$line"); done <<< "$output"
@@ -624,7 +635,8 @@ EOF
 
     # Verify reorder_script still reorders the numeric parts (that's its job)
     run reorder_script "$script"
-    [ "$status" -eq 1 ]  # Reordering was performed (1d,5d -> 5d,1d)
+    [ "$status" -eq 0 ]  # Function should always succeed
+    [ "$output" != "$script" ]  # Reordering was performed (1d,5d -> 5d,1d)
     [[ "$output" == *".-5,.+5d"* ]]
     [[ "$output" == *"1d"* ]]
     [[ "$output" == *"5d"* ]]

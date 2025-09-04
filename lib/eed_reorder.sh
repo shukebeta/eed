@@ -12,8 +12,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/eed_regex_patterns.sh"
 
 # Automatically reorder ed script commands to prevent line number conflicts
 # Refactored into focused helper functions for clarity and testability.
-# Public API preserved: reorder_script <script> => writes script to stdout and
-# returns 1 if reordering was performed, 0 otherwise.
+# Public API: reorder_script <script> => writes script to stdout, always returns 0.
+# Compare input vs output to detect if reordering was performed.
 _get_modifying_command_info() {
     local script="$1"
     local line
@@ -130,7 +130,7 @@ _perform_reordering_from_records() {
     done
 
     printf '%s\n' "${reordered_script[@]}"
-    return 1
+    return 0
 }
 
 reorder_script() {
@@ -163,7 +163,7 @@ reorder_script() {
 
     # Perform reordering using pre-captured records
     _perform_reordering_from_records "${records[@]}"
-    return $?
+    return 0
 }
 
 # Legacy function for backward compatibility with existing tests

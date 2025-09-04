@@ -208,12 +208,8 @@ fi
 # Skip reordering if complex patterns detected (unified architecture)
 if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; then
     # Run reordering and capture its output
-    REORDERED_OUTPUT=""
-    REORDERED_OUTPUT_AND_STATUS=$(reorder_script "$ED_SCRIPT"; echo $?)
-    # Extract last line as return value, rest as output
-    reorder_result=$(echo "$REORDERED_OUTPUT_AND_STATUS" | tail -n1)
-    REORDERED_OUTPUT=$(echo "$REORDERED_OUTPUT_AND_STATUS" | head -n -1)
-    if [ "$reorder_result" -eq 1 ]; then
+    REORDERED_OUTPUT=$(reorder_script "$ED_SCRIPT")
+    if [ "$ED_SCRIPT" != "$REORDERED_OUTPUT" ]; then
         # Reordering occurred, use the reordered script
         ED_SCRIPT="$REORDERED_OUTPUT"
         [ "$DEBUG_MODE" = true ] && echo "Debug mode: using reordered script:" >&2
