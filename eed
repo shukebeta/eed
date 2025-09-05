@@ -158,9 +158,39 @@ log_ed_commands "$ED_SCRIPT"
 
 # --- EARLY COMMAND VALIDATION ---
 
+# --- Smart Auto-fixing for AI Users ---
+# Pre-process script to fix common syntax errors before validation
+FIXED_SCRIPT=""
+FIXED_ANY_LINES=false
+
+while IFS= read -r line; do
+    [ -z "$line" ] && { FIXED_SCRIPT+=$'\n'; continue; }
+    
+    if detect_unescaped_slashes "$line"; then
+        FIXED_LINE=$(fix_unescaped_slashes "$line")
+        if [ $? -eq 0 ]; then
+            echo "🔧 Auto-fixed unescaped slashes: $line → $FIXED_LINE" >&2
+            FIXED_SCRIPT+="$FIXED_LINE"$'\n'
+            FIXED_ANY_LINES=true
+        else
+            FIXED_SCRIPT+="$line"$'\n'
+        fi
+    else
+        FIXED_SCRIPT+="$line"$'\n'
+    fi
+done <<< "$ED_SCRIPT"
+
+# Apply fixes if any were made
+if [ "$FIXED_ANY_LINES" = true ]; then
+    # Remove trailing newline and update script
+    ED_SCRIPT=${FIXED_SCRIPT%$'\n'}
+    echo "✅ Successfully auto-fixed ed script syntax" >&2
+fi
+
+# Now proceed with normal validation
 SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
 
-# Handle invalid commands immediately (before any complex analysis)
+# Handle invalid commands immediately (after auto-fixing attempt)
 if [ "$SCRIPT_TYPE" = "invalid_command" ]; then
     error_exit "Invalid ed command detected" 1 "Please check your ed script syntax"
 fi
