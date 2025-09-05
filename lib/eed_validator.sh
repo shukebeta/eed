@@ -369,6 +369,12 @@ no_complex_patterns() {
     local -a addresses=()
     local -a intervals=()
     local in_input_mode=false
+    
+    # Track addressing modes used in the script
+    local has_numeric=false
+    local has_search=false
+    local has_global=false
+    local has_offset=false
 
     while IFS= read -r line; do
         # Skip empty lines and comments
@@ -390,32 +396,24 @@ no_complex_patterns() {
             # Continue to process this command line normally
         fi
 
-        # Detect g/v blocks with modifying commands
-        if [[ "$line" =~ $EED_REGEX_GV_MODIFYING ]]; then
-            [ "$DEBUG_MODE" = true ] && echo "COMPLEX: g/v block with modifying command detected: $line" >&2
-            return 1
-        fi
-
-        # Detect non-numeric addresses with modifying commands
-        if [[ "$line" =~ $EED_REGEX_NON_NUMERIC_MODIFYING ]]; then
-            [ "$DEBUG_MODE" = true ] && echo "COMPLEX: Non-numeric address with modifying command detected: $line" >&2
-            return 1
-        fi
-
-        # Detect offset addresses with modifying commands
-        if [[ "$line" =~ $EED_REGEX_OFFSET_MODIFYING ]]; then
-            [ "$DEBUG_MODE" = true ] && echo "COMPLEX: Offset address with modifying command detected: $line" >&2
-            return 1
-        fi
-
-        # Detect move/transfer/read commands
+        # Detect move/transfer/read commands - these are always complex
         if [[ "$line" =~ ${EED_REGEX_MOVE_TRANSFER} ]]; then
             [ "$DEBUG_MODE" = true ] && echo "COMPLEX: Move/transfer/read command detected: $line" >&2
             return 1
         fi
 
-        # Extract numeric addresses and check for overlaps
+        # Track addressing modes instead of immediately flagging them
+        if [[ "$line" =~ $EED_REGEX_GV_MODIFYING ]]; then
+            has_global=true
+        elif [[ "$line" =~ $EED_REGEX_NON_NUMERIC_MODIFYING ]]; then
+            has_search=true
+        elif [[ "$line" =~ $EED_REGEX_OFFSET_MODIFYING ]]; then
+            has_offset=true
+        fi
+
+        # Extract numeric addresses (including $ for last line) and check for overlaps
         if [[ "$line" =~ ${EED_REGEX_ADDR_CMD} ]]; then
+            has_numeric=true
             local start="${BASH_REMATCH[1]}"
             local end="${BASH_REMATCH[3]:-$start}"
             local cmd="${BASH_REMATCH[4]}"
@@ -437,6 +435,9 @@ no_complex_patterns() {
 
             intervals+=("$start:$end")
             addresses+=("$start")
+        # Also capture dollar sign addressing ($d, $c, etc.)
+        elif [[ "$line" =~ ^\$[dDcCbBiIaAsSjJmMtT]$ ]]; then
+            has_numeric=true
         fi
     done <<< "$script"
 
@@ -449,6 +450,18 @@ no_complex_patterns() {
             return 1
         fi
     done
+
+    # Check for mixed addressing modes - this is the real danger
+    local mode_count=0
+    [ "$has_numeric" = true ] && mode_count=$((mode_count + 1))
+    [ "$has_search" = true ] && mode_count=$((mode_count + 1))
+    [ "$has_global" = true ] && mode_count=$((mode_count + 1))
+    [ "$has_offset" = true ] && mode_count=$((mode_count + 1))
+    
+    if [ "$mode_count" -gt 1 ]; then
+        [ "$DEBUG_MODE" = true ] && echo "COMPLEX: Mixed addressing modes detected (numeric=$has_numeric, search=$has_search, global=$has_global, offset=$has_offset)" >&2
+        return 1
+    fi
 
     return 0  # No complex patterns detected
 }

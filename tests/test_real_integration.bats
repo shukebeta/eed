@@ -121,15 +121,12 @@ EOF"
     # Verify auto-fix occurred
     [[ "$output" == *"🔧 Auto-fixed unescaped slashes: ///test/c → /\/\/test/c"* ]]
     [[ "$output" == *"✅ Successfully auto-fixed ed script syntax"* ]]
-    [[ "$output" == *"💡 Complex script detected (--force disabled)"* ]]
     
-    # Complex script disables force mode, so check preview file instead
-    [ -f "${TEST_FILE}.eed.preview" ]
-    grep -q "//modified" "${TEST_FILE}.eed.preview"
-    ! grep -q "///test" "${TEST_FILE}.eed.preview"
-    
-    # Original file should be unchanged (force was disabled)
-    grep -q "///test" "$TEST_FILE"
+    # Single search pattern is not complex, so force mode should work
+    # Force mode creates preview then auto-moves it, so file is directly modified
+    [ ! -f "${TEST_FILE}.eed.preview" ]  # Preview file should be auto-moved
+    grep -q "//modified" "$TEST_FILE"    # Changes should be in the real file
+    ! grep -q "///test" "$TEST_FILE"     # Original content should be gone
 }
 
 @test "real integration: original user case works completely" {
