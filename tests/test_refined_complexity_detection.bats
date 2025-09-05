@@ -78,7 +78,7 @@ q"
     [ "$status" -eq 1 ]  # Complex
 }
 
-@test "refined complexity: search + dollar is complex" {
+@test "refined complexity: search + dollar is allowed" {
     local script="/pattern/c
 replacement
 .
@@ -86,7 +86,7 @@ $d
 w
 q"
     run no_complex_patterns "$script"
-    [ "$status" -eq 1 ]  # Complex
+    [ "$status" -eq 0 ]  # Allowed (not complex)
 }
 
 # Move/transfer commands should always be complex

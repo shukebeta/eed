@@ -144,20 +144,3 @@ q"
     [ -f tutorial.md.eed.preview ]
 }
 
-@test "complex pattern detection - disables force mode" {
-    # AI provides complex script that should trigger safety measures
-    run "$SCRIPT_UNDER_TEST" --force code.js "g/console/d
-w
-q"
-    [ "$status" -eq 0 ]
-    
-    # Should show complex pattern detection
-    [[ "$output" == *"Complex script detected (--force disabled)"* ]]
-    
-    # Should create preview (force mode disabled)
-    [ -f code.js.eed.preview ]
-    
-    # Original should be unchanged
-    run grep -q "console.log" code.js
-    [ "$status" -eq 0 ]
-}

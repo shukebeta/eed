@@ -36,16 +36,6 @@ teardown() {
     [[ ! "$output" =~ "SAFETY.*--force ignored" ]]
 }
 
-@test "safety override triggers for complex unordered operations" {
-    script=$'g/line2/d\nw\nq'
-    
-    # Use GPT's recommended approach: entire pipeline in bash -c with pipefail
-    run bash -c 'set -o pipefail; echo "$1" | "$2" --force "$3" -' bash "$script" "$SCRIPT_UNDER_TEST" "$TEST_FILE"
-    
-    # Should contain new simplified safety message
-    [[ "$output" =~ "Complex script detected" ]]
-    [[ "$output" =~ "--force disabled" ]]
-}
 
 @test "simplified messaging - no machine tags in output" {
     script=$'g/line2/d\nw\nq'

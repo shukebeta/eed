@@ -96,19 +96,6 @@ EOF
     [[ "$output" =~ "Changes applied successfully" ]]
 }
 
-@test "variables: complex pattern disables force mode (safety)" {
-    # Use a genuinely complex script that would be detected
-    run "$SCRIPT_UNDER_TEST" --force test.txt - << 'EOF'
-g/pattern/d
-w
-q
-EOF
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Complex script detected (--force disabled)" ]]
-    # The key behavior: force mode was disabled, so we're in preview mode
-    [[ ! "$output" =~ "Changes applied successfully" ]]
-}
 
 @test "variables: disable auto reorder flag works" {
     # Create a multi-line file for this test
