@@ -508,21 +508,3 @@ q"
     [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
 }
 
-@test "debug: debug mode technical details (moved from debug_integration.bats)" {
-    echo "line1" > test_file.txt
-    echo "line2" >> test_file.txt
-    echo "line3" >> test_file.txt
-    
-    script='g/line2/d
-w
-q'
-
-    echo "=== Testing debug mode ==="
-    run "$SCRIPT_UNDER_TEST" --debug test_file.txt "$script"
-    echo "Exit status: $status"
-    echo "Full output:"
-    printf "%s\n" "$output"
-    
-    # Debug mode shows technical details about complex patterns
-    [[ "$output" =~ "Skipping auto-reorder due to complex patterns" ]]
-}

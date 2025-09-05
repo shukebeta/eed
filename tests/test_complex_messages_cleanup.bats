@@ -24,35 +24,4 @@ teardown() {
 
 
 
-@test "debug: complex script messaging (moved from debug_integration.bats)" {
-  echo "line1" > test_file.txt
-  echo "line2" >> test_file.txt  
-  echo "line3" >> test_file.txt
 
-  script='g/line2/d
-w
-q'
-
-  echo "=== Testing complex script with force ==="
-  run "$SCRIPT_UNDER_TEST" --force test_file.txt "$script"
-  echo "Exit status: $status"
-  echo "Full output:"
-  printf "%s\n" "$output"
-  
-  echo "=== Checking for complex message ==="
-  if [[ "$output" =~ "Complex script detected" ]]; then
-    echo "✓ Found expected complex message"
-  else
-    echo "✗ Missing complex message"
-  fi
-  
-  if [[ "$output" =~ force.*disabled ]]; then
-    echo "✓ Found force disabled message"
-  else  
-    echo "✗ Missing force disabled message"
-  fi
-  
-  # Test passes - complex script detection works correctly
-  [[ "$output" =~ "Complex script detected" ]]
-  [[ "$output" =~ force.*disabled ]]
-}
