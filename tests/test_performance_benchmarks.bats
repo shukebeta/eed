@@ -117,7 +117,7 @@ process_and_fix_script_old() {
     # Load the functions we need for comparison
     source "$REPO_ROOT/lib/eed_regex_patterns.sh"
     source "$REPO_ROOT/lib/eed_validator.sh"
-    source "$REPO_ROOT/lib/eed_auto_fix.sh"
+    source "$REPO_ROOT/lib/eed_auto_fix_unescaped_slashes.sh"
 
     local script=$(create_large_script 500)
 
@@ -129,11 +129,9 @@ process_and_fix_script_old() {
     end_time=$(date +%s.%N)
     old_duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "5.0")
 
-    # Test new method (function-based using global variables)
+    # Test new method (function-based using return codes)
     start_time=$(date +%s.%N)
-    process_and_fix_script "$script" 2>/dev/null
-    # Extract result from global variables (matching main script logic)
-    if [ "$FIXED_ANY_LINES" = true ]; then
+    if process_and_fix_unescaped_slashes "$script" 2>/dev/null; then
         new_result=${FIXED_SCRIPT%$'\n'}
     else
         new_result=""

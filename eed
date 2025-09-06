@@ -10,7 +10,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$REPO_ROOT/lib/eed_common.sh"
 source "$REPO_ROOT/lib/eed_validator.sh"
-source "$REPO_ROOT/lib/eed_auto_fix.sh"
+source "$REPO_ROOT/lib/eed_auto_fix_unescaped_slashes.sh"
 
 # --- Variable Precedence System ---
 # Priority: CLI flags > Environment variables > Built-in defaults
@@ -154,21 +154,17 @@ if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
     # The new detect_dot_trap is already intelligent enough to avoid false positives
 fi
 
-# --- Log Commands for Analysis ---
-log_ed_commands "$ED_SCRIPT"
-
 # --- EARLY COMMAND VALIDATION ---
 
-# Apply auto-fixing with improved performance
-process_and_fix_script "$ED_SCRIPT"
-
-# Apply fixes if any were made (matching original logic exactly)
-if [ "$FIXED_ANY_LINES" = true ]; then
+# Apply auto-fixing unescaped slashes
+if process_and_fix_unescaped_slashes "$ED_SCRIPT"; then
     # Remove trailing newline and update script
     ED_SCRIPT=${FIXED_SCRIPT%$'\n'}
     echo "✅ Successfully auto-fixed ed script syntax" >&2
-    unset FIX_ANY_LINES
 fi
+
+# --- Log Commands for Analysis ---
+log_ed_commands "$ED_SCRIPT"
 
 # Now proceed with normal validation
 SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")

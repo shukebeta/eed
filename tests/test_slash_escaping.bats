@@ -6,8 +6,10 @@ setup() {
     # Determine repository root using BATS_TEST_DIRNAME
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
     
-    # Source the validator functions
+    # Source the required functions
+    source "$REPO_ROOT/lib/eed_regex_patterns.sh"
     source "$REPO_ROOT/lib/eed_validator.sh"
+    source "$REPO_ROOT/lib/eed_auto_fix_unescaped_slashes.sh"
 }
 
 # Test detect_unescaped_slashes function - positive cases
