@@ -10,6 +10,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$REPO_ROOT/lib/eed_common.sh"
 source "$REPO_ROOT/lib/eed_validator.sh"
+source "$REPO_ROOT/lib/eed_auto_fix.sh"
 
 # --- Variable Precedence System ---
 # Priority: CLI flags > Environment variables > Built-in defaults
@@ -158,38 +159,15 @@ log_ed_commands "$ED_SCRIPT"
 
 # --- EARLY COMMAND VALIDATION ---
 
-# --- Smart Auto-fixing for AI Users ---
-# Pre-process script to fix common syntax errors before validation
-process_and_fix_script() {
-    local script="$1"
-    local fixed_any=false
-    
-    while IFS= read -r line; do
-        [ -z "$line" ] && { echo; continue; }
-        
-        if detect_unescaped_slashes "$line"; then
-            FIXED_LINE=$(fix_unescaped_slashes "$line")
-            if [ $? -eq 0 ]; then
-                echo "🔧 Auto-fixed unescaped slashes: $line → $FIXED_LINE" >&2
-                echo "$FIXED_LINE"
-                fixed_any=true
-            else
-                echo "$line"
-            fi
-        else
-            echo "$line"
-        fi
-    done <<< "$script"
-    
-    # Return status: 0 if fixes were applied, 1 if no fixes needed
-    [ "$fixed_any" = true ]
-}
-
 # Apply auto-fixing with improved performance
-FIXED_SCRIPT=$(process_and_fix_script "$ED_SCRIPT")
-if [ $? -eq 0 ]; then
-    ED_SCRIPT="$FIXED_SCRIPT"
+process_and_fix_script "$ED_SCRIPT"
+
+# Apply fixes if any were made (matching original logic exactly)
+if [ "$FIXED_ANY_LINES" = true ]; then
+    # Remove trailing newline and update script
+    ED_SCRIPT=${FIXED_SCRIPT%$'\n'}
     echo "✅ Successfully auto-fixed ed script syntax" >&2
+    unset FIX_ANY_LINES
 fi
 
 # Now proceed with normal validation
