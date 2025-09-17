@@ -614,25 +614,11 @@ EOF
     [ "$pos_5d" -lt "$pos_1d" ]
 }
 
-@test "improved detection: g/pattern/d should still be detected as complex" {
-    local script="$(printf 'g/function/d\n1d\n5d\nw\nq')"
-    # Test the unified architecture: no_complex_patterns should identify this as complex
-    run no_complex_patterns "$script" 2>/dev/null
-    [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
-}
 
-@test "improved detection: non-numeric address with delete should still be detected as complex" {
-    local script="$(printf '/pattern/d\n1d\n5d\nw\nq')"
-    # Test the unified architecture: no_complex_patterns should identify this as complex
-    run no_complex_patterns "$script" 2>/dev/null
-    [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
-}
 
-@test "improved detection: offset address with delete should still be detected as complex" {
+@test "auto reorder: offset address with numeric deletes still reordered" {
     local script="$(printf '.-5,.+5d\n1d\n5d\nw\nq')"
-    run no_complex_patterns "$script" 2>/dev/null
-    [ "$status" -ne 0 ]  # Complex pattern detected (returns non-zero)
-
+    
     # Verify reorder_script still reorders the numeric parts (that's its job)
     run reorder_script "$script"
     [ "$status" -eq 0 ]  # Function should always succeed
@@ -668,21 +654,6 @@ EOF
 }
 
 
-@test "debug: isolate addr_count issue (moved from debug_integration.bats)" {
-  script='3a
-content line
-.
-w
-q'
-
-  echo "=== Testing no_complex_patterns directly ==="
-  echo "Script:"
-  printf "%s\n" "$script"
-
-  echo "=== Function result ==="
-  no_complex_patterns "$script" 2>&1
-  echo "Exit code: $?"
-}
 
 
 @test "error handling: debug mode shows error messages" {

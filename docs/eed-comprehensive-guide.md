@@ -16,12 +16,11 @@ MENTAL CHECKLIST:
 
 CORRECT PATTERN - always use this via Bash tool:
 ```bash
-eed --force /unix/style/path/to/file "$(cat <<'EOF'  # <-- Single quotes are CRITICAL!
+eed /unix/style/path/to/file - <<'EOF'  # <-- Single quotes are CRITICAL!
 # ed commands
 w
 q
 EOF
-)"
 ```
 
 CRITICAL PATH RULE: Always use Unix-style paths with forward slashes.
@@ -29,9 +28,11 @@ NEVER use Windows paths (C:\path\to\file). Always use forward slashes (/), as ba
 
 MEMORY AID: Think "forward slashes" not "backslashes".
 
-EFFICIENCY TIP: Use `--force` to skip preview when confident
-- Preview mode: Good for learning and complex changes
-- Force mode: Use when you trust your `ed` commands
+NEW WORKFLOW: Local History System
+- Preview mode: Creates .eed.preview → suggests `commit file.js "message"`
+- Automatic WIP saves before new edits
+- Use `eed --undo` to revert last eed-history commit
+- All commits use "eed-history:" prefix for easy management
 
 ## Overview
 
@@ -48,20 +49,15 @@ EFFICIENCY TIP: Use `--force` to skip preview when confident
 ## Usage Syntax (preferred examples first)
 
 ```bash
-eed [--debug] [--force] [--disable-auto-reorder] <file> {SCRIPT|-}
+eed [--debug] [--disable-auto-reorder] [--undo] <file> {SCRIPT|-}
+commit <file> "commit message"  # Apply preview with git commit
 ```
 
 Important: `SCRIPT` may be provided as an explicit string, `-` to force reading from stdin, or via a pipe/quoted heredoc.
 
 Recommended usage patterns (priority order):
 
-1) Pipe (quick & script-friendly)
-```bash
-printf '1d\nw\nq\n' | eed path/to/file -        # explicit stdin with '-'
-```
-Note: `eed` also supports a forgiving mode — if you pipe but omit the `-`, eed will still read stdin and proceed, and will append a friendly tip on success. For clarity and reproducibility, prefer the explicit `-` when scripting.
-
-2) Quoted heredoc with explicit `-` (robust, readable)
+1) Quoted heredoc with explicit `-` (robust, readable) **← PREFERRED**
 ```bash
 eed path/to/file - <<'EOF'
 1d
@@ -70,7 +66,13 @@ q
 EOF
 ```
 
-3) Quoted heredoc as an argument (self-contained / single-arg)
+2) Pipe (quick & script-friendly)
+```bash
+printf '1d\nw\nq\n' | eed path/to/file -        # explicit stdin with '-'
+```
+Note: `eed` also supports a forgiving mode — if you pipe but omit the `-`, eed will still read stdin and proceed, and will append a friendly tip on success. For clarity and reproducibility, prefer the explicit `-` when scripting.
+
+3) Quoted heredoc as an argument (legacy syntax, avoid)
 ```bash
 eed path/to/file "$(cat <<'EOF'
 1d
@@ -79,24 +81,27 @@ q
 EOF
 )"
 ```
+Note: This syntax is legacy. Use the direct heredoc (option 1) instead.
 
 **Options:**
 - `--debug` — Show detailed execution info, preserve temp files
-- `--force` — Skip preview-confirm workflow, apply edits directly
 - `--disable-auto-reorder` — Disable automatic script reordering (expert mode)
+- `--undo` — Undo last eed-history commit (git reset --hard HEAD~1)
+
+**Commands:**
+- `commit <file> "message"` — Apply preview changes and create atomic git commit
 
 ## The Preview-Confirm Workflow
 
-Example (canonical quoted heredoc form):
+Example (canonical heredoc form):
 ```bash
-eed sample.txt "$(cat <<'EOF'
+eed sample.txt - <<'EOF'
 2c
 new content
 .
 w
 q
 EOF
-)"
 ```
 
 ✓ Edits are applied to a preview file (`sample.txt.eed.preview`); review the diff and decide to apply or discard.
@@ -112,7 +117,7 @@ EOF
 
 To apply these changes, run:
 ```bash
-mv 'sample.txt.eed.preview' 'sample.txt'
+commit 'sample.txt' "your commit message"
 ```
 
 To discard these changes, run:
@@ -120,15 +125,48 @@ To discard these changes, run:
 rm 'sample.txt.eed.preview'
 ```
 
+## Local History System
+
+eed now includes a revolutionary local history system using atomic git commits:
+
+### Workflow
+1. **Auto-save WIP**: Before each edit, eed automatically saves any uncommitted work
+2. **Preview creation**: Edits go to `.eed.preview` files first
+3. **Atomic commit**: Use `commit` command to apply changes and create git commit
+4. **Easy undo**: Use `eed --undo` to revert last eed-history commit
+
+### Example
+```bash
+# Make changes
+eed file.js - <<'EOF'
+1a
+// Added by eed
+.
+w
+q
+EOF
+
+# Apply with descriptive commit
+commit file.js "add header comment"
+
+# Later, undo if needed
+eed --undo
+```
+
+### Features
+- **Safe**: Original files never corrupted
+- **Atomic**: All-or-nothing commits with special "eed-history:" prefix
+- **Reversible**: Easy undo with `--undo` flag
+- **Self-hosting**: Use eed to improve eed itself
+
 ### View Operations Execute Directly
 
 Read-only operations run immediately; still prefer quoted heredoc for safety:
 ```bash
-eed file.txt "$(cat <<'EOF'
+eed file.txt - <<'EOF'
 ,p
 q
 EOF
-)"
 ```
 
 ## Forgiving stdin mode
@@ -267,22 +305,20 @@ Recommended alternatives (safer, easier for AIs)
 Break complex transformations into discrete steps and run `eed` for each step. This is simple and auditable:
 ```bash
 # Step 1: update imports
-eed file.js "$(cat <<'EOF'
+eed file.js - <<'EOF'
 1i
 import newModule from 'library';
 .
 w
 q
 EOF
-)"
 
 # Step 2: rename usages
-eed file.js "$(cat <<'EOF'
+eed file.js - <<'EOF'
 1,$s/oldName/newName/g
 w
 q
 EOF
-)"
 ```
 Staging and committing between steps (e.g., `git add` / `git commit`) makes changes easy to review and revert.
 
@@ -306,16 +342,15 @@ printf '1,$s/oldName/newName/g\nw\nq\n' | eed path/to/file -
 3) Use a single heredoc (no nested heredocs)
 If you must include other commands, prefer separating concerns so only one heredoc is needed for `eed`:
 ```bash
-# Avoid embedding another heredoc marker inside the one for eed
-eed path/to/file "$(cat <<'EED_CMDS'
+# Clean, single heredoc approach
+eed path/to/file - <<'EOF'
 /pattern/
 c
 replacement
 .
 w
 q
-EED_CMDS
-)"
+EOF
 ```
 
 Practical tips
@@ -337,39 +372,36 @@ This guidance reduces brittle failures and makes AI-driven edits far more reliab
 
 ### Adding Import Statements
 ```bash
-eed file.js "$(cat <<'EOF'
+eed file.js - <<'EOF'
 1i
 import newModule from 'library';
 .
 w
 q
 EOF
-)"
 ```
 
 ### Global Find and Replace
 ```bash
-eed file.txt "$(cat <<'EOF'
+eed file.txt - <<'EOF'
 1,$s/oldFunction/newFunction/g
 w
 q
 EOF
-)"
 ```
 
 ### Remove Debug Statements
 ```bash
-eed file.js "$(cat <<'EOF'
+eed file.js - <<'EOF'
 g/console\.log/d
 w
 q
 EOF
-)"
 ```
 
 ### Multi-Step Editing
 ```bash
-eed file.txt "$(cat <<'EOF'
+eed file.txt - <<'EOF'
 /TODO/
 c
 DONE: Task completed
@@ -379,7 +411,6 @@ d
 w
 q
 EOF
-)"
 ```
 
 ## Exit Codes
@@ -407,23 +438,20 @@ git checkout -- yourfile.txt
 
 ## Advanced Usage
 
-### Preview Mode vs Force Mode
+### Preview Mode with Local History
 ```bash
 # Preview mode (default) - safe for experimentation
-eed file.txt "$(cat <<'EOF'
+eed file.txt - <<'EOF'
 1,$s/old/new/g
 w
 q
 EOF
-)"
 
-# Force mode - direct editing
-eed --force file.txt "$(cat <<'EOF'
-1,$s/old/new/g
-w
-q
-EOF
-)"
+# Apply changes with commit
+commit file.txt "replace old with new"
+
+# Undo if needed
+eed --undo
 ```
 
 ### Combining with Other Tools
@@ -432,12 +460,11 @@ EOF
 cat file.txt | head -20
 
 # Then edit with eed
-eed file.txt "$(cat <<'EOF'
+eed file.txt - <<'EOF'
 10,15d
 w
 q
 EOF
-)"
 
 # Verify results
 git diff file.txt
@@ -470,51 +497,40 @@ eed --debug file.txt 'your commands here'
 
 **Remember:** The forgiving stdin mode and post-success tip are meant to reduce friction without hiding behavior. Prefer explicit `-` in scripts; enjoy safe, previewable edits with `eed`.
 
-## Intelligent Safety Override
+## Git Integration and Safety
 
-eed includes an intelligent safety override system that protects against potentially dangerous --force operations.
+eed provides multiple layers of safety through git integration:
 
-### How It Works
-
-When you use --force mode, eed analyzes the script for high-risk patterns:
-
-- **Complex patterns**: Global commands (g/, v/), move/transfer operations (m, t)
-- **Unordered operations**: Line number operations not in descending order
-- **Risk assessment**: High-risk = complex patterns + unordered operations
-
-### Override Behavior
-
-For high-risk scripts, --force is automatically ignored and preview mode is used instead:
-
+### Auto-save Work in Progress
+Before each edit, eed automatically saves any uncommitted changes:
 ```bash
-# This will trigger safety override
-echo 'g/pattern/d
-1d
-3d
-w
-q' | eed --force file.txt -
-
-# Output:
-# 💡 Complex script detected (--force disabled)
+# Auto-saving work in progress...
+# [master 543c56d] eed-history: WIP auto-save before new edit
 ```
 
-### Bypass Options
-
-**Environment Variable:**
+### Atomic Commits
+The `commit` command creates atomic commits with special prefixes:
 ```bash
-EED_FORCE_OVERRIDE=true eed --force file.txt script.ed
+commit file.js "add validation logic"
+# [master 140822e] eed-history: add validation logic
 ```
 
-**Script Simplification:**
-- Use descending order: 3d, 1d instead of 1d, 3d
-- Avoid mixing global commands with line operations
+### Easy Recovery
+Multiple options for undoing changes:
+```bash
+# Undo last eed-history commit
+eed --undo
 
-### Machine Integration
+# Or use git directly
+git reset --hard HEAD~1
 
-CI/automation scripts can:
-- Check stderr for `Complex script detected` message
-- Set `EED_FORCE_OVERRIDE=true` to bypass when appropriate  
-- Exit codes remain unchanged (preview success = 0)
+# Or restore from preview
+mv file.txt.eed.preview file.txt
+```
 
-This system prevents accidental file corruption while maintaining full user control.
+### Best Practices
+- Each commit is atomic and reversible
+- Use descriptive commit messages
+- All eed commits use "eed-history:" prefix for easy identification
+- Safe for later squashing or rebasing
 

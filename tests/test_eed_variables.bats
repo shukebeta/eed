@@ -15,7 +15,7 @@ teardown() {
 }
 
 @test "variables: CLI --debug flag works" {
-    run "$SCRIPT_UNDER_TEST" --debug --force test.txt - << 'EOF'
+    run "$SCRIPT_UNDER_TEST" --debug test.txt - << 'EOF'
 1a
 test content
 .
@@ -24,26 +24,14 @@ q
 EOF
     
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     [[ "$output" =~ "Debug mode: executing ed" ]]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 }
 
-@test "variables: CLI --force flag works" {
-    run "$SCRIPT_UNDER_TEST" --debug --force test.txt - << 'EOF'
-1a
-test content
-.
-w
-q
-EOF
-    
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "--force mode enabled" ]]
-    [[ "$output" =~ "Changes applied successfully" ]]
-}
 
 @test "variables: environment variable EED_DEBUG works" {
-    run env EED_DEBUG=true "$SCRIPT_UNDER_TEST" --force test.txt - << 'EOF'
+    run env EED_DEBUG=true "$SCRIPT_UNDER_TEST" test.txt - << 'EOF'
 1a
 test content
 .
@@ -52,26 +40,15 @@ q
 EOF
     
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     [[ "$output" =~ "Debug mode: executing ed" ]]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 }
 
-@test "variables: environment variable EED_FORCE works" {
-    run env EED_FORCE=true EED_DEBUG=true "$SCRIPT_UNDER_TEST" test.txt - << 'EOF'
-1a
-test content
-.
-w
-q
-EOF
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "--force mode enabled" ]]
-    [[ "$output" =~ "Changes applied successfully" ]]
-}
 
 @test "variables: CLI flag overrides environment variable" {
     # Set EED_DEBUG=false but use CLI --debug flag
-    run env EED_DEBUG=false "$SCRIPT_UNDER_TEST" --debug --force test.txt - << 'EOF'
+    run env EED_DEBUG=false "$SCRIPT_UNDER_TEST" --debug test.txt - << 'EOF'
 1a
 test content
 .
@@ -80,28 +57,18 @@ q
 EOF
     
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     [[ "$output" =~ "Debug mode: executing ed" ]]  # CLI flag should win
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 }
 
-@test "variables: FORCE_OVERRIDE bypasses complex pattern detection" {
-    # Create a complex script that would normally disable --force
-    run env EED_FORCE_OVERRIDE=true EED_DEBUG=true "$SCRIPT_UNDER_TEST" --force test.txt - << 'EOF'
-1,$s/test/replaced/g
-w
-q
-EOF
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "FORCE_OVERRIDE enabled - bypassing all safety checks" ]]
-    [[ "$output" =~ "Changes applied successfully" ]]
-}
 
 
 @test "variables: disable auto reorder flag works" {
     # Create a multi-line file for this test
     echo -e "line1\nline2\nline3" > multi_test.txt
     
-    run env EED_DEBUG=true "$SCRIPT_UNDER_TEST" --disable-auto-reorder --force multi_test.txt - << 'EOF'
+    run env EED_DEBUG=true "$SCRIPT_UNDER_TEST" --disable-auto-reorder multi_test.txt - << 'EOF'
 3d
 1a
 new content
@@ -111,6 +78,8 @@ q
 EOF
     
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     # Should not see reordering messages since it's disabled
     [[ ! "$output" =~ "Script reordered for safety" ]]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 }

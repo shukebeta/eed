@@ -43,16 +43,16 @@ q
 .
 w
 q'
-  run "$SCRIPT_UNDER_TEST" --force ed_guide.md "$script"
+  run "$SCRIPT_UNDER_TEST" ed_guide.md "$script"
 
   [ "$status" -eq 0 ]
-  [ -f ed_guide.md ]
+  [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-  # Content should be properly inserted
-  run grep -q "First line." ed_guide.md
+  # Content should be properly inserted in preview
+  run grep -q "First line." ed_guide.md.eed.preview
   [ "$status" -eq 0 ]
 
-  run grep -q "Second line." ed_guide.md
+  run grep -q "Second line." ed_guide.md.eed.preview
   [ "$status" -eq 0 ]
 }
 
@@ -103,17 +103,17 @@ function test_with_dots() {
 .
 w
 q'
-  run "$SCRIPT_UNDER_TEST" --force conflict_test.bats "$script"
+  run "$SCRIPT_UNDER_TEST" conflict_test.bats "$script"
 
   [ "$status" -eq 0 ]
-  [ -f conflict_test.bats ]
+  [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-  # Original marker-like string should be preserved
-  run grep -q "~~DOT_123~~" conflict_test.bats
+  # Original marker-like string should be preserved in preview
+  run grep -q "~~DOT_123~~" conflict_test.bats.eed.preview
   [ "$status" -eq 0 ]
 
-  # New content should be added
-  run grep -q "content." conflict_test.bats
+  # New content should be added in preview
+  run grep -q "content." conflict_test.bats.eed.preview
   [ "$status" -eq 0 ]
 }
 
@@ -121,20 +121,20 @@ q'
   # Ensure that normal eed operations still work exactly as before
   echo "line1" > simple.txt
 
-  run "$SCRIPT_UNDER_TEST" --force simple.txt "1c
+  run "$SCRIPT_UNDER_TEST" simple.txt "1c
 replaced
 .
 w
 q"
 
   [ "$status" -eq 0 ]
-  [ -f simple.txt ]
+  [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-  run grep -q "replaced" simple.txt
+  run grep -q "replaced" simple.txt.eed.preview
   [ "$status" -eq 0 ]
 
-  run grep -q "line1" simple.txt
-  [ "$status" -ne 0 ]  # Should be replaced
+  run grep -q "line1" simple.txt.eed.preview
+  [ "$status" -ne 0 ]  # Should be replaced in preview
 }
 
 # === ERROR RECOVERY ===
@@ -162,15 +162,15 @@ q'
   cat -n conflict_test.bats
 
   echo "=== Testing marker conflicts ==="
-  run "$SCRIPT_UNDER_TEST" --force conflict_test.bats "$script"
+  run "$SCRIPT_UNDER_TEST" conflict_test.bats "$script"
   echo "Exit status: $status"
   echo "Output: $output"
 
   echo "=== File after ==="
   cat conflict_test.bats
 
-  # Check if content was inserted
-  if grep -q "test_with_dots" conflict_test.bats; then
+  # Check if content was inserted in preview
+  if grep -q "test_with_dots" conflict_test.bats.eed.preview; then
     echo "✓ Marker conflicts case worked"
   else
     echo "✗ Marker conflicts case failed"

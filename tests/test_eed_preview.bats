@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 # Tests for the new Preview-Confirm workflow functionality
-# Tests the --force flag and default preview behavior
+# Tests the flag and default preview behavior
 
 setup() {
     # Determine repository root using BATS_TEST_DIRNAME
@@ -38,6 +38,7 @@ new line2
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
     # Should show changed lines in diff output
     [[ "$output" == *"-line2"* ]]
@@ -65,6 +66,7 @@ q"
     run "$SCRIPT_UNDER_TEST" sample.txt ",p
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" != *"Edits applied to a temporary preview"* ]]
 
     # Should show file contents directly
     [[ "$output" == *"line1"* ]]
@@ -79,62 +81,9 @@ q"
     [[ "$output" != *"mv"* ]]
 }
 
-@test "force mode - modifying script edits directly" {
-    # Test --force flag behavior
-    run "$SCRIPT_UNDER_TEST" --force sample.txt "2c
-new line2
-.
-w
-q"
-    [ "$status" -eq 0 ]
-
-    # Should indicate force mode and preview application
-    [[ "$output" == *"✨"* ]]
-
-    # Should not show diff or instructions as primary workflow (preview applied)
-    [[ "$output" != *"To apply these changes"* ]]
-
-    # File should be modified directly
-    [[ "$(cat sample.txt)" == $'line1\nnew line2\nline3' ]]
-
-    # Should not leave preview file after apply
-    [ ! -f sample.txt.eed.preview ]
-}
 
 
-@test "force mode - view-only script still executes directly" {
-    # View-only should behave same in force mode
-    run "$SCRIPT_UNDER_TEST" --force sample.txt ",p
-q"
-    [ "$status" -eq 0 ]
 
-    # Should show file contents
-    [[ "$output" == *"line1"* ]]
-    [[ "$output" == *"line2"* ]]
-    [[ "$output" == *"line3"* ]]
-
-    # Should not create preview
-    [ ! -f sample.txt.eed.preview ]
-}
-
-@test "force mode - shows clear success message without confusing mv command" {
-    # Test that --force mode shows clear message instead of confusing mv instruction
-    run "$SCRIPT_UNDER_TEST" --force sample.txt "2c
-new line2
-.
-w
-q"
-    [ "$status" -eq 0 ]
-
-    # Should show clear force mode success message
-    [[ "$output" == *"✨"* ]]
-    
-    # File should be modified directly
-    [[ "$(cat sample.txt)" == $'line1\nnew line2\nline3' ]]
-
-    # Should not create preview
-    [ ! -f sample.txt.eed.preview ]
-}
 
 @test "preview mode - error handling preserves original file" {
     # Test error in preview mode
@@ -151,10 +100,10 @@ q"
     [ ! -f sample.txt.eed.preview ]
 }
 
-@test "force mode - error handling restores preview" {
-    # Create a scenario where ed fails in force mode
+@test "preview mode - error handling with invalid commands" {
+    # Create a scenario where ed fails with invalid commands
     # Use a command that will fail after modification
-    run "$SCRIPT_UNDER_TEST" --force sample.txt "2c
+    run "$SCRIPT_UNDER_TEST" sample.txt "2c
 new line2
 .
 999p
@@ -176,6 +125,7 @@ modified line1
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
     # Should create preview with changes
     [ -f sample.txt.eed.preview ]
@@ -200,6 +150,7 @@ modified line1
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
     # Should create preview with changes
     [ -f sample.txt.eed.preview ]
@@ -215,21 +166,25 @@ q"
     [ ! -f sample.txt.eed.preview ]
 }
 
-@test "flag parsing - combined flags work correctly" {
-    # Test --debug --force combination
-    run "$SCRIPT_UNDER_TEST" --debug --force sample.txt "2c
+@test "flag parsing - debug flag works correctly" {
+    # Test --debug flag
+    run "$SCRIPT_UNDER_TEST" --debug sample.txt "2c
 debug test
 .
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-    # Should show both debug and force mode messages
-    [[ "$output" == *"--force mode enabled"* ]]
+    # Should show debug messages
     [[ "$output" == *"Debug mode: executing ed"* ]]
 
-    # File should be modified directly (force mode)
-    [[ "$(cat sample.txt)" == $'line1\ndebug test\nline3' ]]
+    # File should be unchanged (preview mode)
+    [[ "$(cat sample.txt)" == $'line1\nline2\nline3' ]]
+    
+    # Preview file should contain changes
+    [ -f sample.txt.eed.preview ]
+    [[ "$(cat sample.txt.eed.preview)" == $'line1\ndebug test\nline3' ]]
 }
 
 @test "flag parsing - unknown flag rejected" {
@@ -254,6 +209,7 @@ q
 EOF
 )"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
     # Should show proper diff with multiple changes
     [[ "$output" == *"-line1"* ]]
@@ -268,7 +224,7 @@ EOF
 }
 
 
-@test "critical safety - force mode edit failure never corrupts original file" {
+@test "critical safety - preview mode edit failure never corrupts original file" {
     # Create original content
     echo "CRITICAL_DATA_LINE_1" > sample.txt
     echo "CRITICAL_DATA_LINE_2" >> sample.txt
@@ -279,8 +235,8 @@ EOF
     original_mtime="$(stat -c %Y sample.txt)"
     original_inode="$(stat -c %i sample.txt)"
 
-    # Force mode with failing command - should not corrupt original
-    run "$SCRIPT_UNDER_TEST" --force sample.txt "1c
+    # Preview mode with failing command - should not corrupt original
+    run "$SCRIPT_UNDER_TEST" sample.txt "1c
 new content
 .
 999p
@@ -297,52 +253,24 @@ q"
     [ ! -f sample.txt.eed.preview ]
 }
 
-@test "critical safety - preview mode edit failure never corrupts original file" {
-    # Create original content  
-    echo "CRITICAL_DATA_LINE_1" > sample.txt
-    echo "CRITICAL_DATA_LINE_2" >> sample.txt
 
-    # Record original content and file attributes
-    original_content="$(cat sample.txt)"
-    original_size="$(stat -c %s sample.txt)"
-    original_mtime="$(stat -c %Y sample.txt)"
-    original_inode="$(stat -c %i sample.txt)"
-
-    # Preview mode with failing command - should not corrupt original
-    run "$SCRIPT_UNDER_TEST" sample.txt "1c
-another attempt
-.
-999p
-q"
-    [ "$status" -ne 0 ]
-
-    # Original file must be completely untouched
-    [[ "$(cat sample.txt)" == "$original_content" ]]
-    [[ "$(stat -c %s sample.txt)" == "$original_size" ]]     # Size unchanged
-    [[ "$(stat -c %Y sample.txt)" == "$original_mtime" ]]   # Modify time unchanged
-    [[ "$(stat -c %i sample.txt)" == "$original_inode" ]]   # Inode unchanged
-
-    # No preview file should remain  
-    [ ! -f sample.txt.eed.preview ]
-}
-
-@test "force mode - auto-reordering cancels force mode" {
-    # Test that --force is cancelled when script reordering occurs
-    run "$SCRIPT_UNDER_TEST" --force sample.txt "1d
+@test "preview mode - auto-reordering with preview workflow" {
+    # Test that auto-reordering works in preview mode
+    run "$SCRIPT_UNDER_TEST" sample.txt "1d
 2d
 3d
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Should show reordering and force cancellation message
+    # Should show reordering message
     [[ "$output" == *"Auto-reordering script to prevent line numbering conflicts"* ]]
-    [[ "$output" == *"Script reordered for safety (--force disabled)"* ]]
     
-    # Should create preview file (force mode cancelled)
+    # Should create preview file 
     [ -f sample.txt.eed.preview ]
     
-    # Should show preview instructions instead of direct edit
+    # Should show preview instructions
     [[ "$output" == *"To apply these changes, run:"* ]]
     
     # Original file should be unchanged
@@ -383,6 +311,7 @@ q"
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Should create preview (not error out)
     [ -f sample.txt.eed.preview ]
@@ -397,6 +326,7 @@ q"
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Should create preview
     [ -f sample.txt.eed.preview ]
@@ -435,6 +365,7 @@ hello world
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
     # Should create preview successfully
     [ -f new_test_file2.txt.eed.preview ]
@@ -451,6 +382,7 @@ q"
     run "$SCRIPT_UNDER_TEST" sample.txt "w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
     # Should still create preview and show diff (even if empty)
     [ -f sample.txt.eed.preview ]
@@ -471,6 +403,7 @@ q"
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Should show reordering message
     [[ "$output" == *"Auto-reordering script to prevent line numbering conflicts"* ]]
@@ -494,6 +427,7 @@ q"
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Should NOT show reordering message
     [[ "$output" != *"Auto-reordering script"* ]]

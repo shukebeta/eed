@@ -21,9 +21,9 @@ Usage: eed [OPTIONS] <file> [ed_script | -]
 AI-oriented text editor with bulletproof safety guarantees
 
 OPTIONS:
-  --force         Apply changes directly (skip preview mode)
   --debug         Show detailed debugging information
   --disable-auto-reorder  Disable automatic command reordering
+  --undo          Undo last eed-history commit (git reset --hard HEAD~1)
   --help          Show this help message
 
 ARGUMENTS:
@@ -32,11 +32,8 @@ ARGUMENTS:
   -               Read ed script from stdin (alternative to ed_script)
 
 EXAMPLES:
-  # Preview mode (default - safe)
+  # Preview mode (safe workflow)
   eed file.txt $'1a\nHello\n.\nw\nq'
-
-  # Direct mode (skip preview)
-  eed --force file.txt $'1d\nw\nq'
 
   # Read from stdin
   echo $'1a\nContent\n.\nw\nq' | eed file.txt -
@@ -52,7 +49,7 @@ EXAMPLES:
 WORKFLOW:
   1. Validates ed commands for safety
   2. Automatically creates preview in file.eed.preview
-  3. Shows diff and instructions (unless --force)
+  3. Shows diff and apply instructions
   4. Provides clear next steps
 
 

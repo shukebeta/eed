@@ -20,10 +20,10 @@ teardown() {
     echo -e "line1\nline2\nline3" > test.txt
     
     # Test direct printf pipeline (not through bats run)
-    printf '1d\nw\nq\n' | "$SCRIPT_UNDER_TEST" --force test.txt -
+    printf '1d\nw\nq\n' | "$SCRIPT_UNDER_TEST" test.txt -
     
-    # Verify result
-    run cat test.txt
+    # Verify result in preview file
+    run cat test.txt.eed.preview
     [ "${lines[0]}" = "line2" ]
     [ "${lines[1]}" = "line3" ]
 }
@@ -33,10 +33,10 @@ teardown() {
     echo -e "line1\nline2" > test.txt
     
     # Test printf pipeline with insert
-    printf '1a\ninserted\n.\nw\nq\n' | "$SCRIPT_UNDER_TEST" --force test.txt -
+    printf '1a\ninserted\n.\nw\nq\n' | "$SCRIPT_UNDER_TEST" test.txt -
     
-    # Verify result
-    run cat test.txt
+    # Verify result in preview file
+    run cat test.txt.eed.preview
     [ "${lines[0]}" = "line1" ]
     [ "${lines[1]}" = "inserted" ]
     [ "${lines[2]}" = "line2" ]
@@ -46,11 +46,11 @@ teardown() {
     # Create test file  
     echo -e "line1\nline2\nline3" > test.txt
     
-    # Test the exact pattern that was failing
-    printf '1c\nchanged1\n.\nw\n2c\nchanged2\n.\nw\nq\n' | EED_FORCE_OVERRIDE=true "$SCRIPT_UNDER_TEST" --force --disable-auto-reorder test.txt -
+    # Test multi-command pipeline
+    printf '1c\nchanged1\n.\nw\n2c\nchanged2\n.\nw\nq\n' | "$SCRIPT_UNDER_TEST" test.txt -
     
-    # Verify both changes were applied
-    run cat test.txt
+    # Verify both changes were applied in preview
+    run cat test.txt.eed.preview
     [ "${lines[0]}" = "changed1" ]
     [ "${lines[1]}" = "changed2" ]
     [ "${lines[2]}" = "line3" ]
@@ -67,12 +67,12 @@ teardown() {
     # Instead, use direct execution (no bats run) or heredoc
     
     # Working approach: direct execution without bats run
-    bash -c "printf '1d\nw\nq\n'" | "$SCRIPT_UNDER_TEST" --force test.txt -
+    bash -c "printf '1d\nw\nq\n'" | "$SCRIPT_UNDER_TEST" test.txt -
     exit_code=$?
     [ $exit_code -eq 0 ]
     
-    # Verify result
-    run cat test.txt
+    # Verify result in preview
+    run cat test.txt.eed.preview
     [ "${lines[0]}" = "line2" ]
     [ "${lines[1]}" = "line3" ]
 }
@@ -83,13 +83,13 @@ teardown() {
     cp test.txt test_backup.txt
     
     # GPT's recommended approach: entire pipeline inside bash -c with pipefail
-    run bash -c 'set -o pipefail; printf "1d\nw\nq\n" | "$1" --force test.txt -' bash "$SCRIPT_UNDER_TEST"
+    run bash -c 'set -o pipefail; printf "1d\nw\nq\n" | "$1" test.txt -' bash "$SCRIPT_UNDER_TEST"
     gpt_approach_status=$status
     
     # Check if it worked
     if [ $gpt_approach_status -eq 0 ]; then
-        # Verify the file was actually modified
-        run cat test.txt
+        # Verify the file was actually modified in preview
+        run cat test.txt.eed.preview
         if [ "${lines[0]}" = "line2" ] && [ "${lines[1]}" = "line3" ]; then
             echo "✅ GPT's approach WORKS: entire pipeline in bash -c"
             gpt_works=true
@@ -104,7 +104,7 @@ teardown() {
     
     # Compare with what would be the broken approach (now fixed to not generate warnings)
     cp test_backup.txt test2.txt  
-    run bash -c 'printf "1d\nw\nq\n" | "$1" --force test2.txt -' bash "$SCRIPT_UNDER_TEST"
+    run bash -c 'printf "1d\nw\nq\n" | "$1" test2.txt -' bash "$SCRIPT_UNDER_TEST"
     comparison_approach_status=$status
     
     # Report results

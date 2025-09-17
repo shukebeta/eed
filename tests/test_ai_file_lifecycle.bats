@@ -25,7 +25,7 @@ teardown() {
 
 @test "file creation - new JavaScript file" {
     # AI often creates new files from scratch
-    run "$SCRIPT_UNDER_TEST" --force new_script.js "1i
+    run "$SCRIPT_UNDER_TEST" new_script.js "1i
 // AI-generated JavaScript file
 function greet(name) {
     return \`Hello, \${name}!\`;
@@ -36,18 +36,19 @@ module.exports = { greet };
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # File should be created with correct content
-    [ -f new_script.js ]
-    run grep -q "AI-generated JavaScript file" new_script.js
+    # Preview file should be created with correct content
+    [ -f new_script.js.eed.preview ]
+    run grep -q "AI-generated JavaScript file" new_script.js.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "module.exports" new_script.js
+    run grep -q "module.exports" new_script.js.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "file creation - new Python file" {
     # AI creates various file types
-    run "$SCRIPT_UNDER_TEST" --force new_module.py "1i
+    run "$SCRIPT_UNDER_TEST" new_module.py "1i
 #!/usr/bin/env python3
 # AI-generated Python module
 
@@ -61,20 +62,21 @@ if __name__ == '__main__':
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify Python file creation
-    [ -f new_module.py ]
-    run grep -q "#!/usr/bin/env python3" new_module.py
+    # Verify Python preview file creation
+    [ -f new_module.py.eed.preview ]
+    run grep -q "#!/usr/bin/env python3" new_module.py.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "def process_data" new_module.py
+    run grep -q "def process_data" new_module.py.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "__main__" new_module.py
+    run grep -q "__main__" new_module.py.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "file creation - JSON configuration file" {
     # AI frequently creates config files
-    run "$SCRIPT_UNDER_TEST" --force config.json "1i
+    run "$SCRIPT_UNDER_TEST" config.json "1i
 {
   \"app_name\": \"ai-assistant\",
   \"version\": \"2.1.0\",
@@ -89,23 +91,24 @@ q"
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify JSON structure
-    [ -f config.json ]
-    run grep -q "ai-assistant" config.json
+    # Verify JSON structure in preview file
+    [ -f config.json.eed.preview ]
+    run grep -q "ai-assistant" config.json.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "auto_save" config.json
+    run grep -q "auto_save" config.json.eed.preview
     [ "$status" -eq 0 ]
     # Basic JSON structure validation (without external dependencies)
-    run grep -q "{" config.json
+    run grep -q "{" config.json.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "}" config.json
+    run grep -q "}" config.json.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "file creation - YAML configuration file" {
     # AI also works with YAML files
-    run "$SCRIPT_UNDER_TEST" --force docker-compose.yml "1i
+    run "$SCRIPT_UNDER_TEST" docker-compose.yml "1i
 version: '3.8'
 services:
   app:
@@ -121,14 +124,15 @@ services:
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify YAML structure
-    [ -f docker-compose.yml ]
-    run grep -q "version: '3.8'" docker-compose.yml
+    # Verify YAML structure in preview file
+    [ -f docker-compose.yml.eed.preview ]
+    run grep -q "version: '3.8'" docker-compose.yml.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "services:" docker-compose.yml
+    run grep -q "services:" docker-compose.yml.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "NODE_ENV=production" docker-compose.yml
+    run grep -q "NODE_ENV=production" docker-compose.yml.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -145,17 +149,18 @@ q"
 EOF
 
     # AI updates dependencies
-    run "$SCRIPT_UNDER_TEST" --force package.json "4a
+    run "$SCRIPT_UNDER_TEST" package.json "4a
     \"lodash\": \"^4.17.21\",
 .
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify dependency was added
-    run grep -q "lodash" package.json
+    # Verify dependency was added in preview file
+    run grep -q "lodash" package.json.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "express" package.json
+    run grep -q "express" package.json.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -172,7 +177,7 @@ Run `npm install`.
 EOF
 
     # AI adds new section
-    run "$SCRIPT_UNDER_TEST" --force README.md "\$a
+    run "$SCRIPT_UNDER_TEST" README.md "\$a
 
 ## Usage
 
@@ -185,19 +190,20 @@ To use this project:
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify new section was added
-    run grep -q "## Usage" README.md
+    # Verify new section was added in preview file
+    run grep -q "## Usage" README.md.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "npm start" README.md
+    run grep -q "npm start" README.md.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "localhost:3000" README.md
+    run grep -q "localhost:3000" README.md.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "empty file handling - initialize from scratch" {
     # Let eed create the file (no touch - eed's happy path)
-    run "$SCRIPT_UNDER_TEST" --force empty.txt "1i
+    run "$SCRIPT_UNDER_TEST" empty.txt "1i
 This file was empty.
 Now it has content added by AI.
 
@@ -206,15 +212,16 @@ Line 3 of new content.
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify file was created with content
-    [ -f empty.txt ]
-    run grep -q "This file was empty" empty.txt
+    # Verify preview file was created with content
+    [ -f empty.txt.eed.preview ]
+    run grep -q "This file was empty" empty.txt.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "added by AI" empty.txt
+    run grep -q "added by AI" empty.txt.eed.preview
     [ "$status" -eq 0 ]
-    # Verify exact line count (eed creates new file with our 4 lines + 1 initial empty line)
-    run wc -l empty.txt
+    # Verify exact line count in preview file (eed creates new file with our 4 lines + 1 initial empty line)
+    run wc -l empty.txt.eed.preview
     lines=$(echo "$output" | grep -o '[0-9]\+')
     [ "$lines" -eq 5 ]  # Should have exactly 5 lines
 }

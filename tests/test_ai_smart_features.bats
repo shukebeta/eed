@@ -52,21 +52,19 @@ teardown() {
 
 @test "auto-reordering - ascending line numbers get reordered" {
     # AI provides commands in ascending order (dangerous)
-    run "$SCRIPT_UNDER_TEST" --force code.js "2d
+    run "$SCRIPT_UNDER_TEST" code.js "2d
 3d
 4d
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Should show reordering message
     [[ "$output" == *"Auto-reordering script to prevent line numbering conflicts"* ]]
     [[ "$output" == *"Original: (2,3,4) → Reordered: (4,3,2)"* ]]
     
-    # Reordering WILL occur, so force mode WILL be cancelled
-    [[ "$output" == *"Script reordered for safety (--force disabled)"* ]]
-    
-    # Preview file MUST be created (force mode cancelled)
+    # Preview file created
     [ -f code.js.eed.preview ]
     
     # Preview file should contain the changes (lines 2,3,4 deleted)
@@ -75,29 +73,30 @@ q"
     run grep -q "line 3" code.js.eed.preview  
     [ "$status" -ne 0 ]
     
-    # Original file MUST remain unchanged (preview mode)
+    # Original file remains unchanged (preview mode)
     run grep -q "line 2" code.js
     [ "$status" -eq 0 ]
     run grep -q "line 3" code.js
     [ "$status" -eq 0 ]
 }
 
-@test "auto-reordering - force mode disabled during reordering" {
-    # AI uses --force but reordering disables it for safety
-    run "$SCRIPT_UNDER_TEST" --force code.js "1d
+@test "auto-reordering - reordering occurs in preview mode" {
+    # AI provides commands in ascending order that need reordering
+    run "$SCRIPT_UNDER_TEST" code.js "1d
 2d
 3d
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Should show force mode cancellation
-    [[ "$output" == *"Script reordered for safety (--force disabled)"* ]]
+    # Should show reordering message
+    [[ "$output" == *"Auto-reordering script to prevent line numbering conflicts"* ]]
     
-    # Should create preview file (force mode was cancelled)
+    # Should create preview file
     [ -f code.js.eed.preview ]
     
-    # Original file should be unchanged (preview mode activated)
+    # Original file should be unchanged (preview mode)
     run grep -q "line 1" code.js
     [ "$status" -eq 0 ]
     run grep -q "line 2" code.js
@@ -106,21 +105,28 @@ q"
 
 @test "auto-reordering - correct order requires no reordering" {
     # AI provides commands in descending order (safe)
-    run "$SCRIPT_UNDER_TEST" --force code.js "4d
+    run "$SCRIPT_UNDER_TEST" code.js "4d
 3d
 2d
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Should NOT show reordering message
     [[ "$output" != *"Auto-reordering script"* ]]
     
-    # Changes should be applied directly (no reordering needed)
+    # Changes should be applied in preview file (no reordering needed)
+    run grep -q "line 2" code.js.eed.preview
+    [ "$status" -ne 0 ]
+    run grep -q "line 3" code.js.eed.preview  
+    [ "$status" -ne 0 ]
+    
+    # Original file unchanged
     run grep -q "line 2" code.js
-    [ "$status" -ne 0 ]
-    run grep -q "line 3" code.js  
-    [ "$status" -ne 0 ]
+    [ "$status" -eq 0 ]
+    run grep -q "line 3" code.js
+    [ "$status" -eq 0 ]
 }
 
 @test "smart dot protection - tutorial content editing" {
@@ -136,6 +142,7 @@ More content
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Should show smart protection message
     [[ "$output" == *"Smart dot protection applied"* ]]

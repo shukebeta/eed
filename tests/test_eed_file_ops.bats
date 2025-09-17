@@ -94,7 +94,7 @@ q"
 
 @test "mixed workflow - view then edit then verify" {
     # Complex workflow: search, edit, verify, save
-    EED_FORCE_OVERRIDE=true run "$SCRIPT_UNDER_TEST" --force sample.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" sample.txt "$(cat <<'EOF'
 /pattern/p
 .c
 replaced pattern line
@@ -105,16 +105,17 @@ q
 EOF
 )"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-    run grep -q "replaced pattern line" sample.txt
+    run grep -q "replaced pattern line" sample.txt.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "second line with pattern" sample.txt
+    run grep -q "second line with pattern" sample.txt.eed.preview
     [ "$status" -ne 0 ]
 }
 
 @test "mixed workflow - conditional save based on verification" {
     # Edit, verify, decide whether to save
-    EED_FORCE_OVERRIDE=true run "$SCRIPT_UNDER_TEST" --force sample.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" sample.txt "$(cat <<'EOF'
 1c
 TEST CHANGE
 .
@@ -127,14 +128,15 @@ q
 EOF
 )"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
     # Should show the test change during verification
     [[ "$output" == *"TEST CHANGE"* ]]
 
-    # File should have final change
-    run grep -q "FINAL CHANGE" sample.txt
+    # Preview file should have final change
+    run grep -q "FINAL CHANGE" sample.txt.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "first line" sample.txt
+    run grep -q "first line" sample.txt.eed.preview
     [ "$status" -ne 0 ]
 }
 
@@ -172,7 +174,7 @@ EOF
 
 @test "error handling - graceful handling of search failures" {
     # Search for non-existent pattern should not crash
-    run "$SCRIPT_UNDER_TEST" --force sample.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" sample.txt "$(cat <<'EOF'
 /nonexistent/p
 q
 EOF
@@ -183,7 +185,7 @@ EOF
 
 @test "advanced viewing - multiple pattern searches" {
     # Search for multiple patterns in sequence
-    run "$SCRIPT_UNDER_TEST" --force sample.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" sample.txt "$(cat <<'EOF'
 /first/p
 g/pattern/p
 q
@@ -211,24 +213,13 @@ content line
 w
 q'
 
-  echo "File before eed:"
-  cat -n test_file.bats
+  run "$SCRIPT_UNDER_TEST" --debug test_file.bats "$script"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-  echo "=== Running eed with full bash trace ==="
-  bash -x "$SCRIPT_UNDER_TEST" --debug --force test_file.bats "$script"
-  local eed_exit=$?
-  echo "Direct eed exit code: $eed_exit"
-
-  echo "=== File after eed ==="
-  cat -n test_file.bats
-
-  # Check if content was inserted
-  if grep -q "content line" test_file.bats; then
-    echo "✓ Content was inserted"
-  else
-    echo "✗ Content was NOT inserted"
-    return 1
-  fi
+  # Check if content was inserted in preview file
+  run grep -q "content line" test_file.bats.eed.preview
+  [ "$status" -eq 0 ]
 }
 
 @test "debug: complex ed examples case (moved from debug_integration.bats)" {
@@ -258,24 +249,13 @@ Example 2:
 w
 q'
 
-  echo "File before:"
-  cat -n docs.txt
+  run "$SCRIPT_UNDER_TEST" docs.txt "$script"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-  echo "=== Testing complex case ==="
-  run "$SCRIPT_UNDER_TEST" --force docs.txt "$script"
-  echo "Exit status: $status"
-  echo "Output: $output"
-
-  echo "=== File after ==="
-  cat docs.txt
-
-  # Check if content was inserted
-  if grep -q "content." docs.txt; then
-    echo "✓ Complex case worked"
-  else
-    echo "✗ Complex case failed"
-    return 1
-  fi
+  # Check if content was inserted in preview file
+  run grep -q "content." docs.txt.eed.preview
+  [ "$status" -eq 0 ]
 }
 
 @test "debug: direct ed execution test (moved from debug_integration.bats)" {
@@ -285,40 +265,22 @@ line2
 line3
 EOF
 
-  echo "File before ed:"
-  cat -n test_file.txt
-
-  # Prepare instruction stream like our smart dot protection would
+  # Test eed's handling of ed-like commands
   script='3a
 content line
 .
 w
 q'
 
-  echo "=== Testing direct ed execution ==="
-  echo "Script to execute:"
-  printf "%s\n" "$script"
+  run "$SCRIPT_UNDER_TEST" test_file.txt "$script"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-  echo "=== Running ed directly ==="
-  printf '%s\n' "$script" | ed -s test_file.txt
-  local ed_exit_code=$?
-  echo "Direct ed exit code: $ed_exit_code"
-
-  echo "=== File after ed ==="
-  cat -n test_file.txt
-
-  # Check result
-  if [ $ed_exit_code -eq 0 ]; then
-    echo "✓ Ed command succeeded"
-    if grep -q "content line" test_file.txt; then
-      echo "✓ Content was inserted correctly"
-    else
-      echo "✗ Ed succeeded but content missing!"
-    fi
-  else
-    echo "✗ Ed command failed with code $ed_exit_code"
-  fi
-
-  # Previously forced failure to show output — disabled
-  :
+  # Check if content was inserted in preview file
+  run grep -q "content line" test_file.txt.eed.preview
+  [ "$status" -eq 0 ]
+  
+  # Original file should remain unchanged
+  run grep -q "content line" test_file.txt
+  [ "$status" -ne 0 ]
 }

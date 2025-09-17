@@ -17,15 +17,15 @@ teardown() {
 }
 
 @test "auto-insert missing terminator before w (unterminated 'a' block)" {
-  run "$SCRIPT_UNDER_TEST" --force newfile.txt "1a
+  run "$SCRIPT_UNDER_TEST" newfile.txt "1a
 inserted line
 w
 q"
   [ "$status" -eq 0 ]
-  [ -f newfile.txt ]
-  run grep -q "inserted line" newfile.txt
+  [[ "$output" =~ "Edits applied to a temporary preview" ]]
+  [ -f newfile.txt.eed.preview ]
+  run grep -q "inserted line" newfile.txt.eed.preview
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Auto-fix"* || "$output" == *"inserted missing '.'"* ]] || true
 }
 
 @test "no-op: properly terminated input block is unchanged and succeeds" {
@@ -33,20 +33,21 @@ q"
 initial
 EOF
 
-  run "$SCRIPT_UNDER_TEST" --force good.txt "1a
+  run "$SCRIPT_UNDER_TEST" good.txt "1a
 ok line
 .
 w
 q"
   [ "$status" -eq 0 ]
-  run grep -q "ok line" good.txt
+  [[ "$output" =~ "Edits applied to a temporary preview" ]]
+  run grep -q "ok line" good.txt.eed.preview
   [ "$status" -eq 0 ]
 }
 
 @test "unterminated input block without w/q command errors" {
-  run "$SCRIPT_UNDER_TEST" --force newfile.txt "1a
+  run "$SCRIPT_UNDER_TEST" newfile.txt "1a
 line
 EOF"
   [ "$status" -ne 0 ]
-  [ ! -f newfile.txt ]
+  [ ! -f newfile.txt.eed.preview ]
 }

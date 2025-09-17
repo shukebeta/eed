@@ -41,7 +41,7 @@ teardown() {
 
 @test "basic insert - append line to end of file" {
     # AI commonly adds new lines at the end of files
-    run "$SCRIPT_UNDER_TEST" --force code.js "\$a
+    run "$SCRIPT_UNDER_TEST" code.js "\$a
 // New function added by AI
 function newFeature() {
     return 'feature';
@@ -50,17 +50,19 @@ function newFeature() {
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify the addition
-    run grep -q "New function added by AI" code.js
+    # Verify the addition in preview file
+    [ -f code.js.eed.preview ]
+    run grep -q "New function added by AI" code.js.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "function newFeature" code.js
+    run grep -q "function newFeature" code.js.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "basic insert - insert line at specific position" {
     # AI often inserts imports or comments at specific lines
-    run "$SCRIPT_UNDER_TEST" --force code.js "1i
+    run "$SCRIPT_UNDER_TEST" code.js "1i
 // Added import statement
 const util = require('util');
 
@@ -68,89 +70,101 @@ const util = require('util');
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify the insertion at the top
-    run head -n 1 code.js
+    # Verify the insertion at the top in preview file
+    [ -f code.js.eed.preview ]
+    run head -n 1 code.js.eed.preview
     [ "$output" = "// Added import statement" ]
-    run grep -q "const util" code.js
+    run grep -q "const util" code.js.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "basic insert - insert after specific line" {
     # AI frequently adds code after existing lines
-    run "$SCRIPT_UNDER_TEST" --force code.js "2a
+    run "$SCRIPT_UNDER_TEST" code.js "2a
     // Debug output
     console.log('Function called');
 .
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify insertion after line 2
-    run grep -q "Debug output" code.js
+    # Verify insertion after line 2 in preview file
+    [ -f code.js.eed.preview ]
+    run grep -q "Debug output" code.js.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "Function called" code.js
+    run grep -q "Function called" code.js.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "basic delete - remove single line" {
     # AI often removes specific lines (like console.log statements)
-    run "$SCRIPT_UNDER_TEST" --force code.js "2d
+    run "$SCRIPT_UNDER_TEST" code.js "2d
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify the console.log line was removed
-    run grep -q "console.log" code.js
+    # Verify the console.log line was removed in preview file
+    [ -f code.js.eed.preview ]
+    run grep -q "console.log" code.js.eed.preview
     [ "$status" -ne 0 ]
     # But function structure should remain
-    run grep -q "function hello" code.js
+    run grep -q "function hello" code.js.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "basic delete - remove range of lines" {
     # AI sometimes removes entire blocks
-    run "$SCRIPT_UNDER_TEST" --force code.js "2,3d
+    run "$SCRIPT_UNDER_TEST" code.js "2,3d
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify multiple lines removed
-    run grep -q "console.log" code.js
+    # Verify multiple lines removed in preview file
+    [ -f code.js.eed.preview ]
+    run grep -q "console.log" code.js.eed.preview
     [ "$status" -ne 0 ]
-    run grep -q "return true" code.js
+    run grep -q "return true" code.js.eed.preview
     [ "$status" -ne 0 ]
     # Function declaration should remain
-    run grep -q "function hello" code.js
+    run grep -q "function hello" code.js.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "basic replace - change entire line" {
     # AI frequently replaces lines with improved versions
-    run "$SCRIPT_UNDER_TEST" --force code.js "2c
+    run "$SCRIPT_UNDER_TEST" code.js "2c
     console.log('Hello, improved world!');
 .
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify replacement
-    run grep -q "improved world" code.js
+    # Verify replacement in preview file
+    [ -f code.js.eed.preview ]
+    run grep -q "improved world" code.js.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "Hello World" code.js
+    run grep -q "Hello World" code.js.eed.preview
     [ "$status" -ne 0 ]
 }
 
 @test "basic substitute - pattern replacement" {
     # AI commonly does find-and-replace operations
-    run "$SCRIPT_UNDER_TEST" --force code.js "1,\$s/Hello World/Greetings, Universe/g
+    run "$SCRIPT_UNDER_TEST" code.js "1,\$s/Hello World/Greetings, Universe/g
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify substitution
-    run grep -q "Greetings, Universe" code.js
+    # Verify substitution in preview file
+    [ -f code.js.eed.preview ]
+    run grep -q "Greetings, Universe" code.js.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "Hello World" code.js
+    run grep -q "Hello World" code.js.eed.preview
     [ "$status" -ne 0 ]
 }

@@ -30,7 +30,7 @@ teardown() {
 }
 
 @test "error_exit integration: Too many arguments (flag case)" {
-    run "$SCRIPT_UNDER_TEST" --force file.txt script1 script2
+    run "$SCRIPT_UNDER_TEST" file.txt script1 script2
     [ "$status" -eq 1 ]
     [[ "$output" == *"✗ Error: Too many arguments"* ]]
     [[ "$output" == *"Use 'eed --help' for usage information"* ]]

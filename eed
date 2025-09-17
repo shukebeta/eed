@@ -15,8 +15,8 @@ source "$REPO_ROOT/lib/eed_auto_fix_unescaped_slashes.sh"
 # --- Variable Precedence System ---
 # Priority: CLI flags > Environment variables > Built-in defaults
 #
-# CLI Flags:    --force, --debug, --disable-auto-reorder
-# Environment:  EED_FORCE, EED_DEBUG, EED_DISABLE_AUTO_REORDER, EED_FORCE_OVERRIDE
+# CLI Flags:    --debug, --disable-auto-reorder
+# Environment:  EED_DEBUG, EED_DISABLE_AUTO_REORDER
 # Defaults:     false for all options
 #
 # Boolean Values: Recommended: true/false (strings). Compatibility: 1/0 also accepted.
@@ -34,14 +34,7 @@ parse_boolean() {
 
 DEBUG_MODE="$(parse_boolean "${EED_DEBUG:-false}")"
 DISABLE_AUTO_REORDER="$(parse_boolean "${EED_DISABLE_AUTO_REORDER:-false}")"
-FORCE_MODE="$(parse_boolean "${EED_FORCE:-false}")"
 
-FORCE_OVERRIDE="$(parse_boolean "${EED_FORCE_OVERRIDE:-false}")"
-
-# Flag set when smart-dot protection has been applied to the ED_SCRIPT.
-# When true, treat the script as tutorial-context and avoid classifying it as
-# "complex" which would disable --force behavior.
-SMART_PROTECTION_APPLIED=false
 
 
 # --- Argument Parsing ---
@@ -52,10 +45,6 @@ ED_SCRIPT_PROVIDED=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --force)
-            FORCE_MODE=true
-            shift
-            ;;
         --debug)
             DEBUG_MODE=true
             shift
@@ -63,6 +52,21 @@ while [[ $# -gt 0 ]]; do
         --disable-auto-reorder)
             DISABLE_AUTO_REORDER=true
             shift
+            ;;
+        --undo)
+            # Undo last eed-history commit
+            if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                echo "Error: Not in a git repository" >&2
+                exit 1
+            fi
+            if git log --oneline -1 | grep -q "eed-history:"; then
+                git reset --hard HEAD~1
+                echo "✓ Last eed-history commit undone"
+            else
+                echo "Error: Last commit is not an eed-history commit" >&2
+                exit 1
+            fi
+            exit 0
             ;;
         --help|-h)
             show_help
@@ -122,9 +126,6 @@ ED_SCRIPT=$(echo "$ED_SCRIPT" | tr -d '\r')
 if [ "$DEBUG_MODE" = true ]; then
     echo "Debug mode: executing ed" >&2
 fi
-if [ "$FORCE_MODE" = true ] && [ "$DEBUG_MODE" = true ]; then
-    echo "--force mode enabled" >&2
-fi
 
 
 # --- Script Validation ---
@@ -148,7 +149,6 @@ if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
     if [ $smart_handling_result -eq 0 ]; then
         # Smart protection was applied successfully
         ED_SCRIPT="$SMART_HANDLED_SCRIPT"
-        SMART_PROTECTION_APPLIED=true
     fi
     # Note: If smart protection fails, we proceed with original script
     # The new detect_dot_trap is already intelligent enough to avoid false positives
@@ -180,42 +180,11 @@ if ! validate_line_ranges "$ED_SCRIPT" "$FILE_PATH"; then
     error_exit "Line number validation failed" 1 "Please check that line numbers exist in the file"
 fi
 
-# --- Force Mode Safety Analysis ---
-# Final force mode determination with safety overrides
-EFFECTIVE_FORCE_MODE="$FORCE_MODE"
-
-# Initialize complex patterns flag (used throughout)
-HAS_COMPLEX_PATTERNS=0
-
-# Emergency override bypasses all safety checks
-if [ "$FORCE_OVERRIDE" = true ]; then
-    EFFECTIVE_FORCE_MODE=true
-    HAS_COMPLEX_PATTERNS=0  # Override treats everything as non-complex
-    echo "⚠️  FORCE_OVERRIDE enabled - bypassing all safety checks" >&2
-else
-    # Complex pattern analysis for safety
-
-    # If smart-dot protection was applied, treat as non-complex (tutorial context)
-    if [ "$SMART_PROTECTION_APPLIED" = true ]; then
-        HAS_COMPLEX_PATTERNS=0
-    else
-        if ! no_complex_patterns "$ED_SCRIPT" >/dev/null 2>&1; then
-            HAS_COMPLEX_PATTERNS=1  # Detection failed = complex patterns
-        else
-            HAS_COMPLEX_PATTERNS=0  # Detection succeeded = no complex patterns
-        fi
-    fi
-
-    # Disable force mode if complex patterns detected (safety measure)
-    if [ "$HAS_COMPLEX_PATTERNS" -ne 0 ] && [ "$EFFECTIVE_FORCE_MODE" = true ]; then
-        EFFECTIVE_FORCE_MODE=false
-        echo "💡 Complex script detected (--force disabled)" >&2
-    fi
-fi
+# --- Script Safety Analysis ---
+# All scripts now use the safe preview workflow
 
 # --- Automatic Script Reordering for Line Number Safety ---
-# Skip reordering if complex patterns detected (unified architecture)
-if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; then
+if [ "$DISABLE_AUTO_REORDER" = "false" ]; then
     # Run reordering and capture its output
     REORDERED_OUTPUT=$(reorder_script "$ED_SCRIPT")
     reorder_status=$?
@@ -229,11 +198,8 @@ if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; the
             [ "$DEBUG_MODE" = true ] && echo "Debug mode: using reordered script:" >&2
             [ "$DEBUG_MODE" = true ] && echo "$REORDERED_OUTPUT" | sed 's/^/  /' >&2
 
-            # Cancel --force when reordering occurs
-            if [ "$EFFECTIVE_FORCE_MODE" = true ]; then
-                echo "💡 Script reordered for safety (--force disabled)" >&2
-                EFFECTIVE_FORCE_MODE=false
-            fi
+            # Script was reordered for safety
+            [ "$DEBUG_MODE" = true ] && echo "💡 Script reordered for safety" >&2
         fi
     fi
 
@@ -241,11 +207,6 @@ if [ "$DISABLE_AUTO_REORDER" = "false" ] && [ $HAS_COMPLEX_PATTERNS -eq 0 ]; the
     ED_SCRIPT="$REORDERED_OUTPUT"
     # Always succeed after reordering (treat as normal operation)
     true
-elif [ $HAS_COMPLEX_PATTERNS -ne 0 ]; then
-    # Complex patterns detected in non-force mode, skip reordering
-    if [ "$DEBUG_MODE" = true ]; then
-        echo "ℹ️  Skipping auto-reorder due to complex patterns" >&2
-    fi
 fi
 
 # File creation happens later, after validation passes
@@ -271,12 +232,19 @@ if [ ! -f "$FILE_PATH" ]; then
     echo "Creating new file: $FILE_PATH" >&2
 fi
 
+# Auto-save work in progress if in a git repository with uncommitted changes
+if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
+    if ! (cd "$(dirname "$FILE_PATH")" && git diff-index --quiet HEAD --); then
+        echo "Auto-saving work in progress..." >&2
+        (cd "$(dirname "$FILE_PATH")" && git add -A && git commit -m "eed-history: WIP auto-save before new edit" --no-verify --quiet)
+    fi
+fi
+
 # Copy file and execute ed
 cp "$FILE_PATH" "$PREVIEW_FILE"
 
 if [ "$DEBUG_MODE" = true ]; then
     echo "Debug mode: executing ed" >&2
-    [ "$EFFECTIVE_FORCE_MODE" = true ] && echo "--force mode enabled" >&2
 fi
 
 if ! printf '%s\n' "$ED_SCRIPT" | ed -s "$PREVIEW_FILE" 2>/dev/null; then
@@ -288,56 +256,36 @@ if ! printf '%s\n' "$ED_SCRIPT" | ed -s "$PREVIEW_FILE" 2>/dev/null; then
     exit 1
 fi
 
-# --- Force Mode vs Preview Mode ---
-if [ "$EFFECTIVE_FORCE_MODE" = true ]; then
-    # Force mode: apply changes and exit
-    if diff -q "$FILE_PATH" "$PREVIEW_FILE" >/dev/null 2>&1; then
-        rm -f "$PREVIEW_FILE"
-        echo "✨ No changes needed (file already matches desired state)"
-        exit 0
-    fi
+# --- Preview Mode Workflow ---
+echo "✨ Edits applied to a temporary preview. Review the changes below:"
+echo
 
-    # Apply changes
-    mv "$PREVIEW_FILE" "$FILE_PATH"
-    if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
-        git add "$FILE_PATH" 2>/dev/null || true
+if diff -q "$FILE_PATH" "$PREVIEW_FILE" >/dev/null 2>&1; then
+    echo "No changes were made to the file content."
+    # Don't remove preview file, keep it around for test verification
+    if [ "$DEBUG_MODE" = true ]; then
+        echo "Debug mode: No changes needed, preview file kept" >&2
     fi
-
-    echo "✨ Changes applied successfully"
-    exit 0
 else
-    # Preview mode: show diff and instructions
-    echo "✨ Edits applied to a temporary preview. Review the changes below:"
-    echo
-
-    if diff -q "$FILE_PATH" "$PREVIEW_FILE" >/dev/null 2>&1; then
-        echo "No changes were made to the file content."
-        # Don't remove preview file, keep it around for test verification
-        if [ "$DEBUG_MODE" = true ]; then
-            echo "Debug mode: No changes needed, preview file removed" >&2
-        fi
+    # Show the diff using git diff for better formatting
+    if command -v git >/dev/null 2>&1; then
+        # Show diff and ignore status since finding changes returns 1
+        git diff --no-index --no-prefix "$FILE_PATH" "$PREVIEW_FILE" || true
     else
-        # Show the diff using git diff for better formatting
-        if command -v git >/dev/null 2>&1; then
-            # Show diff and ignore status since finding changes returns 1
-            git diff --no-index --no-prefix "$FILE_PATH" "$PREVIEW_FILE" || true
-        else
-            # Show diff and ignore exit status since differences cause non-zero
-            diff -u "$FILE_PATH" "$PREVIEW_FILE" || true
-        fi
-
-        echo
-        echo "To apply these changes, run:"
-        # Use original paths for display
-        echo "  mv '$PREVIEW_FILE' '$FILE_PATH'"
-
-        # Add git staging hint if in a git repository
-        if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
-            echo " && git add '$FILE_PATH'"
-        fi
-
-        echo
-        echo "To discard these changes, run:"
-        echo "  rm '$PREVIEW_FILE'"
+        # Show diff and ignore exit status since differences cause non-zero
+        diff -u "$FILE_PATH" "$PREVIEW_FILE" || true
     fi
+
+    echo
+    echo "To apply these changes, run:"
+    # Check if we're in a git repository for enhanced suggestions
+    if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
+        echo "  commit '$FILE_PATH' \"your commit message\""
+    else
+        echo "  mv '$PREVIEW_FILE' '$FILE_PATH'"
+    fi
+
+    echo
+    echo "To discard these changes, run:"
+    echo "  rm '$PREVIEW_FILE'"
 fi

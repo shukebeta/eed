@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# commit - Apply eed preview changes with a descriptive commit message
+# Usage: commit <target-file> "commit message"
+
+set -euo pipefail
+
+# Show help if requested
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    cat << 'EOF'
+commit - Apply eed preview changes with a descriptive commit message
+
+Usage: commit <target-file> "commit message"
+
+DESCRIPTION:
+  Applies changes from file.eed.preview to the target file and creates
+  an atomic git commit with "eed-history:" prefix for easy management.
+
+EXAMPLES:
+  commit Button.js "fix validation logic"
+  commit src/main.py "add error handling"
+
+SEE ALSO:
+  eed --undo    Undo last eed-history commit
+EOF
+    exit 0
+fi
+
+# Validate arguments
+TARGET_FILE="${1:-}"
+COMMIT_MESSAGE="${2:-}"
+
+if [ -z "$TARGET_FILE" ] || [ -z "$COMMIT_MESSAGE" ]; then
+    echo "Usage: commit <target-file> \"commit message\"" >&2
+    echo "Example: commit Button.js \"fix validation logic\"" >&2
+    echo "Use 'commit --help' for more information" >&2
+    exit 1
+fi
+
+PREVIEW_FILE="${TARGET_FILE}.eed.preview"
+
+# Check if preview file exists
+if [ ! -f "$PREVIEW_FILE" ]; then
+    echo "Error: Preview file $PREVIEW_FILE does not exist" >&2
+    echo "Run eed first to create a preview" >&2
+    exit 1
+fi
+
+# Check if we are in a git repository
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "Error: Not in a git repository" >&2
+    exit 1
+fi
+
+
+# Apply the changes
+mv "$PREVIEW_FILE" "$TARGET_FILE"
+
+# Create atomic commit with special prefix
+git add "$TARGET_FILE"
+git commit -m "eed-history: $COMMIT_MESSAGE" --no-verify
+
+echo "✓ Changes applied and committed: \"$COMMIT_MESSAGE\""
+echo "  To undo: git reset --hard HEAD~1"

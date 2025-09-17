@@ -16,14 +16,15 @@ teardown() {
 @test "stdin with pipeline" {
     echo -e "line 1\nline 2\nline 3" > test.txt
 
-    run "$SCRIPT_UNDER_TEST" --force test.txt - << 'EOF'
+    run "$SCRIPT_UNDER_TEST" test.txt - << 'EOF'
 1d
 w
 q
 EOF
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-    run cat test.txt
+    run cat test.txt.eed.preview
     [ "${lines[0]}" = "line 2" ]
     [ "${lines[1]}" = "line 3" ]
 }
@@ -32,15 +33,16 @@ EOF
     echo -e "line 1\nline 2\nline 3" > test.txt
 
     # Pipe script but omit the '-' positional argument; eed should accept stdin.
-    run "$SCRIPT_UNDER_TEST" --force test.txt << 'EOF'
+    run "$SCRIPT_UNDER_TEST" test.txt << 'EOF'
 1d
 w
 q
 EOF
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-    # Verify the functionality worked correctly (file was edited)
-    run cat test.txt
+    # Verify the functionality worked correctly (preview file created)
+    run cat test.txt.eed.preview
     [ "${lines[0]}" = "line 2" ]
     [ "${lines[1]}" = "line 3" ]
 }
@@ -48,13 +50,14 @@ EOF
 @test "backward compatibility works" {
     echo -e "line 1\nline 2\nline 3" > test.txt
 
-    run "$SCRIPT_UNDER_TEST" --force test.txt "2d
+    run "$SCRIPT_UNDER_TEST" test.txt "2d
 w
 q"
 
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-    run cat test.txt
+    run cat test.txt.eed.preview
     [ "${lines[0]}" = "line 1" ]
     [ "${lines[1]}" = "line 3" ]
 }
@@ -65,11 +68,12 @@ q"
 
     # Note: This test may fail in restricted environments
     # but should work in normal shell environments
-    run bash -c '"$1" --force test.txt - < script.ed' bash "$SCRIPT_UNDER_TEST"
+    run bash -c '"$1" test.txt - < script.ed' bash "$SCRIPT_UNDER_TEST"
 
     # We expect this to work, but acknowledge it might fail in some environments
     if [ "$status" -eq 0 ]; then
-        run cat test.txt
+        [[ "$output" =~ "Edits applied to a temporary preview" ]]
+        run cat test.txt.eed.preview
         [ "${lines[1]}" = "modified line 2" ]
     else
         skip "File redirection not supported in this test environment"

@@ -11,7 +11,7 @@ Always use the eed tool instead of Edit, MultiEdit, or Write tools for file modi
 
 2. **Use eed via Bash tool with quoted heredoc pattern**:
    ```bash
-eed --force /unix/style/path/to/file - <<'EOF'
+eed /unix/style/path/to/file - <<'EOF'
 # ed commands here
 w
 q
@@ -42,109 +42,88 @@ EOF
 - `/pattern/` - find pattern
 - `g/pattern/d` - delete all lines with pattern
 
-## Usage Modes:
+### Typical Usage:
 
-### Force Mode (Recommended):
-```bash
-eed --force file.txt - <<'EOF'
-5d
-w
-q
-EOF
-```
-
-### Preview Mode (Default):
-Shows changes first, requires manual confirmation
 ```bash
 eed file.txt - <<'EOF'
 5d
 w
 q
 EOF
+
+# Apply changes with git commit
+commit file.txt "remove line 5"
+
+# Undo if needed
+eed --undo
 ```
+
+### Local History Features:
+- **Auto-save WIP**: Automatically saves uncommitted work in a special commit before edits
+- **Atomic commits**: Use `commit` command to apply changes with git commit
+- **Easy undo**: Use `eed --undo` to revert last eed-history commit
+- **Safe**: All commits use "eed-history:" prefix for easy management
 
 ## Common Patterns:
 
 ### Add Import Statement:
 ```bash
-eed --force file.js - <<'EOF'
+eed file.js - <<'EOF'
 1i
 import newModule from 'library';
 .
 w
 q
 EOF
+
+commit file.js "add import statement"
 ```
 
 ### Replace Text Globally:
 ```bash
-eed --force file.txt - <<'EOF'
+eed file.txt - <<'EOF'
 1,$s/oldFunction/newFunction/g
 w
 q
 EOF
+
+commit file.txt "rename function"
 ```
 
 ### Delete Lines with Pattern:
 ```bash
-eed --force file.js - <<'EOF'
+eed file.js - <<'EOF'
 g/console\.log/d
 w
 q
 EOF
+
+commit file.js "remove debug statements"
 ```
 
 ### Multi-Step Editing:
 ```bash
-eed --force file.txt - <<'EOF'
+eed file.txt - <<'EOF'
 /TODO/
 c
 DONE: Task completed
 .
-5d
+/pattern/c
+new content
 w
 q
 EOF
+
+commit file.txt "update TODO and remove line 5"
 ```
-
-## Error Handling:
-
-- If eed command fails, check syntax of ed commands
-- Always verify file exists before editing
-- Use `--debug` flag to troubleshoot issues
-- Backup / preview files are written as `file.eed.preview` (in preview mode)
-
-### Heredoc nesting considerations (AI users)
-
-- When embedding ed scripts via heredoc, avoid reusing the same delimiter for nested heredocs. If you accidentally nest heredocs with the same delimiter, the shell will terminate the inner heredoc early, truncating your ed script.
-- eed will only auto-insert a missing `.' to terminate an open a/c/i input block when there is an explicit write/quit (`w` or `q`) command present in the script (high-confidence auto-fix). If no `w`/`q` is present, eed will error and ask you to correct the script.
-- Best practices:
-  - Use unique delimiters for nested heredocs (e.g. `INNER` / `OUTER`).
-  - Or avoid nesting entirely: write the ed script to a temporary file and pass it via stdin (`-`).
-
-Example (correct — use unique delimiters):
-```bash
-# bash
-eed file.txt "$(cat <<'OUTER'
-10a
-$(cat <<'INNER'
-some content
-INNER
-)
-.
-OUTER
-)"
-```
-
-Suggested fixes:
-- Use unique delimiters for nested heredocs (e.g. `INNER` / `OUTER`).
-- Or write the ed script to a temporary file and feed it via stdin (`-`) to avoid nesting entirely.
 
 ## Important:
 
 - **Mandatory tool**: Use eed for ALL file modifications
-- **Force mode**: Recommended for direct execution
+- **Local history workflow**: Preview → commit → undo if needed
 - **Unix paths**: Always use forward slashes
 - **Save explicitly**: Never forget `w` and `q`
-- **Avoid nested heredocs**: Nested heredocs are fragile and prone to parsing errors. Prefer multiple sequential `eed` edits or write a temporary ed script and feed it via stdin with `-`.
+- **Avoid nested heredocs**: Use direct heredoc syntax (`- <<'EOF'`) instead
 - **Atomic operations**: All changes succeed or all fail
+- **Git integration**: Use `commit` command for applying changes
+- **Easy recovery**: Use `eed --undo` to revert mistakes

@@ -26,6 +26,7 @@ wq
 EOF"
     
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Verify auto-fix occurred
     [[ "$output" == *"🔧 Auto-fixed unescaped slashes: ///123/c → /\/\/123/c"* ]]
@@ -57,6 +58,7 @@ wq
 EOF"
     
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Verify auto-fix occurred for range pattern
     [[ "$output" == *"🔧 Auto-fixed unescaped slashes"* ]]
@@ -91,6 +93,7 @@ wq
 EOF"
     
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Verify both auto-fixes occurred
     [[ "$output" == *"🔧 Auto-fixed unescaped slashes: /first: ///target/c"* ]]
@@ -109,7 +112,7 @@ EOF"
     # Test auto-fix with direct file modification
     echo "///test" > "$TEST_FILE"
     
-    run bash -c "cd '$REPO_ROOT' && ./eed --force '$TEST_FILE' <<'EOF'
+    run bash -c "cd '$REPO_ROOT' && ./eed '$TEST_FILE' <<'EOF'
 ///test/c
 //modified
 .
@@ -117,16 +120,16 @@ wq
 EOF"
     
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Verify auto-fix occurred
     [[ "$output" == *"🔧 Auto-fixed unescaped slashes: ///test/c → /\/\/test/c"* ]]
     [[ "$output" == *"✅ Successfully auto-fixed ed script syntax"* ]]
     
-    # Single search pattern is not complex, so force mode should work
-    # Force mode creates preview then auto-moves it, so file is directly modified
-    [ ! -f "${TEST_FILE}.eed.preview" ]  # Preview file should be auto-moved
-    grep -q "//modified" "$TEST_FILE"    # Changes should be in the real file
-    ! grep -q "///test" "$TEST_FILE"     # Original content should be gone
+    # Preview mode creates preview file with changes
+    [ -f "${TEST_FILE}.eed.preview" ]   # Preview file should exist
+    grep -q "//modified" "${TEST_FILE}.eed.preview"  # Changes should be in preview
+    ! grep -q "///test" "${TEST_FILE}.eed.preview"   # Original problematic content should be gone from preview
 }
 
 @test "real integration: original user case works completely" {
@@ -164,6 +167,7 @@ wq
 EOF"
     
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
     # Verify all three auto-fixes occurred
     [[ "$output" == *"🔧 Auto-fixed unescaped slashes"* ]]

@@ -24,12 +24,13 @@ function hello() {
 }
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force code.js "1,\$s/Hello World/Greetings, Universe/g
+    run "$SCRIPT_UNDER_TEST" code.js "1,\$s/Hello World/Greetings, Universe/g
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    run grep -q "Greetings, Universe" code.js
+    run grep -q "Greetings, Universe" code.js.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -38,13 +39,14 @@ q"
 original line
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test.txt "1a
+    run "$SCRIPT_UNDER_TEST" test.txt "1a
 new content
 .
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    run grep -q "new content" test.txt  
+    run grep -q "new content" test.txt.eed.preview  
     [ "$status" -eq 0 ]
 }

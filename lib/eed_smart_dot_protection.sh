@@ -7,117 +7,6 @@ if [ "${EED_SMART_DOT_LOADED:-}" = "1" ]; then
 fi
 EED_SMART_DOT_LOADED=1
 
-# Detect if the current context suggests ed tutorial/documentation editing
-# Returns: 0 if high confidence (>=70), 1 if low confidence
-# Outputs: confidence score (0-100) to stdout
-detect_ed_tutorial_context() {
-    local script="$1"
-    local file_path="$2"
-
-    # Empty script => no confidence
-    if [ -z "$script" ]; then
-        echo 0
-        return 1
-    fi
-
-    local filename
-    filename=$(basename "$file_path")
-
-    # Immediately reject obvious source files to avoid false positives
-    if [[ "$filename" =~ \.(c|cpp|h|hpp|py|js|ts|go|java|rs|swift|kt|m|mm)$ ]]; then
-        echo 0
-        return 1
-    fi
-
-    # Count standalone terminator dots (only lines that are exactly ".")
-    local dot_count
-    dot_count=$(printf '%s\n' "$script" | grep -c '^\.$' || true)
-    if [ "$dot_count" -eq 0 ]; then
-        # No terminator dots -> not the dot-trap scenario
-        echo 0
-        return 1
-    fi
-
-    # Require at least one strong contextual indicator (filename/path OR content markers)
-    local has_strong_indicator=0
-
-    # Check for strong contextual indicators using short-circuit evaluation
-    if [[ "$filename" == *.bats ]] || [[ "$filename" == test_* ]] || [[ "$filename" == *.md ]] || [[ "$filename" == *tutorial* ]] || [[ "$filename" == *ed* ]]; then
-        # filename-level signals (include markdown/tutorial hints)
-        has_strong_indicator=1
-    elif [[ "$file_path" == tests/* ]] || [[ "$file_path" == */tests/* ]] || [[ "$file_path" == docs/* ]] || [[ "$file_path" == */docs/* ]]; then
-        # path-level signals
-        has_strong_indicator=1
-    elif printf '%s\n' "$script" | grep -q -E 'run[[:space:]].*SCRIPT_UNDER_TEST|@test|#!/usr/bin/env bats|```bash|ed[[:space:]]+[[:alnum:]._/~-]+'; then
-        # script content signals (explicit bats/tutorial markers) - expensive check last
-        has_strong_indicator=1
-    fi
-
-    # input-mode or write/quit lines are strong signals too (makes ambiguous . cases count)
-    if printf '%s\n' "$script" | grep -q -E '^[[:space:]]*[0-9,]*[[:space:]]*[aciACI][[:space:]]*$' || printf '%s\n' "$script" | grep -q -E '^[[:space:]]*[wqQ][[:space:]]*$'; then
-        has_strong_indicator=1
-    fi
-
-    # heredoc indicators
-    if printf '%s\n' "$script" | grep -q '<<' || printf '%s\n' "$script" | grep -q 'EOF'; then
-        has_strong_indicator=1
-    fi
-
-    if [ "$has_strong_indicator" -eq 0 ]; then
-        # No contextual signals beyond dots -> avoid auto-transform
-        echo 0
-        return 1
-    fi
-
-    # Calculate confidence with conservative weights
-    local confidence=0
-
-    # File/path signals
-    if [[ "$filename" == *.bats ]] || [[ "$filename" == test_* ]]; then
-        confidence=$((confidence + 50))
-    elif [[ "$filename" == *.md ]] || [[ "$filename" == *tutorial* ]] || [[ "$filename" == *ed* ]]; then
-        confidence=$((confidence + 35))
-    fi
-
-    if [[ "$file_path" == tests/* ]] || [[ "$file_path" == */tests/* ]]; then
-        confidence=$((confidence + 20))
-    elif [[ "$file_path" == docs/* ]] || [[ "$file_path" == */docs/* ]]; then
-        confidence=$((confidence + 15))
-    fi
-
-    # Content signals - be more conservative with dot scoring
-    confidence=$((confidence + dot_count * 3))
-
-    if printf '%s\n' "$script" | grep -q -E '^[[:space:]]*[wqQ][[:space:]]*$'; then
-        confidence=$((confidence + 20))
-    fi
-
-    if printf '%s\n' "$script" | grep -q -E '^[[:space:]]*[0-9,]*[[:space:]]*[aciACI][[:space:]]*$'; then
-        confidence=$((confidence + 10))
-    fi
-
-    if printf '%s\n' "$script" | grep -q -E 'run[[:space:]].*SCRIPT_UNDER_TEST|@test|#!/usr/bin/env bats|```bash|ed[[:space:]]+[[:alnum:]._/~-]+'; then
-        confidence=$((confidence + 20))
-    fi
-
-    if printf '%s\n' "$script" | grep -q '<<' || printf '%s\n' "$script" | grep -q 'EOF'; then
-        confidence=$((confidence + 5))
-    fi
-
-    # Penalize extremely short scripts
-    local line_count
-    line_count=$(printf '%s\n' "$script" | wc -l)
-    if [ "$line_count" -lt 2 ]; then
-        confidence=$((confidence - 10))
-    fi
-
-    # Clamp
-    [ "$confidence" -gt 100 ] && confidence=100
-    [ "$confidence" -lt 0 ] && confidence=0
-
-    echo "$confidence"
-    return 0
-}
 
 # Transform content dots to unique markers while preserving ed terminator dots
 # Input: ed script with potentially problematic dots
@@ -303,36 +192,20 @@ transform_content_dots() {
     return 0
 }
 
-# Main integration function - applies smart dot protection when appropriate  
+# Simplified integration function - applies smart dot protection when detect_dot_trap indicates need
 # Returns: 0 if transformation applied, 1 if not applied
 apply_smart_dot_protection() {
     local script="$1"
     local file_path="$2"
     
-    # First check if we have the right context
-    local confidence
-    confidence=$(detect_ed_tutorial_context "$script" "$file_path")
-    
-    if [ "$confidence" -ge 70 ]; then
-        # High confidence - apply transformation
-        local transformed_script
-        if transformed_script=$(transform_content_dots "$script"); then
-            echo "✨ Smart dot protection applied for ed tutorial editing (confidence: ${confidence}%)" >&2
-            echo "$transformed_script"
-            return 0
-        else
-            echo "⚠️  Smart dot protection failed, falling back to standard handling" >&2
-            echo "$script"
-            return 1
-        fi
-    elif [ "$confidence" -ge 40 ]; then
-        # Medium confidence - provide guidance but don't auto-transform
-        echo "🤔 Detected possible ed tutorial editing (confidence: ${confidence}%)" >&2
-        echo "   Consider using Edit/Write tools for complex cases or breaking into smaller operations" >&2
-        echo "$script"
-        return 1
+    # Apply transformation directly (detect_dot_trap already determined we need protection)
+    local transformed_script
+    if transformed_script=$(transform_content_dots "$script"); then
+        echo "Smart dot protection applied" >&2
+        echo "$transformed_script"
+        return 0
     else
-        # Low confidence - no action
+        # Transformation failed, return original
         echo "$script"
         return 1
     fi

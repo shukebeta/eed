@@ -79,7 +79,7 @@ teardown() {
 
 @test "code refactoring - add new route with error handling" {
     # AI adds a new API route with proper error handling
-    run "$SCRIPT_UNDER_TEST" --force index.js "8a
+    run "$SCRIPT_UNDER_TEST" index.js "8a
 
 // New API endpoint added by AI
 app.get('/api/health', (req, res) => {
@@ -93,25 +93,26 @@ app.get('/api/health', (req, res) => {
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Verify new route was added
-    run grep -q "/api/health" index.js
+    # Verify new route was added in preview file
+    run grep -q "/api/health" index.js.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "try {" index.js
+    run grep -q "try {" index.js.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "catch (error)" index.js
+    run grep -q "catch (error)" index.js.eed.preview
     [ "$status" -eq 0 ]
     
-    # Original functionality preserved
-    run grep -q "Hello World" index.js
+    # Original functionality preserved in preview file
+    run grep -q "Hello World" index.js.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "port 3000" index.js
+    run grep -q "port 3000" index.js.eed.preview
     [ "$status" -eq 0 ]
 }
 
 @test "configuration management - add new dependency" {
     # AI correctly adds dependency with proper JSON syntax
-    run "$SCRIPT_UNDER_TEST" --force package.json "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" package.json "$(cat <<'EOF'
 7s/$/,/
 8a
     "cors": "^2.8.5"
@@ -121,8 +122,9 @@ q
 EOF
 )"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Auto-reordering occurred, so changes are in preview file
+    # Changes are in preview file
     [ -f package.json.eed.preview ]
     
     # Verify dependency was added correctly in preview
@@ -140,7 +142,7 @@ EOF
 
 @test "configuration management - update version and add script" {
     # AI performs multiple config updates with correct JSON syntax
-    run "$SCRIPT_UNDER_TEST" --force package.json "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" package.json "$(cat <<'EOF'
 3s/1.0.0/1.1.0/
 10s/$/,/
 11a
@@ -151,8 +153,9 @@ q
 EOF
 )"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # Auto-reordering occurred, so changes are in preview file
+    # Changes are in preview file
     [ -f package.json.eed.preview ]
     
     # Version should be updated in preview
@@ -172,7 +175,7 @@ EOF
 
 @test "documentation maintenance - update README with new features" {
     # AI enhances README with additional sections
-    run "$SCRIPT_UNDER_TEST" --force README.md "\$a
+    run "$SCRIPT_UNDER_TEST" README.md "\$a
 
 ## API Endpoints
 
@@ -196,18 +199,19 @@ Copy \`.env.example\` to \`.env\` and configure:
 w
 q"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
     
-    # New sections should be added
-    run grep -q "## API Endpoints" README.md
+    # New sections should be added in preview file
+    run grep -q "## API Endpoints" README.md.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "## Environment Variables" README.md
+    run grep -q "## Environment Variables" README.md.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "## Contributing" README.md
+    run grep -q "## Contributing" README.md.eed.preview
     [ "$status" -eq 0 ]
     
-    # Original content preserved
-    run grep -q "Express.js application" README.md
+    # Original content preserved in preview file
+    run grep -q "Express.js application" README.md.eed.preview
     [ "$status" -eq 0 ]
-    run grep -q "npm install" README.md
+    run grep -q "npm install" README.md.eed.preview
     [ "$status" -eq 0 ]
 }

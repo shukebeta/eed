@@ -52,13 +52,16 @@ line4
 line5
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test1.txt "3a
+    run "$SCRIPT_UNDER_TEST" test1.txt "3a
 inserted_line
 .
 w
 q"
     [ "$status" -eq 0 ]
-    run grep -q "inserted_line" test1.txt
+    
+    # Check that preview file exists and contains the changes
+    [ -f test1.txt.eed.preview ]
+    run grep -q "inserted_line" test1.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -71,12 +74,16 @@ line4
 line5
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test1.txt "2d
+    run "$SCRIPT_UNDER_TEST" test1.txt "2d
 w
 q"
     [ "$status" -eq 0 ]
-    run grep -q "line2" test1.txt
-    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
+    
+    # Verify line2 was deleted from preview file
+    [ -f test1.txt.eed.preview ]
+    run grep -q "line2" test1.txt.eed.preview
+    [ "$status" -ne 0 ]  # line2 should NOT be found
 }
 
 @test "basic replace operation (global)" {
@@ -88,11 +95,11 @@ line4
 line5
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test1.txt "1,\$s/line1/replaced_line1/
+    run "$SCRIPT_UNDER_TEST" test1.txt "1,\$s/line1/replaced_line1/
 w
 q"
     [ "$status" -eq 0 ]
-    run grep -q "replaced_line1" test1.txt
+    run test -f test1.txt.eed.preview && grep -q "replaced_line1" test1.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -101,13 +108,13 @@ q"
 normal line
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test2.txt "1a
+    run "$SCRIPT_UNDER_TEST" test2.txt "1a
 line with 'single quotes'
 .
 w
 q"
     [ "$status" -eq 0 ]
-    run grep -q "line with 'single quotes'" test2.txt
+    run test -f test2.txt.eed.preview && grep -q "line with 'single quotes'" test2.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -116,7 +123,7 @@ q"
 normal line
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test2.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" test2.txt "$(cat <<'EOF'
 1a
 line with "double quotes"
 .
@@ -125,7 +132,7 @@ q
 EOF
 )"
     [ "$status" -eq 0 ]
-    run grep -q 'line with "double quotes"' test2.txt
+    run test -f test2.txt.eed.preview && grep -q 'line with "double quotes"' test2.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -134,7 +141,7 @@ EOF
 normal line
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test2.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" test2.txt "$(cat <<'EOF'
 1a
 line with \backslash
 .
@@ -143,7 +150,7 @@ q
 EOF
 )"
     [ "$status" -eq 0 ]
-    run grep -q "backslash" test2.txt
+    run test -f test2.txt.eed.preview && grep -q "backslash" test2.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -152,7 +159,7 @@ EOF
 normal line
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test2.txt "$(cat <<'EOF'
+    run "$SCRIPT_UNDER_TEST" test2.txt "$(cat <<'EOF'
 1a
 line with $dollar sign
 .
@@ -161,7 +168,7 @@ q
 EOF
 )"
     [ "$status" -eq 0 ]
-    run grep -q "dollar sign" test2.txt
+    run test -f test2.txt.eed.preview && grep -q "dollar sign" test2.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -170,11 +177,11 @@ EOF
 old_path=/usr/local/bin
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test3.txt "s|old_path=.*|new_path=C:\\Users\\Test\$User\\Documents|
+    run "$SCRIPT_UNDER_TEST" test3.txt "s|old_path=.*|new_path=C:\\Users\\Test\$User\\Documents|
 w
 q"
     [ "$status" -eq 0 ]
-    run grep -q "C:" test3.txt
+    run test -f test3.txt.eed.preview && grep -q "C:" test3.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -184,12 +191,15 @@ original content
 EOF
 
     # Invalid command should be detected and rejected before execution
-    run "$SCRIPT_UNDER_TEST" --force test4.txt "invalid_command"
+    run "$SCRIPT_UNDER_TEST" test4.txt "invalid_command"
     [ "$status" -ne 0 ]
 
     # Original content should be preserved (file never modified)
     run grep -q "original content" test4.txt
     [ "$status" -eq 0 ]
+    
+    # No preview file should be created on error
+    [ ! -f test4.txt.eed.preview ]
 }
 
 @test "complex operations - console.log removal" {
@@ -200,12 +210,16 @@ function newName() {
 }
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test5.txt "1,\$s/.*console\.log.*;//
+    run "$SCRIPT_UNDER_TEST" test5.txt "1,\$s/.*console\.log.*;//
 w
 q"
     [ "$status" -eq 0 ]
-    run grep -q "console.log" test5.txt
-    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
+    
+    # Verify console.log was removed from preview file
+    [ -f test5.txt.eed.preview ]
+    run grep -q "console.log" test5.txt.eed.preview
+    [ "$status" -ne 0 ]  # console.log should NOT be found
 }
 
 @test "complex operations - comment insertion" {
@@ -215,13 +229,13 @@ function newName() {
 }
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test5.txt "2a
+    run "$SCRIPT_UNDER_TEST" test5.txt "2a
     // Added comment
 .
 w
 q"
     [ "$status" -eq 0 ]
-    run grep -q "Added comment" test5.txt
+    run test -f test5.txt.eed.preview && grep -q "Added comment" test5.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -231,7 +245,7 @@ safe content
 EOF
 
     # Attempt command injection - should be treated as literal text
-    run "$SCRIPT_UNDER_TEST" --force test6.txt "1a
+    run "$SCRIPT_UNDER_TEST" test6.txt "1a
 ; rm -rf /tmp; echo malicious
 .
 w
@@ -239,7 +253,7 @@ q"
     # File should still exist (injection was prevented)
     [ -f test6.txt ]
     # Content should include the "malicious" text as literal content
-    run grep -q "malicious" test6.txt
+    run test -f test6.txt.eed.preview && grep -q "malicious" test6.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -248,13 +262,13 @@ q"
 safe content
 EOF
 
-    run "$SCRIPT_UNDER_TEST" --force test6.txt "1a
+    run "$SCRIPT_UNDER_TEST" test6.txt "1a
 line with | & ; < > characters
 .
 w
 q"
     [ "$status" -eq 0 ]
-    run grep -q "characters" test6.txt
+    run test -f test6.txt.eed.preview && grep -q "characters" test6.txt.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -328,7 +342,7 @@ q'
   printf "%q\n" "$script"
 
   echo "Running eed with bash trace:"
-  bash -x "$SCRIPT_UNDER_TEST" --debug --force test_example.bats "$script" 2>&1
+  bash -x "$SCRIPT_UNDER_TEST" --debug test_example.bats "$script" 2>&1
   local eed_status=$?
   echo "Direct eed exit status: $eed_status"
 
@@ -361,7 +375,7 @@ q'
   printf "%s\n" "$script"
 
   echo "=== Full bash trace ==="
-  bash -x "$SCRIPT_UNDER_TEST" --debug --force simple_file.txt "$script" 2>&1 | tail -50
+  bash -x "$SCRIPT_UNDER_TEST" --debug simple_file.txt "$script" 2>&1 | tail -50
   local exit_code=$?
   echo "Exit code: $exit_code"
 
@@ -384,7 +398,7 @@ first line
 w
 q'
     echo "=== Testing file creation ==="
-    run "$SCRIPT_UNDER_TEST" --force newfile.txt "$script"
+    run "$SCRIPT_UNDER_TEST" newfile.txt "$script"
     echo "Exit status: $status"
     echo "Output: $output"
     
@@ -401,5 +415,8 @@ q'
     # Test should pass now
     [ "$status" -eq 0 ]
     [ -f newfile.txt ]
-    grep -q "first line" newfile.txt
+    
+    # Content should be in preview file, not original file
+    [ -f newfile.txt.eed.preview ]
+    grep -q "first line" newfile.txt.eed.preview
 }

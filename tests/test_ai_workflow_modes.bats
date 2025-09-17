@@ -118,33 +118,10 @@ q"
     [ "$status" -ne 0 ]
 }
 
-@test "force mode - direct application with success message" {
-    # AI uses --force for direct application
-    run "$SCRIPT_UNDER_TEST" --force app.py "2s/Hello World/Hello, Force Mode/
-w
-q"
-    [ "$status" -eq 0 ]
-
-    # Should show success message
-    [[ "$output" == *"✨"* ]]
-
-    # Should NOT show manual apply instructions
-    [[ "$output" != *"To apply these changes, run:"* ]]
-    [[ "$output" != *"mv"*".eed.preview"* ]]
-
-    # Changes applied directly
-    run grep -q "Hello, Force Mode" app.py
-    [ "$status" -eq 0 ]
-    run grep -q "Hello World" app.py
-    [ "$status" -ne 0 ]
-
-    # No preview file left behind
-    [ ! -f app.py.eed.preview ]
-}
 
 @test "debug mode - shows detailed execution information" {
     # AI uses --debug to understand what eed is doing
-    run "$SCRIPT_UNDER_TEST" --debug --force config.ini "2a
+    run "$SCRIPT_UNDER_TEST" --debug config.ini "2a
 user=testuser
 .
 w
@@ -153,10 +130,10 @@ q"
 
     # Should show debug messages
     [[ "$output" == *"Debug mode: executing ed"* ]]
-    [[ "$output" == *"--force mode enabled"* ]]
+    [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
-    # Changes should still be applied
-    run grep -q "user=testuser" config.ini
+    # Changes should be in preview file
+    run grep -q "user=testuser" config.ini.eed.preview
     [ "$status" -eq 0 ]
 }
 
@@ -180,7 +157,7 @@ q"
 
 @test "error handling - ed execution failure protects original" {
     # AI provides command that will fail during execution
-    run "$SCRIPT_UNDER_TEST" --force app.py "1c
+    run "$SCRIPT_UNDER_TEST" app.py "1c
 new content
 .
 999p
@@ -200,7 +177,7 @@ q"
     [ ! -f app.py.eed.preview ]
 }
 
-@test "git integration - force mode stages changes automatically" {
+@test "git integration - preview mode shows git apply instructions" {
     # Initialize git repo and add initial files
     run git init .
     [ "$status" -eq 0 ]
@@ -215,21 +192,25 @@ q"
     run git commit -m "Initial commit"
     [ "$status" -eq 0 ]
 
-    # AI makes changes in force mode
-    run "$SCRIPT_UNDER_TEST" --force app.py "1a
+    # AI makes changes in preview mode
+    run "$SCRIPT_UNDER_TEST" app.py "1a
 # AI-added comment
 .
 w
 q"
     [ "$status" -eq 0 ]
 
-    # Changes should be automatically staged by eed
-    run git status --porcelain
-    [[ "$output" == *"M  app.py"* ]]
+    # Should show commit command instructions
+    [[ "$output" == *"commit "* ]]
+    [[ "$output" == *"your commit message"* ]]
 
-    # Verify the change was made
-    run grep -q "AI-added comment" app.py
+    # Preview file should contain the change
+    run grep -q "AI-added comment" app.py.eed.preview
     [ "$status" -eq 0 ]
+
+    # Original file unchanged
+    run grep -q "AI-added comment" app.py
+    [ "$status" -ne 0 ]
 }
 
 @test "git integration - detects repo from target file directory not cwd" {
@@ -248,7 +229,8 @@ q"
 w
 q"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"&& git add"* ]]
+    [[ "$output" == *"commit "* ]]
+    [[ "$output" == *"your commit message"* ]]
 }
 
 @test "no changes scenario - handles gracefully" {
