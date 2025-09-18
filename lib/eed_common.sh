@@ -13,6 +13,47 @@ source "$(dirname "${BASH_SOURCE[0]}")/eed_regex_patterns.sh"
 # Ed command logging configuration
 EED_LOG_FILE="$HOME/.eed_command_log.txt"
 
+# Debug logging configuration
+EED_DEBUG_LOG_DIR="$HOME/.eed"
+EED_DEBUG_LOG_FILE="$EED_DEBUG_LOG_DIR/debug.log"
+
+# Debug logging function - always logs to file, optionally shows to user
+# Usage: eed_debug_log "level" "message" [show_to_user]
+eed_debug_log() {
+    local level="$1"
+    local message="$2"
+    local show_to_user="${3:-false}"
+    
+    # Ensure log directory exists
+    if [ ! -d "$EED_DEBUG_LOG_DIR" ]; then
+        mkdir -p "$EED_DEBUG_LOG_DIR" 2>/dev/null || return 1
+    fi
+    
+    # Format: [timestamp] [level] message
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Escape newlines and tabs in message for single-line log entries
+    local safe_message="${message//$'\n'/\\n}"
+    safe_message="${safe_message//$'\t'/\\t}"
+    
+    # Always log to file (append mode) - use printf for safe handling of special characters
+    if printf '[%s] [%s] %s\n' "$timestamp" "$level" "$safe_message" >> "$EED_DEBUG_LOG_FILE" 2>/dev/null; then
+        # Keep log file size reasonable (last 1000 lines)
+        if [ -f "$EED_DEBUG_LOG_FILE" ]; then
+            local line_count=$(wc -l < "$EED_DEBUG_LOG_FILE" 2>/dev/null || echo "0")
+            if [ "$line_count" -gt 1000 ]; then
+                tail -n 800 "$EED_DEBUG_LOG_FILE" > "$EED_DEBUG_LOG_FILE.tmp" 2>/dev/null && \
+                mv "$EED_DEBUG_LOG_FILE.tmp" "$EED_DEBUG_LOG_FILE" 2>/dev/null
+            fi
+        fi
+    fi
+    
+    # Optionally show to user (for debug mode or important warnings)
+    if [ "$show_to_user" = "true" ]; then
+        echo "$message" >&2
+    fi
+}
+
 # Show help information
 show_help() {
     cat << 'EOF'

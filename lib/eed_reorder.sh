@@ -9,6 +9,8 @@ EED_REORDER_LOADED=1
 
 # Source the shared regex patterns
 source "$(dirname "${BASH_SOURCE[0]}")/eed_regex_patterns.sh"
+# Source common utilities (for logging)
+source "$(dirname "${BASH_SOURCE[0]}")/eed_common.sh"
 
 # Automatically reorder ed script commands to prevent line number conflicts
 # Refactored into focused helper functions for clarity and testability.
@@ -80,27 +82,26 @@ _perform_reordering_from_records() {
     # Perform reordering
     local -a modifying_commands_sorted
     if ! mapfile -t modifying_commands_sorted < <(printf '%s\n' "${modifying_commands[@]}" | sort -s -t: -k2,2nr -k1,1n); then
-        [ "$DEBUG_MODE" = true ] && echo "⚠️ Reordering failed: sort operation failed" >&2
+        eed_debug_log "ERROR" "Auto-reordering failed: sort operation failed, using original script" "$DEBUG_MODE"
         # Return original script as fallback
         printf '%s\n' "${script_lines[@]}"
-        return 1
+        return 0  # Always succeed, even in fallback case
     fi
 
-    # Informative messaging, kept to match previous UX
-    echo "✓ Auto-reordering script to prevent line numbering conflicts:" >&2
+    local -a reordered_script=()
     local original_formatted="($(IFS=, ; echo "${modifying_line_numbers[*]}"))"
     local -a reverse_sorted_line_numbers
     mapfile -t reverse_sorted_line_numbers < <(printf '%s\n' "${modifying_line_numbers[@]}" | sort -nr)
     local suggested_formatted="($(IFS=, ; echo "${reverse_sorted_line_numbers[*]}"))"
-    echo "   Original: ${original_formatted} → Reordered: ${suggested_formatted}" >&2
-    echo "" >&2
-
-    local -a reordered_script=()
     local -a processed_indices=()
 
     for cmd_info in "${modifying_commands_sorted[@]}"; do
-        local old_index="${cmd_info%%:*}"
-        local cmd_line="${cmd_info##*:}"
+        # Parse format: "index:line_number:command"
+        # Need to handle commands that contain colons (like substitute commands)
+        local old_index="${cmd_info%%:*}"                    # Get index (first field)
+        local temp="${cmd_info#*:}"                          # Remove index and first colon
+        local line_number="${temp%%:*}"                      # Get line number (second field)  
+        local cmd_line="${temp#*:}"                          # Get command (everything after second colon)
 
         reordered_script+=("$cmd_line")
         processed_indices+=("$old_index")
@@ -139,11 +140,16 @@ _perform_reordering_from_records() {
     local reordered_content=$(printf '%s\n' "${reordered_script[@]}")
 
     if [ ${#original_content} -ne ${#reordered_content} ]; then
-        [ "$DEBUG_MODE" = true ] && echo "⚠️ Reordering failed: content length mismatch" >&2
+        eed_debug_log "ERROR" "Auto-reordering failed: content length mismatch (${#original_content} vs ${#reordered_content}), using original script" "$DEBUG_MODE"
         # Return original script as fallback
         printf '%s\n' "${script_lines[@]}"
-        return 1
+        return 0  # Always succeed, even in fallback case
     fi
+
+    # Only show success message after validation passes
+    echo "✓ Auto-reordering script to prevent line numbering conflicts:" >&2
+    echo "   Original: ${original_formatted} → Reordered: ${suggested_formatted}" >&2
+    echo "" >&2
 
     printf '%s\n' "${reordered_script[@]}"
     return 0
@@ -157,10 +163,10 @@ reorder_script() {
     # Capture records once to avoid double parsing (NUL-delimited)
     local -a records=()
     if ! mapfile -t -d '' records < <(_get_modifying_command_info "$script"); then
-        [ "$DEBUG_MODE" = true ] && echo "⚠️ Reordering failed: command analysis failed" >&2
+        eed_debug_log "ERROR" "Auto-reordering failed: command analysis failed, using original script" "$DEBUG_MODE"
         # Return original script as fallback
         printf '%s\n' "$script"
-        return 1
+        return 0  # Always succeed, even in fallback case
     fi
 
     # Parse records to extract what we need for decision making
@@ -183,10 +189,9 @@ reorder_script() {
     fi
 
     # Perform reordering using pre-captured records
-    if ! _perform_reordering_from_records "${records[@]}"; then
-        # _perform_reordering_from_records already output fallback and error message
-        return 1
-    fi
+    # Note: _perform_reordering_from_records always succeeds (returns 0)
+    # and handles all error cases internally with appropriate fallbacks
+    _perform_reordering_from_records "${records[@]}"
     return 0
 }
 
