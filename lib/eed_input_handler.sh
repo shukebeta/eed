@@ -66,8 +66,11 @@ detect_and_fix_unterminated_input() {
 
             # If a write/quit appears before '.', insert a '.' to close input first.
             if is_write_command "$line" || is_quit_command "$line"; then
-                out_lines+=(".")
-                changed=1
+                # Only insert dot if previous line wasn't already a dot
+                if [ "${out_lines[-1]}" != "." ]; then
+                    out_lines+=(".")
+                    changed=1
+                fi
                 in_input=false
                 out_lines+=("$line")
                 continue

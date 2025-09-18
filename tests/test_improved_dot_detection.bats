@@ -49,13 +49,13 @@ w
 q"
     
     # Test against dot trap detection
-    run detect_dot_trap "$script"
+    run no_dot_trap "$script"
     local trap_result=$?
     
     # Document current behavior
     echo "Dot trap detection result: $trap_result"
     echo "Output: $output"
     
-    # This script should be handled appropriately by detect_dot_trap
+    # This script should be handled appropriately by no_dot_trap
     # The result depends on the implementation logic
 }

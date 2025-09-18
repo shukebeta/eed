@@ -260,7 +260,7 @@ w"
 
 @test "dot trap detection: normal ed commands not affected" {
     # Normal ed script with single dot should not trigger detection
-    run detect_dot_trap "3c
+    run no_dot_trap "3c
 new content
 .
 w
@@ -270,7 +270,7 @@ q"
 
 @test "dot trap detection: simple script not flagged" {
     # Short script with normal ed operations should pass
-    run detect_dot_trap "5d
+    run no_dot_trap "5d
 w
 q"
     [ "$status" -eq 0 ]
@@ -289,7 +289,7 @@ final content
 .
 w
 q"
-    run detect_dot_trap "$script"
+    run no_dot_trap "$script"
     [ "$status" -ne 0 ]
     [[ "$output" == *"POTENTIAL_DOT_TRAP"* ]]
 }

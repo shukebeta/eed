@@ -167,7 +167,7 @@ classify_ed_script() {
 # Detect potential dot trap in ed scripts
 # This detects patterns that might indicate a user intended to use heredoc
 # but the dots got interpreted as ed terminators instead
-detect_dot_trap() {
+no_dot_trap() {
     local script="$1"
     local -a lines
     local -a suspicious_line_numbers=()
@@ -258,6 +258,7 @@ detect_dot_trap() {
         return 1
     fi
 
+    # No suspicious dot trap detected
     return 0
 }
 

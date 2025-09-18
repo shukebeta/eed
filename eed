@@ -141,17 +141,15 @@ fi
 ED_SCRIPT="$FIXED_SCRIPT"
 
 # --- Smart Dot Protection ---
-if ! detect_dot_trap "$ED_SCRIPT" >/dev/null; then
-    # Try smart dot protection for appropriate contexts
+# Attempt smart dot protection when no_dot_trap indicates potential trap
+if ! no_dot_trap "$ED_SCRIPT" >/dev/null; then
     SMART_HANDLED_SCRIPT=$(apply_smart_dot_protection "$ED_SCRIPT" "$FILE_PATH")
     smart_handling_result=$?
 
     if [ $smart_handling_result -eq 0 ]; then
-        # Smart protection was applied successfully
         ED_SCRIPT="$SMART_HANDLED_SCRIPT"
     fi
     # Note: If smart protection fails, we proceed with original script
-    # The new detect_dot_trap is already intelligent enough to avoid false positives
 fi
 
 # --- EARLY COMMAND VALIDATION ---
@@ -247,11 +245,11 @@ if [ "$DEBUG_MODE" = true ]; then
     echo "Debug mode: executing ed" >&2
 fi
 
-if ! printf '%s\n' "$ED_SCRIPT" | ed -s "$PREVIEW_FILE" 2>/dev/null; then
+if ! printf '%s\n' "$ED_SCRIPT" | ed -s "$PREVIEW_FILE"; then
     echo "✗ Edit command failed" >&2
     echo "  No changes were made to the original file." >&2
     echo "Commands attempted:" >&2
-    echo "$ED_SCRIPT" >&2
+    printf '%s\n' "$ED_SCRIPT" >&2
     rm -f "$PREVIEW_FILE"
     exit 1
 fi

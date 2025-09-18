@@ -192,20 +192,31 @@ transform_content_dots() {
     return 0
 }
 
-# Simplified integration function - applies smart dot protection when detect_dot_trap indicates need
+# Simplified integration function - applies smart dot protection when no_dot_trap indicates need
 # Returns: 0 if transformation applied, 1 if not applied
 apply_smart_dot_protection() {
     local script="$1"
     local file_path="$2"
     
-    # Apply transformation directly (detect_dot_trap already determined we need protection)
-    local transformed_script
-    if transformed_script=$(transform_content_dots "$script"); then
-        echo "Smart dot protection applied" >&2
-        echo "$transformed_script"
-        return 0
+    # Only apply transformation if no_dot_trap signals a potential trap.
+    # Note: `no_dot_trap` returns non-zero when a potential dot-trap is detected,
+    # so check the exit status and apply protection when it's non-zero.
+    no_dot_trap "$script" >/dev/null
+    local detect_rc=$?
+
+    if [ "$detect_rc" -ne 0 ]; then
+        local transformed_script
+        if transformed_script=$(transform_content_dots "$script"); then
+            echo "Smart dot protection applied" >&2
+            echo "$transformed_script"
+            return 0
+        else
+            # Transformation failed, return original
+            echo "$script"
+            return 1
+        fi
     else
-        # Transformation failed, return original
+        # No protection needed, passthrough
         echo "$script"
         return 1
     fi
