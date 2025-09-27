@@ -13,15 +13,14 @@ eed is an AI-oriented text editor designed for programmatic collaboration with A
 
 Quick usage
 ```
-eed [--debug] [--force] [--disable-auto-reorder] <file> <ed_script>
+eed <file> <ed_script>
 
 # Example (quoted heredoc, recommended)
-eed file.txt "$(cat <<'EOF'
+eed file.txt - <<'EOF'
 5d
 w
 q
 EOF
- )"
 ```
 
 ## Recent Improvements (v2.1)
