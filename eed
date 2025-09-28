@@ -43,12 +43,12 @@ DISABLE_AUTO_REORDER="$(parse_boolean "${EED_DISABLE_AUTO_REORDER:-false}")"
 # Assumes we're already in a git repository
 auto_save_work_in_progress() {
     local file_path="$1"
-    
+
     # Find the git repository root containing the target file
     local repo_root
     repo_root=$(git -C "$(dirname "$file_path")" rev-parse --show-toplevel 2>/dev/null)
     if [ -z "$repo_root" ]; then return 0; fi # Not in a git repository
-    
+
     # Auto-save if there are uncommitted changes (check from repo root)
     if ! git -C "$repo_root" diff-index --quiet HEAD --; then
         echo "Auto-saving work in progress..." >&2
@@ -84,16 +84,41 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --undo)
-            # Undo last eed-history commit
-            if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            # Undo last eed-history commit using git revert (non-destructive)
+
+            # Find git repository root from current directory
+            repo_root=""
+            if ! repo_root=$(git rev-parse --show-toplevel 2>/dev/null); then
                 echo "Error: Not in a git repository" >&2
                 exit 1
             fi
-            if git log --oneline -1 | grep -q "eed-history:"; then
-                git reset --hard HEAD~1
-                echo "✓ Last eed-history commit undone"
+
+            # Find the most recent eed-history commit
+            last_eed_commit_hash=""
+            last_eed_commit_hash=$(git -C "$repo_root" log --grep="eed-history:" --format=%H -n 1)
+
+            if [ -z "$last_eed_commit_hash" ]; then
+                echo "Error: No eed-history commit found to undo" >&2
+                echo "Use 'git log --grep=\"eed-history:\"' to see all eed commits" >&2
+                exit 1
+            fi
+
+            # Show what will be reverted
+            echo "Found eed-history commit to revert:"
+            git -C "$repo_root" log --oneline -1 "$last_eed_commit_hash"
+            echo
+
+            # Perform the revert
+            if git -C "$repo_root" revert --no-edit "$last_eed_commit_hash"; then
+                echo "✅ Successfully reverted the eed-history commit."
+                echo "   Original commit preserved in history for audit trail."
+                echo "   To undo this revert (restore the changes), run:"
+                echo "     git revert HEAD"
             else
-                echo "Error: Last commit is not an eed-history commit" >&2
+                echo "❌ git revert failed. This may be due to merge conflicts." >&2
+                echo "   Please resolve conflicts manually and complete the revert:" >&2
+                echo "     git revert --continue  (after resolving conflicts)" >&2
+                echo "     git revert --abort     (to cancel the revert)" >&2
                 exit 1
             fi
             exit 0
@@ -301,7 +326,7 @@ if [ "$IS_GIT_REPO" = true ]; then
             # Get relative path from repo root
             local relative_path
             relative_path=$(realpath --relative-to="$REPO_ROOT_FOR_FILE" "$FILE_PATH")
-            
+
             git -C "$REPO_ROOT_FOR_FILE" add "$relative_path"
             git -C "$REPO_ROOT_FOR_FILE" commit -m "eed-history: $COMMIT_MESSAGE" --no-verify
 
@@ -314,7 +339,7 @@ if [ "$IS_GIT_REPO" = true ]; then
             # Manual commit mode: stage changes and show instructions
             local relative_path
             relative_path=$(realpath --relative-to="$REPO_ROOT_FOR_FILE" "$FILE_PATH")
-            
+
             git -C "$REPO_ROOT_FOR_FILE" add "$relative_path"
             echo "⚠️ You have made the following uncommitted changes:"
             echo
