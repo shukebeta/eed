@@ -202,15 +202,14 @@ q"
 
     # Should show commit command instructions
     [[ "$output" == *"commit "* ]]
-    [[ "$output" == *"your commit message"* ]]
+    [[ "$output" == *"commit message"* ]]
 
-    # Preview file should contain the change
-    run grep -q "AI-added comment" app.py.eed.preview
+    # In git mode, file is directly modified (no preview file)
+    run grep -q "AI-added comment" app.py
     [ "$status" -eq 0 ]
 
-    # Original file unchanged
-    run grep -q "AI-added comment" app.py
-    [ "$status" -ne 0 ]
+    # No preview file created in git mode
+    [ ! -f app.py.eed.preview ]
 }
 
 @test "git integration - detects repo from target file directory not cwd" {
@@ -230,7 +229,7 @@ w
 q"
     [ "$status" -eq 0 ]
     [[ "$output" == *"commit "* ]]
-    [[ "$output" == *"your commit message"* ]]
+    [[ "$output" == *"commit message"* ]]
 }
 
 @test "no changes scenario - handles gracefully" {

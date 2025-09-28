@@ -37,28 +37,26 @@ if [ -z "$TARGET_FILE" ] || [ -z "$COMMIT_MESSAGE" ]; then
     exit 1
 fi
 
-PREVIEW_FILE="${TARGET_FILE}.eed.preview"
-
-# Check if preview file exists
-if [ ! -f "$PREVIEW_FILE" ]; then
-    echo "Error: Preview file $PREVIEW_FILE does not exist" >&2
-    echo "Run eed first to create a preview" >&2
-    exit 1
-fi
-
-# Check if we are in a git repository
+# Check if we are in a git repository first
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "Error: Not in a git repository" >&2
     exit 1
 fi
 
+# Check if file has staged changes
+if ! git diff --cached --quiet "$TARGET_FILE" 2>/dev/null; then
+    # File has staged changes - ready to commit
+    echo "Committing staged changes for $TARGET_FILE"
+else
+    echo "Error: No staged changes for $TARGET_FILE" >&2
+    echo "Run 'eed $TARGET_FILE ...' first to make changes" >&2
+    exit 1
+fi
 
-# Apply the changes
-mv "$PREVIEW_FILE" "$TARGET_FILE"
-
-# Create atomic commit with special prefix
-git add "$TARGET_FILE"
+# Commit the staged changes
 git commit -m "eed-history: $COMMIT_MESSAGE" --no-verify
 
-echo "✓ Changes applied and committed: \"$COMMIT_MESSAGE\""
-echo "  To undo: git reset --hard HEAD~1"
+echo "✅ Changes committed: \"$COMMIT_MESSAGE\""
+echo ""
+echo "💡 Next time, save steps with: eed -m '$COMMIT_MESSAGE' $TARGET_FILE ..."
+echo "  To undo: eed --undo"

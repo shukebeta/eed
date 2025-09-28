@@ -28,8 +28,15 @@ NEVER use Windows paths (C:\path\to\file). Always use forward slashes (/), as ba
 
 MEMORY AID: Think "forward slashes" not "backslashes".
 
-NEW WORKFLOW: Local History System
-- Preview mode: Creates .eed.preview → suggests `commit file.js "message"`
+NEW WORKFLOW: Smart Git Integration
+Git repositories:
+- Auto-commit mode: `eed -m "message" file.js ...` → direct edit + commit
+- Manual commit mode: `eed file.js ...` → direct edit + stage → `commit file.js "message"`
+
+Non-git directories:
+- Preview mode: `eed file.txt ...` → creates .eed.preview → manual apply
+
+Features:
 - Automatic WIP saves before new edits
 - Use `eed --undo` to revert last eed-history commit
 - All commits use "eed-history:" prefix for easy management
@@ -49,15 +56,31 @@ NEW WORKFLOW: Local History System
 ## Usage Syntax (preferred examples first)
 
 ```bash
-eed [--debug] [--disable-auto-reorder] [--undo] <file> {SCRIPT|-}
-commit <file> "commit message"  # Apply preview with git commit
+eed [OPTIONS] <file> {SCRIPT|-}
+commit <file> "commit message"  # Apply staged changes with git commit (git repos)
+
+OPTIONS:
+  -m, --message <msg>  Auto-commit changes with specified message (git repos only)
+  --debug              Show detailed debugging information
+  --disable-auto-reorder  Disable automatic command reordering
+  --undo               Undo last eed-history commit
+  --help               Show help message
 ```
 
 Important: `SCRIPT` may be provided as an explicit string, `-` to force reading from stdin, or via a pipe/quoted heredoc.
 
 Recommended usage patterns (priority order):
 
-1) Quoted heredoc with explicit `-` (robust, readable) **← PREFERRED**
+1) Auto-commit mode for git repositories (fastest workflow) **← RECOMMENDED FOR GIT**
+```bash
+eed -m "Remove first line" path/to/file - <<'EOF'
+1d
+w
+q
+EOF
+```
+
+2) Quoted heredoc with explicit `-` (robust, readable) **← PREFERRED FOR NON-GIT**
 ```bash
 eed path/to/file - <<'EOF'
 1d
@@ -66,13 +89,13 @@ q
 EOF
 ```
 
-2) Pipe (quick & script-friendly)
+3) Pipe (quick & script-friendly)
 ```bash
 printf '1d\nw\nq\n' | eed path/to/file -        # explicit stdin with '-'
 ```
 Note: `eed` also supports a forgiving mode — if you pipe but omit the `-`, eed will still read stdin and proceed, and will append a friendly tip on success. For clarity and reproducibility, prefer the explicit `-` when scripting.
 
-3) Quoted heredoc as an argument (legacy syntax, avoid)
+4) Quoted heredoc as an argument (legacy syntax, avoid)
 ```bash
 eed path/to/file "$(cat <<'EOF'
 1d
@@ -354,8 +377,9 @@ EOF
 ```
 
 Practical tips
-- Prefer option (1) or (2) for AI-driven or CI workflows.
-- When using multiple edits, use `git` to create checkpoints between steps.
+- **For git repositories**: Use auto-commit mode (`-m "message"`) for quick iterations
+- **For non-git directories**: Use option (2) or (3) for reliable preview workflows
+- When using multiple edits, leverage git's automatic WIP saves and undo functionality
 - If you must nest, ensure all markers are unique and simple (e.g., `EOF1`, `EOF2`) and run the command locally once to verify parsing.
 - For reproducibility in CI, prefer explicit `-` (stdin) or temp script files rather than relying on the forgiving stdin auto-detection.
 

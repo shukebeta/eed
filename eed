@@ -37,11 +37,27 @@ DISABLE_AUTO_REORDER="$(parse_boolean "${EED_DISABLE_AUTO_REORDER:-false}")"
 
 
 
+# --- Helper Functions ---
+
+# Auto-save any uncommitted work in progress before making new edits
+# Assumes we're already in a git repository
+auto_save_work_in_progress() {
+    local file_path="$1"
+
+    # Auto-save if there are uncommitted changes
+    if ! (cd "$(dirname "$file_path")" && git diff-index --quiet HEAD --); then
+        echo "Auto-saving work in progress..." >&2
+        (cd "$(dirname "$file_path")" && git add -A && git commit -m "eed-history: WIP auto-save before new edit" --no-verify --quiet)
+    fi
+}
+
 # --- Argument Parsing ---
 # CLI arguments override environment variables
 FILE_PATH=""
 ED_SCRIPT=""
 ED_SCRIPT_PROVIDED=false
+COMMIT_MESSAGE=""
+AUTO_COMMIT_MODE=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -52,6 +68,14 @@ while [[ $# -gt 0 ]]; do
         --disable-auto-reorder)
             DISABLE_AUTO_REORDER=true
             shift
+            ;;
+        -m|--message)
+            if [ $# -lt 2 ]; then
+                error_exit "Option $1 requires a commit message" 1 true
+            fi
+            COMMIT_MESSAGE="$2"
+            AUTO_COMMIT_MODE=true
+            shift 2
             ;;
         --undo)
             # Undo last eed-history commit
@@ -220,8 +244,78 @@ if [ "$SCRIPT_TYPE" = "view_only" ]; then
     exit 0
 fi
 
-# For modifying commands, use preview workflow
-PREVIEW_FILE="${FILE_PATH}.eed.preview"
+# --- Mode Selection: Git vs Preview ---
+
+# Detect if we're in a git repository
+IS_GIT_REPO=false
+if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
+    IS_GIT_REPO=true
+fi
+
+# For modifying commands, choose execution mode
+if [ "$IS_GIT_REPO" = true ]; then
+    # Git mode: Direct file editing (no preview file)
+    execute_git_mode() {
+        # Create file if it doesn't exist
+        if [ ! -f "$FILE_PATH" ]; then
+            mkdir -p "$(dirname "$FILE_PATH")"
+            echo "" > "$FILE_PATH"
+            echo "Creating new file: $FILE_PATH" >&2
+        fi
+
+        # Auto-save work in progress if there are uncommitted changes
+        auto_save_work_in_progress "$FILE_PATH"
+
+        # Store original content for rollback if needed
+        local original_content
+        original_content=$(cat "$FILE_PATH")
+
+        # Execute ed commands directly on the file
+        if [ "$DEBUG_MODE" = true ]; then
+            echo "Debug mode: executing ed on file directly" >&2
+        fi
+
+        if ! printf '%s\n' "$ED_SCRIPT" | ed -s "$FILE_PATH"; then
+            echo "✗ Edit command failed" >&2
+            echo "  Restoring original file content." >&2
+            echo "$original_content" > "$FILE_PATH"
+            exit 1
+        fi
+
+        # Check if any changes were made
+        if diff -q <(echo "$original_content") "$FILE_PATH" >/dev/null 2>&1; then
+            echo "No changes were made to the file content."
+            exit 0
+        fi
+
+        # Handle auto-commit vs manual commit
+        if [ "$AUTO_COMMIT_MODE" = true ]; then
+            # Auto-commit mode: commit and show result
+            (cd "$(dirname "$FILE_PATH")" && git add "$(basename "$FILE_PATH")")
+            (cd "$(dirname "$FILE_PATH")" && git commit -m "eed-history: $COMMIT_MESSAGE" --no-verify)
+
+            echo "✅ Changes successfully committed. Details below:"
+            echo
+            (cd "$(dirname "$FILE_PATH")" && git show HEAD)
+            echo
+            echo "To undo these changes, run: eed --undo"
+        else
+            # Manual commit mode: stage changes and show instructions
+            (cd "$(dirname "$FILE_PATH")" && git add "$(basename "$FILE_PATH")")
+            echo "⚠️ You have made the following uncommitted changes:"
+            echo
+            (cd "$(dirname "$FILE_PATH")" && git diff HEAD "$(basename "$FILE_PATH")")
+            echo
+            echo "To commit: commit \"$FILE_PATH\" \"commit message\""
+            echo "To discard: git checkout HEAD \"$FILE_PATH\""
+        fi
+    }
+    execute_git_mode
+    exit 0
+else
+    # Preview mode: Traditional workflow with preview file
+    PREVIEW_FILE="${FILE_PATH}.eed.preview"
+fi
 
 # Create file if it doesn't exist (after all validation passes)
 if [ ! -f "$FILE_PATH" ]; then
@@ -230,13 +324,6 @@ if [ ! -f "$FILE_PATH" ]; then
     echo "Creating new file: $FILE_PATH" >&2
 fi
 
-# Auto-save work in progress if in a git repository with uncommitted changes
-if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
-    if ! (cd "$(dirname "$FILE_PATH")" && git diff-index --quiet HEAD --); then
-        echo "Auto-saving work in progress..." >&2
-        (cd "$(dirname "$FILE_PATH")" && git add -A && git commit -m "eed-history: WIP auto-save before new edit" --no-verify --quiet)
-    fi
-fi
 
 # Copy file and execute ed
 cp "$FILE_PATH" "$PREVIEW_FILE"

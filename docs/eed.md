@@ -19,8 +19,21 @@ EOF
    - `w` - write (save) the file
    - `q` - quit editor
 
+## Workflow Modes
 
+### Git Repositories (Smart Mode)
+**Auto-commit workflow** (recommended for quick changes):
+```bash
+eed -m "Fix validation logic" file.js - <<'EOF'
+2c
+validated input
+.
+w
+q
+EOF
+```
 
+**Manual commit workflow** (for review before commit):
 ```bash
 eed file.txt - <<'EOF'
 5d
@@ -28,16 +41,31 @@ w
 q
 EOF
 
-# Apply changes with git commit
+# Then commit when ready
 commit file.txt "remove line 5"
 
 # Undo if needed
 eed --undo
 ```
 
-### Local History Features:
-- **Auto-save WIP**: Automatically saves uncommitted work in a special commit before edits
-- **Atomic commits**: Use `commit` command to apply changes with git commit
+### Non-Git Directories (Preview Mode)
+```bash
+eed file.txt - <<'EOF'
+1a
+new content
+.
+w
+q
+EOF
+
+# Then apply manually
+mv file.txt.eed.preview file.txt
+```
+
+### Git Integration Features:
+- **Auto-commit mode**: Direct editing with automatic git commit (use `-m "message"`)
+- **Manual commit mode**: Direct editing with staged changes, manual commit
+- **Auto-save WIP**: Automatically saves uncommitted work before new edits
 - **Easy undo**: Use `eed --undo` to revert last eed-history commit
 - **Safe**: All commits use "eed-history:" prefix for easy management
 

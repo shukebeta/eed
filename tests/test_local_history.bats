@@ -70,10 +70,10 @@ verify_preview_removed() {
 commit_changes() {
     local file="$1"
     local message="$2"
-    
+
+    # Use the upgraded commit script that handles both git mode and preview mode
     run "$COMMIT_SCRIPT" "$file" "$message"
     assert_success
-    verify_preview_removed "$file"
 }
 
 verify_file_contains() {
@@ -120,17 +120,17 @@ teardown() {
     rm -rf "$TEST_TEMP_DIR"
 }
 
-@test "commit script applies preview and creates git commit with eed-history prefix" {
-    # Purpose: Verify complete commit workflow - preview application and git integration
+@test "git mode stages changes and commit script creates git commit with eed-history prefix" {
+    # Purpose: Verify complete commit workflow in git mode - direct editing and git integration
     local test_content="# Test comment added"
     local commit_msg="add test comment"
-    
+
     create_eed_edit "test.txt" "$test_content"
-    verify_preview_exists "test.txt"
-    
-    commit_changes "test.txt" "$commit_msg"
-    
+    # In git mode, file is modified directly and staged (no preview file)
     verify_file_contains "test.txt" "$test_content"
+
+    commit_changes "test.txt" "$commit_msg"
+
     verify_git_commit_message "$commit_msg"
 }
 
@@ -154,14 +154,14 @@ teardown() {
     assert_output_contains "Use 'commit --help'"
 }
 
-@test "commit script fails when preview file does not exist" {
-    # Purpose: Verify workflow enforcement - commit requires prior eed preview
+@test "commit script fails when no staged changes exist" {
+    # Purpose: Verify workflow enforcement - commit requires prior eed changes
     run "$COMMIT_SCRIPT" test.txt "some message"
     assert_failure
-    
-    assert_output_contains "Preview file test.txt.eed.preview does not exist"
-    assert_output_contains "Run eed first"
-    
+
+    assert_output_contains "No staged changes for test.txt"
+    assert_output_contains "Run 'eed test.txt ...' first"
+
     # Verify original file unchanged
     verify_file_contains "test.txt" "$INITIAL_CONTENT"
 }
@@ -333,26 +333,25 @@ EOF
     create_eed_edit "$subdir_path/subfile.txt" "# Added to subdir file"
     
     # Verify git-aware output (should suggest commit command)
-    assert_output_contains "commit '$subdir_path/subfile.txt'"
+    assert_output_contains "commit \"$subdir_path/subfile.txt\""
 }
 
 @test "commit script maintains atomicity when git operations fail" {
     # Purpose: Verify commit operation is atomic - all changes or no changes
     local test_content="# Content for atomic test"
-    
+
     create_eed_edit "test.txt" "$test_content"
-    verify_preview_exists "test.txt"
-    
+    # In git mode, file is directly modified and staged
+    verify_file_contains "test.txt" "$test_content"
+
     # Simulate git failure by corrupting repository
     rm -rf .git
-    
+
     # Attempt commit - should fail cleanly
     run "$COMMIT_SCRIPT" test.txt "test message"
     assert_failure
     assert_output_contains "Not in a git repository"
-    
-    # Verify atomic failure - preview preserved, original unchanged
-    verify_preview_exists "test.txt"
-    verify_file_not_contains "test.txt" "$test_content"
-    verify_file_contains "test.txt" "$INITIAL_CONTENT"
+
+    # Verify failure state - file remains modified but commit failed
+    verify_file_contains "test.txt" "$test_content"
 }

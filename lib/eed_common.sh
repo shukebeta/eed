@@ -62,6 +62,7 @@ Usage: eed [OPTIONS] <file> [ed_script | -]
 AI-oriented text editor with bulletproof safety guarantees
 
 OPTIONS:
+  -m, --message <msg>  Auto-commit changes with specified message (git repos only)
   --debug         Show detailed debugging information
   --disable-auto-reorder  Disable automatic command reordering
   --undo          Undo last eed-history commit (git reset --hard HEAD~1)
@@ -72,27 +73,41 @@ ARGUMENTS:
   ed_script       Ed commands as string, or '-' to read from stdin
   -               Read ed script from stdin (alternative to ed_script)
 
+WORKFLOW MODES:
+  Git repositories:
+    With -m: Auto-commit mode (edit file → stage → commit automatically)
+    Without -m: Manual commit mode (edit file → stage → show commit instructions)
+
+  Non-git directories:
+    Preview mode (edit → create .eed.preview → show apply instructions)
+
 EXAMPLES:
-  # Preview mode (safe workflow)
+  # Auto-commit mode (git repos)
+  eed -m "Fix validation logic" file.js $'2c\nvalidated input\n.\nw\nq'
+
+  # Manual commit mode (git repos)
+  eed file.js $'2c\nvalidated input\n.\nw\nq'
+  # Then: commit file.js "Fix validation logic"
+
+  # Preview mode (non-git)
   eed file.txt $'1a\nHello\n.\nw\nq'
+  # Then: mv file.txt.eed.preview file.txt
 
-  # Read from stdin
-  echo $'1a\nContent\n.\nw\nq' | eed file.txt -
-
-  # For complex scripts, use heredoc syntax - avoid nested heredocs
-  # (this prevents shell interpretation of the script content)
+  # Read from stdin with heredoc (recommended for complex scripts)
   eed /unix/style/path/to/file - <<'EOF'
   # ed commands here
   w
   q
   EOF
 
-WORKFLOW:
-  1. Validates ed commands for safety
-  2. Automatically creates preview in file.eed.preview
-  3. Shows diff and apply instructions
-  4. Provides clear next steps
-
+SAFETY FEATURES:
+  - Original files never corrupted
+  - Auto-saves uncommitted work before edits
+  - Automatic command reordering
+  - Line number validation
+  - Git integration with undo support
+EOF
+}
 
 # Cross-platform line normalization for Git Bash/Windows compatibility
 # Removes trailing \r characters that cause CRLF issues
@@ -100,14 +115,6 @@ normalize_line() {
     local line="$1"
     # Remove trailing \r if present (CRLF -> LF)
     echo "${line%$'\r'}"
-}
-SAFETY FEATURES:
-  - Original files never corrupted
-  - Preview-first workflow
-  - Automatic command reordering
-  - Line number validation
-  - Git integration
-EOF
 }
 
 # Log ed commands for analysis and debugging
