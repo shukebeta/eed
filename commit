@@ -47,6 +47,10 @@ fi
 if ! git diff --cached --quiet "$TARGET_FILE" 2>/dev/null; then
     # File has staged changes - ready to commit
     echo "Committing staged changes for $TARGET_FILE"
+
+    # Check for other staged files (for transparency)
+    other_staged_files=$(git diff --cached --name-only | grep -v "^$(basename "$TARGET_FILE")$" | grep -v "^$TARGET_FILE$" || true)
+
 else
     echo "Error: No staged changes for $TARGET_FILE" >&2
     echo "Run 'eed $TARGET_FILE ...' first to make changes" >&2
@@ -57,6 +61,15 @@ fi
 git commit -m "eed-history: $COMMIT_MESSAGE" --no-verify
 
 echo "✅ Changes committed: \"$COMMIT_MESSAGE\""
+
+# Transparency notice: inform about other files if present
+if [ -n "$other_staged_files" ]; then
+    echo ""
+    echo "💡 Note: This commit also included other staged files:"
+    echo "$other_staged_files" | sed 's/^/   /'
+    echo "   (This may indicate external changes to the staging area)"
+fi
+
 echo ""
 echo "💡 Next time, save steps with: eed -m '$COMMIT_MESSAGE' $TARGET_FILE ..."
 echo "  To undo: eed --undo"

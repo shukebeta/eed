@@ -324,22 +324,36 @@ if [ "$IS_GIT_REPO" = true ]; then
         # Handle auto-commit vs manual commit
         if [ "$AUTO_COMMIT_MODE" = true ]; then
             # Auto-commit mode: commit and show result
-            # Get relative path from repo root
+            # Get relative path from repo root (cross-platform compatible)
             local relative_path
-            relative_path=$(realpath --relative-to="$REPO_ROOT_FOR_FILE" "$FILE_PATH")
+            relative_path=$(get_relative_path "$FILE_PATH" "$REPO_ROOT_FOR_FILE")
 
             git -C "$REPO_ROOT_FOR_FILE" add "$relative_path"
+
+            # Check for other staged files (for transparency, not blocking)
+            local other_staged_files
+            other_staged_files=$(git -C "$REPO_ROOT_FOR_FILE" diff --cached --name-only | grep -v "^$relative_path$" || true)
+
             git -C "$REPO_ROOT_FOR_FILE" commit -m "eed-history: $COMMIT_MESSAGE" --no-verify
 
             echo "✅ Changes successfully committed. Details below:"
             echo
             git -C "$REPO_ROOT_FOR_FILE" show HEAD
+
+            # Transparency notice: inform about other files if present
+            if [ -n "$other_staged_files" ]; then
+                echo
+                echo "💡 Note: This commit also included other staged files:"
+                echo "$other_staged_files" | sed 's/^/   /'
+                echo "   (This may indicate external tools modified the staging area)"
+            fi
+
             echo
             echo "To undo these changes, run: eed --undo"
         else
             # Manual commit mode: stage changes and show instructions
             local relative_path
-            relative_path=$(realpath --relative-to="$REPO_ROOT_FOR_FILE" "$FILE_PATH")
+            relative_path=$(get_relative_path "$FILE_PATH" "$REPO_ROOT_FOR_FILE")
 
             git -C "$REPO_ROOT_FOR_FILE" add "$relative_path"
             echo "⚠️ You have made the following uncommitted changes:"

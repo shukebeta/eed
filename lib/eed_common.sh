@@ -23,19 +23,19 @@ eed_debug_log() {
     local level="$1"
     local message="$2"
     local show_to_user="${3:-false}"
-    
+
     # Ensure log directory exists
     if [ ! -d "$EED_DEBUG_LOG_DIR" ]; then
         mkdir -p "$EED_DEBUG_LOG_DIR" 2>/dev/null || return 1
     fi
-    
+
     # Format: [timestamp] [level] message
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     # Escape newlines and tabs in message for single-line log entries
     local safe_message="${message//$'\n'/\\n}"
     safe_message="${safe_message//$'\t'/\\t}"
-    
+
     # Always log to file (append mode) - use printf for safe handling of special characters
     if printf '[%s] [%s] %s\n' "$timestamp" "$level" "$safe_message" >> "$EED_DEBUG_LOG_FILE" 2>/dev/null; then
         # Keep log file size reasonable (last 1000 lines)
@@ -47,7 +47,7 @@ eed_debug_log() {
             fi
         fi
     fi
-    
+
     # Optionally show to user (for debug mode or important warnings)
     if [ "$show_to_user" = "true" ]; then
         echo "$message" >&2
@@ -169,22 +169,154 @@ error_exit() {
     local message="$1"
     local exit_code="${2:-1}"
     local second_message="${3:-}"
-    
+
     # Standardized error format
     echo "✗ Error: $message" >&2
-    
+
     # Debug mode: show basic stack info
     if [ "${DEBUG_MODE:-}" = "true" ]; then
         echo "  Location: ${BASH_SOURCE[1]##*/}:${BASH_LINENO[0]} in ${FUNCNAME[1]}()" >&2
     fi
-    
+
     # Handle second message (usage hint or custom message)
     if [ "$second_message" = "true" ]; then
         echo "Use 'eed --help' for usage information" >&2
     elif [ -n "$second_message" ] && [ "$second_message" != "false" ]; then
         echo "$second_message" >&2
     fi
-    
+
     exit "$exit_code"
+}
+
+# Cross-platform relative path calculation (pure Bash)
+# Works on all Unix-like systems without external dependencies
+# Usage: get_relative_path <target_path> <base_path>
+# Returns the relative path from base_path to target_path
+get_relative_path() {
+    if [ $# -ne 2 ]; then
+        echo "usage: get_relative_path <target> <base>" >&2
+        return 1
+    fi
+    local target="$1"
+    local base="$2"
+
+    _normalize_path() {
+        # Converts arbitrary path to an absolute, lexically normalized form (no symlink resolution)
+        # Removes '.', processes '..', collapses multiple slashes
+        local p="$1"
+        local cwd
+        cwd=$(pwd)
+
+        # If empty → treat as "."
+        [ -z "$p" ] && p="."
+
+        # If not absolute, prepend current working directory
+        case "$p" in
+            /*) ;;  # already absolute
+            *) p="$cwd/$p" ;;
+        esac
+
+        # Collapse multiple slashes
+        while [[ "$p" == *'//'* ]]; do p="${p//\/\//\/}"; done
+
+        # Split into components
+        local IFS='/'
+        read -r -a parts <<< "$p"
+
+        local -a stack=()
+        local comp
+        for comp in "${parts[@]}"; do
+            case "$comp" in
+                ''|'.')  # ignore empty (leading slash gives first empty) and '.'
+                    continue
+                    ;;
+                '..')
+                    if [ "${#stack[@]}" -gt 0 ]; then
+                        unset 'stack[${#stack[@]}-1]'
+                    fi
+                    # If stack empty → we are at root; keep ignoring extra ..
+                    ;;
+                *)
+                    stack+=("$comp")
+                    ;;
+            esac
+        done
+
+        # Reconstruct
+        local out="/"
+        if [ "${#stack[@]}" -gt 0 ]; then
+            local joined
+            local IFS='/'
+            joined="${stack[*]}"
+            out="/$joined"
+        fi
+        printf '%s\n' "$out"
+    }
+
+    local norm_target norm_base
+    norm_target=$(_normalize_path "$target")
+    norm_base=$(_normalize_path "$base")
+
+    # Quick identical check
+    if [ "$norm_target" = "$norm_base" ]; then
+        printf '.\n'
+        return 0
+    fi
+
+    # Split paths into component arrays
+    _split_components() {
+        local path="$1"
+        local IFS='/'
+        read -r -a _out <<< "${path#/}"   # strip leading '/'
+    }
+
+    local -a tgt_parts base_parts
+    _split_components "$norm_target"
+    tgt_parts=("${_out[@]}")
+    _split_components "$norm_base"
+    base_parts=("${_out[@]}")
+
+    # Find common prefix length
+    local i max common_len=0
+    local max_t=${#tgt_parts[@]}
+    local max_b=${#base_parts[@]}
+    if [ $max_t -lt $max_b ]; then
+        max=$max_t
+    else
+        max=$max_b
+    fi
+
+    for (( i=0; i<max; i++ )); do
+        if [ "${tgt_parts[i]}" = "${base_parts[i]}" ]; then
+            common_len=$((common_len+1))
+        else
+            break
+        fi
+    done
+
+    # How many levels to go up from base to common
+    local up_count=$(( ${#base_parts[@]} - common_len ))
+    local rel=""
+    local j
+    for (( j=0; j<up_count; j++ )); do
+        if [ -z "$rel" ]; then
+            rel=".."
+        else
+            rel="$rel/.."
+        fi
+    done
+
+    # Append remaining target components
+    local k
+    for (( k=common_len; k<${#tgt_parts[@]}; k++ )); do
+        if [ -z "$rel" ]; then
+            rel="${tgt_parts[k]}"
+        else
+            rel="$rel/${tgt_parts[k]}"
+        fi
+    done
+
+    [ -z "$rel" ] && rel="."   # Defensive fallback
+    printf '%s\n' "$rel"
 }
 
