@@ -39,6 +39,23 @@ DISABLE_AUTO_REORDER="$(parse_boolean "${EED_DISABLE_AUTO_REORDER:-false}")"
 
 # --- Helper Functions ---
 
+# Normalize git repository root path for cross-platform compatibility
+# On Windows/gitbash, git returns Windows-style paths but other commands use Unix-style
+normalize_git_root() {
+    local git_root="$1"
+    if [ -z "$git_root" ]; then
+        echo ""
+        return
+    fi
+
+    # On Windows with gitbash, convert Windows path to Unix format
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -u "$git_root"
+    else
+        echo "$git_root"
+    fi
+}
+
 # Auto-save any uncommitted work in progress before making new edits
 # Assumes we're already in a git repository
 auto_save_work_in_progress() {
@@ -48,6 +65,7 @@ auto_save_work_in_progress() {
     local repo_root
     repo_root=$(git -C "$(dirname "$file_path")" rev-parse --show-toplevel 2>/dev/null)
     if [ -z "$repo_root" ]; then return 0; fi # Not in a git repository
+    repo_root=$(normalize_git_root "$repo_root")
 
     # Auto-save if there are ANY uncommitted changes (working directory OR index)
     # Critical fix: Check both unstaged (working directory) AND staged (index) changes
@@ -93,6 +111,7 @@ while [[ $# -gt 0 ]]; do
                 echo "Error: Not in a git repository" >&2
                 exit 1
             fi
+            repo_root=$(normalize_git_root "$repo_root")
 
             # Find the most recent eed-history commit
             last_eed_commit_hash=""
@@ -282,6 +301,7 @@ fi
 IS_GIT_REPO=false
 REPO_ROOT_FOR_FILE=""
 if REPO_ROOT_FOR_FILE=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null); then
+    REPO_ROOT_FOR_FILE=$(normalize_git_root "$REPO_ROOT_FOR_FILE")
     IS_GIT_REPO=true
 fi
 
