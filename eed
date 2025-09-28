@@ -43,11 +43,17 @@ DISABLE_AUTO_REORDER="$(parse_boolean "${EED_DISABLE_AUTO_REORDER:-false}")"
 # Assumes we're already in a git repository
 auto_save_work_in_progress() {
     local file_path="$1"
-
-    # Auto-save if there are uncommitted changes
-    if ! (cd "$(dirname "$file_path")" && git diff-index --quiet HEAD --); then
+    
+    # Find the git repository root containing the target file
+    local repo_root
+    repo_root=$(git -C "$(dirname "$file_path")" rev-parse --show-toplevel 2>/dev/null)
+    if [ -z "$repo_root" ]; then return 0; fi # Not in a git repository
+    
+    # Auto-save if there are uncommitted changes (check from repo root)
+    if ! git -C "$repo_root" diff-index --quiet HEAD --; then
         echo "Auto-saving work in progress..." >&2
-        (cd "$(dirname "$file_path")" && git add -A && git commit -m "eed-history: WIP auto-save before new edit" --no-verify --quiet)
+        # Add ALL changes from repo root, commit from repo root
+        git -C "$repo_root" add -A && git -C "$repo_root" commit -m "eed-history: WIP auto-save before new edit" --no-verify --quiet
     fi
 }
 
@@ -248,7 +254,8 @@ fi
 
 # Detect if we're in a git repository
 IS_GIT_REPO=false
-if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
+REPO_ROOT_FOR_FILE=""
+if REPO_ROOT_FOR_FILE=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null); then
     IS_GIT_REPO=true
 fi
 
@@ -291,20 +298,27 @@ if [ "$IS_GIT_REPO" = true ]; then
         # Handle auto-commit vs manual commit
         if [ "$AUTO_COMMIT_MODE" = true ]; then
             # Auto-commit mode: commit and show result
-            (cd "$(dirname "$FILE_PATH")" && git add "$(basename "$FILE_PATH")")
-            (cd "$(dirname "$FILE_PATH")" && git commit -m "eed-history: $COMMIT_MESSAGE" --no-verify)
+            # Get relative path from repo root
+            local relative_path
+            relative_path=$(realpath --relative-to="$REPO_ROOT_FOR_FILE" "$FILE_PATH")
+            
+            git -C "$REPO_ROOT_FOR_FILE" add "$relative_path"
+            git -C "$REPO_ROOT_FOR_FILE" commit -m "eed-history: $COMMIT_MESSAGE" --no-verify
 
             echo "✅ Changes successfully committed. Details below:"
             echo
-            (cd "$(dirname "$FILE_PATH")" && git show HEAD)
+            git -C "$REPO_ROOT_FOR_FILE" show HEAD
             echo
             echo "To undo these changes, run: eed --undo"
         else
             # Manual commit mode: stage changes and show instructions
-            (cd "$(dirname "$FILE_PATH")" && git add "$(basename "$FILE_PATH")")
+            local relative_path
+            relative_path=$(realpath --relative-to="$REPO_ROOT_FOR_FILE" "$FILE_PATH")
+            
+            git -C "$REPO_ROOT_FOR_FILE" add "$relative_path"
             echo "⚠️ You have made the following uncommitted changes:"
             echo
-            (cd "$(dirname "$FILE_PATH")" && git diff HEAD "$(basename "$FILE_PATH")")
+            git -C "$REPO_ROOT_FOR_FILE" diff HEAD "$relative_path"
             echo
             echo "To commit: commit \"$FILE_PATH\" \"commit message\""
             echo "To discard: git checkout HEAD \"$FILE_PATH\""
@@ -364,7 +378,7 @@ else
     echo
     echo "To apply these changes, run:"
     # Check if we're in a git repository for enhanced suggestions
-    if (cd "$(dirname "$FILE_PATH")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
+    if [ "$IS_GIT_REPO" = true ]; then
         echo "  commit '$FILE_PATH' \"your commit message\""
     else
         echo "  mv '$PREVIEW_FILE' '$FILE_PATH'"
