@@ -49,8 +49,9 @@ auto_save_work_in_progress() {
     repo_root=$(git -C "$(dirname "$file_path")" rev-parse --show-toplevel 2>/dev/null)
     if [ -z "$repo_root" ]; then return 0; fi # Not in a git repository
 
-    # Auto-save if there are uncommitted changes (check from repo root)
-    if ! git -C "$repo_root" diff-index --quiet HEAD --; then
+    # Auto-save if there are ANY uncommitted changes (working directory OR index)
+    # Critical fix: Check both unstaged (working directory) AND staged (index) changes
+    if ! git -C "$repo_root" diff --quiet || ! git -C "$repo_root" diff --cached --quiet; then
         echo "Auto-saving work in progress..." >&2
         # Add ALL changes from repo root, commit from repo root
         git -C "$repo_root" add -A && git -C "$repo_root" commit -m "eed-history: WIP auto-save before new edit" --no-verify --quiet
