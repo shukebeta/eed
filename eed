@@ -130,7 +130,7 @@ while [[ $# -gt 0 ]]; do
 
             # Perform the revert
             if git -C "$repo_root" revert --no-edit "$last_eed_commit_hash"; then
-                echo "✅ Successfully reverted the eed-history commit."
+                echo "Last eed-history commit undone"
                 echo "   Original commit preserved in history for audit trail."
                 echo "   To undo this revert (restore the changes), run:"
                 echo "     git revert HEAD"

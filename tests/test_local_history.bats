@@ -225,15 +225,15 @@ teardown() {
 }
 
 @test "eed --undo protects against undoing non-eed commits" {
-    # Purpose: Verify safety mechanism prevents accidental undo of manual commits
+    # Purpose: Verify safety mechanism when no eed-history commits exist
     echo "manual change" >> test.txt
     git add test.txt
     git commit -m "manual commit without eed-history prefix"
-    
+
     run "$EED_SCRIPT" --undo
     assert_failure
-    assert_output_contains "Last commit is not an eed-history commit"
-    
+    assert_output_contains "No eed-history commit found to undo"
+
     # Verify file unchanged (safety preserved)
     verify_file_contains "test.txt" "manual change"
 }

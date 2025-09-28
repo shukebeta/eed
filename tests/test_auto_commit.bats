@@ -342,10 +342,10 @@ q"
     run grep -q "Change to be undone" app.py
     [ "$status" -ne 0 ]
 
-    # Git should be back to initial state
+    # Git log should show the revert commit as most recent
     run git log --oneline -1
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Initial commit"* ]]
+    [[ "$output" == *"Revert"* ]]
 }
 
 @test "git repo detection - target file directory not cwd" {
