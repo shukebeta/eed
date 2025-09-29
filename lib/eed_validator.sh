@@ -380,8 +380,8 @@ determine_ordering() {
 }
 
 # Auto-complete missing w/q commands for AI assistance
-# For modifying commands: add missing w and q
-# For view-only commands: add missing q
+# Ensures that the output script ALWAYS has w/q commands, regardless of input
+# This is Stage 1 of the two-stage pipeline: w/q completion → dot termination
 # Note: Dot termination is handled separately by detect_and_fix_unterminated_input
 auto_complete_ed_script() {
     local script="$1"
@@ -401,9 +401,10 @@ auto_complete_ed_script() {
         has_quit=true
     fi
 
-    # Apply auto-completion based on script type
+    # Apply auto-completion based on script type - ensures w/q presence
     case "$script_type" in
         "has_modifying")
+            # For modifying scripts: ensure both w and q are present
             if [ "$has_write" = false ]; then
                 script="$script"$'\nw'
                 needs_completion=true
@@ -424,6 +425,20 @@ auto_complete_ed_script() {
             fi
             ;;
         "view_only")
+            # For view-only scripts: ensure q is present
+            if [ "$has_quit" = false ]; then
+                script="$script"$'\nq'
+                needs_completion=true
+                if [ -n "$completion_message" ]; then
+                    completion_message="$completion_message and q"
+                else
+                    completion_message="q"
+                fi
+            fi
+            ;;
+        *)
+            # For any other script types: add q to ensure safe exit
+            # This is the key enhancement - we don't skip unknown types
             if [ "$has_quit" = false ]; then
                 script="$script"$'\nq'
                 needs_completion=true
@@ -436,7 +451,7 @@ auto_complete_ed_script() {
             ;;
     esac
 
-    # Output results
+    # Output results - guaranteed to have w/q commands
     if [ "$needs_completion" = true ]; then
         echo "AUTO_COMPLETED:$completion_message"
         echo "$script"

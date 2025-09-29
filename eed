@@ -211,8 +211,10 @@ if ! validation_result=$(is_ed_script_valid "$ED_SCRIPT"); then
     exit 1
 fi
 
-# --- Auto-completion for missing w/q commands ---
-# Apply auto-completion BEFORE fixing unterminated input to ensure w/q commands are present
+# --- STAGE 1: Auto-completion for missing w/q commands ---
+# Two-stage pipeline: w/q completion → dot termination
+# Stage 1 ensures w/q commands are present, Stage 2 handles dot termination
+# DON'T CHANGE THE ORDER - Stage 2 depends on Stage 1's guarantees
 SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
 if [ "$SCRIPT_TYPE" != "invalid_command" ]; then
     AUTO_COMPLETION_OUTPUT=$(auto_complete_ed_script "$ED_SCRIPT" "$SCRIPT_TYPE")
@@ -227,7 +229,8 @@ if [ "$SCRIPT_TYPE" != "invalid_command" ]; then
     fi
 fi
 
-# --- Auto-fix unterminated input blocks (a/c/i)
+# --- STAGE 2: Auto-fix unterminated input blocks (a/c/i) ---
+# Stage 2 can safely assume w/q commands exist (guaranteed by Stage 1)
 if ! FIXED_SCRIPT=$(detect_and_fix_unterminated_input "$ED_SCRIPT"); then
     exit 1
 fi

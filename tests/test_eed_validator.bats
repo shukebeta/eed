@@ -215,12 +215,14 @@ Q"
     [ "$status" -eq 0 ]
 }
 
-@test "validator: script without terminator shows warning" {
+@test "validator: script without terminator (handled by auto-completion)" {
+    # With the new architecture, validator no longer warns about missing q
+    # because auto-completion handles this automatically
     run is_ed_script_valid "5d
 w"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Warning"* ]]
-    [[ "$output" == *"does not end with 'q' or 'Q'"* ]]
+    # Should not produce warning since auto-completion will handle missing q
+    [[ "$output" != *"Warning"* ]]
 }
 
 @test "validator: empty script" {

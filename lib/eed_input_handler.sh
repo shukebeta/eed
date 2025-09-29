@@ -10,17 +10,6 @@ EED_INPUT_HANDLER_LOADED=1
 # Source the shared regex patterns
 source "$(dirname "${BASH_SOURCE[0]}")/eed_regex_patterns.sh"
 
-# Check if script contains write/quit commands (helper for main function)
-_has_write_or_quit_commands() {
-    local script="$1"
-    
-    # Return 0 if has w/q commands, 1 if not found
-    if echo "$script" | grep -q -E '^[[:space:]]*[0-9,]*[[:space:]]*[wqQ]([[:space:]]|$)'; then
-        return 0  # Found w/q commands
-    else
-        return 1  # No w/q commands found
-    fi
-}
 
 # Report auto-fix changes to user (helper for main function)  
 _report_auto_fix_warnings() {

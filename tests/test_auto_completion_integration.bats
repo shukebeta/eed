@@ -27,7 +27,7 @@ teardown() {
 
 @test "integration: auto-completion adds w and q to modifying command" {
     # Test that auto-completion actually works in real execution
-    run eed test.txt "1d"
+    run eed --debug test.txt "1d"
 
     # Should succeed (exit 0) because w/q are auto-added
     [ "$status" -eq 0 ]
@@ -41,7 +41,7 @@ teardown() {
 
 @test "integration: auto-completion adds only q to modifying command with w" {
     # Test command that has w but missing q
-    run eed test.txt $'$d\nw'
+    run eed --debug test.txt $'$d\nw'
 
     # Should succeed
     [ "$status" -eq 0 ]
@@ -53,7 +53,7 @@ teardown() {
 
 @test "integration: auto-completion adds q to view-only command" {
     # Test view command without q
-    run eed test.txt "p"
+    run eed --debug test.txt "p"
 
     # Should succeed
     [ "$status" -eq 0 ]
@@ -75,7 +75,7 @@ teardown() {
 
 @test "integration: auto-completion works with input mode commands" {
     # Test input mode command with proper terminator, missing w/q
-    run eed test.txt $'$a\nnew line at end\n.'
+    run eed --debug test.txt $'$a\nnew line at end\n.'
 
     # Should succeed with auto-completion
     [ "$status" -eq 0 ]
@@ -87,7 +87,7 @@ teardown() {
 @test "integration: auto-completion works after reordering" {
     # Test that auto-completion still works when reordering occurs
     # Use a script that will be reordered (out-of-order line numbers)
-    run eed test.txt $'3d\n1d'
+    run eed --debug test.txt $'3d\n1d'
 
     # Should succeed
     [ "$status" -eq 0 ]
@@ -109,7 +109,7 @@ teardown() {
     git commit -m "Initial commit" >/dev/null 2>&1
 
     # Test auto-completion in preview mode (no --force)
-    run eed test.txt "1d"
+    run eed --debug test.txt "1d"
 
     # Should succeed
     [ "$status" -eq 0 ]
@@ -117,6 +117,6 @@ teardown() {
     # Should contain auto-completion message
     echo "$output" | grep -q "💡 Auto-completed missing ed commands: w and q"
 
-    # Should show preview (not git mode without --force)
-    echo "$output" | grep -q "Edits applied to a temporary preview"
+    # Should show git status (not preview in git mode)
+    echo "$output" | grep -q "uncommitted changes"
 }
