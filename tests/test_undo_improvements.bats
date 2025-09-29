@@ -51,7 +51,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Update greeting" script.js'
     # Now undo the change
     run "$BATS_TEST_DIRNAME"/../eed --undo
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Successfully reverted the eed-history commit"* ]]
+    [[ "$output" == *"Last eed-history commit undone"* ]]
     [[ "$output" == *"Original commit preserved in history"* ]]
 
     # Verify the file content is reverted
@@ -97,7 +97,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Add comment" script.js'
     # Now undo - should find the eed-history commit despite intermediate commits
     run "$BATS_TEST_DIRNAME"/../eed --undo
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Successfully reverted the eed-history commit"* ]]
+    [[ "$output" == *"Last eed-history commit undone"* ]]
 
     # Verify the eed change is reverted but manual commits remain
     run cat script.js
@@ -133,7 +133,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Add from subdir" ../script.js'
     # Undo from subdirectory
     run "$BATS_TEST_DIRNAME"/../eed --undo
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Successfully reverted"* ]]
+    [[ "$output" == *"Last eed-history commit undone"* ]]
 
     # Verify change was reverted
     run cat ../script.js

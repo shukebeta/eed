@@ -44,10 +44,14 @@ q"
   [ "$status" -eq 0 ]
 }
 
-@test "unterminated input block without w/q command errors" {
-  run "$SCRIPT_UNDER_TEST" newfile.txt "1a
-line
-EOF"
-  [ "$status" -ne 0 ]
-  [ ! -f newfile.txt.eed.preview ]
+@test "unterminated input block without w/q auto-completed and fixed" {
+  # With new architecture, auto-completion adds q and auto-fix adds dot
+  run "$SCRIPT_UNDER_TEST" --debug newfile.txt "1a
+line"
+  [ "$status" -eq 0 ]
+  # Should have auto-completion message (modifying script needs w and q)
+  [[ "$output" == *"Auto-completed missing ed commands: w and q"* ]]
+  # Should have auto-fix message
+  [[ "$output" == *"Auto-fix: inserted missing '.'"* ]]
+  [ -f newfile.txt.eed.preview ]
 }

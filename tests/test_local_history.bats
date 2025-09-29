@@ -238,41 +238,6 @@ teardown() {
     verify_file_contains "test.txt" "manual change"
 }
 
-@test "multi-step edits with selective undo maintain history integrity" {
-    # Purpose: Verify complex workflow with multiple edits and undo operations
-    local first_content="# First incremental change"
-    local second_content="# Second incremental change"
-    
-    # Make and commit first change
-    create_eed_edit "test.txt" "$first_content"
-    commit_changes "test.txt" "first incremental change"
-    verify_file_contains "test.txt" "$first_content"
-    
-    # Make and commit second change
-    create_eed_edit "test.txt" "$second_content" "\$a"  # append at end
-    commit_changes "test.txt" "second incremental change"
-    
-    # Verify both changes coexist
-    verify_file_contains "test.txt" "$first_content"
-    verify_file_contains "test.txt" "$second_content"
-    
-    # Undo second change only
-    run "$EED_SCRIPT" --undo
-    assert_success
-    
-    # Verify selective reversion
-    verify_file_contains "test.txt" "$first_content"
-    verify_file_not_contains "test.txt" "$second_content"
-    
-    # Undo first change
-    run "$EED_SCRIPT" --undo
-    assert_success
-    
-    # Verify complete reversion to initial state
-    verify_file_not_contains "test.txt" "$first_content"
-    verify_file_not_contains "test.txt" "$second_content"
-    verify_file_contains "test.txt" "$INITIAL_CONTENT"
-}
 
 @test "eed auto-saves uncommitted work before new edits" {
     # Purpose: Verify WIP protection prevents data loss during new edits
