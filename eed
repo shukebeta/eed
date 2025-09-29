@@ -222,8 +222,7 @@ if [ "$SCRIPT_TYPE" != "invalid_command" ]; then
     # Handle auto-completion results
     if [[ "$AUTO_COMPLETION_STATUS" == AUTO_COMPLETED:* ]]; then
         COMPLETION_DETAILS="${AUTO_COMPLETION_STATUS#AUTO_COMPLETED:}"
-        [ "$DEBUG_MODE" = true ] && echo "Debug mode: auto-completed missing commands: $COMPLETION_DETAILS" >&2
-        echo "💡 Auto-completed missing ed commands: $COMPLETION_DETAILS" >&2
+        [ "$DEBUG_MODE" = true ] && echo "💡 Auto-completed missing ed commands: $COMPLETION_DETAILS" >&2
         ED_SCRIPT="$AUTO_COMPLETED_SCRIPT"
     fi
 fi

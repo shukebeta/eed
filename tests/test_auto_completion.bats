@@ -27,7 +27,7 @@ teardown() {
 # Test auto-completion for modifying commands missing w/q
 @test "auto-completion: modifying command missing w and q" {
     # Test a delete command without w/q - this is simpler and clearer
-    run eed test.txt "1d"
+    run eed --debug test.txt "1d"
 
     # Should succeed because w/q are auto-added
     [ "$status" -eq 0 ]
@@ -38,8 +38,7 @@ teardown() {
 
 @test "auto-completion: modifying command missing only q" {
     # Test a command with w but missing q
-    run eed test.txt $'$d\nw'
-
+    run eed --debug test.txt $'$d\nw'
     # Should succeed because q is auto-added
     [ "$status" -eq 0 ]
 
@@ -50,8 +49,7 @@ teardown() {
 
 @test "auto-completion: view-only command missing q" {
     # Test a view command without q
-    run eed test.txt "p"
-
+    run eed --debug test.txt "p"
     # Should succeed because q is auto-added
     [ "$status" -eq 0 ]
 
@@ -61,7 +59,7 @@ teardown() {
 
 @test "auto-completion: complete script needs no completion" {
     # Test a complete script that doesn't need auto-completion
-    run eed test.txt $'$d\nw\nq'
+    run eed --debug test.txt $'$d\nw\nq'
 
     # Should succeed without auto-completion
     [ "$status" -eq 0 ]
@@ -72,7 +70,7 @@ teardown() {
 
 @test "auto-completion: view-only complete script needs no completion" {
     # Test a complete view-only script that doesn't need auto-completion
-    run eed test.txt $'p\nq'
+    run eed --debug test.txt $'p\nq'
 
     # Should succeed without auto-completion
     [ "$status" -eq 0 ]
@@ -83,8 +81,7 @@ teardown() {
 
 @test "auto-completion: multi-line modifying script" {
     # Test a complex modifying script missing w/q
-    run eed test.txt $'1d\n$d'
-
+    run eed --debug test.txt $'1d\n$d'
     # Should succeed with auto-completion
     [ "$status" -eq 0 ]
 
@@ -94,7 +91,7 @@ teardown() {
 
 @test "auto-completion: preserves existing q in mixed case" {
     # Test that Q (uppercase quit) is respected
-    run eed test.txt $'$d\nw\nQ'
+    run eed --debug test.txt $'$d\nw\nQ'
 
     # Should succeed without auto-completion
     [ "$status" -eq 0 ]
@@ -105,8 +102,7 @@ teardown() {
 
 @test "auto-completion: handles input mode commands correctly" {
     # Test input mode commands (a, i, c) that need terminating dots
-    run eed test.txt $'$a\nnew line at end\n.'
-
+    run eed --debug test.txt $'$a\nnew line at end\n.'
     # Should succeed with auto-completion of w/q
     [ "$status" -eq 0 ]
 
@@ -116,8 +112,7 @@ teardown() {
 
 @test "auto-completion: works with unterminated input mode" {
     # Test input mode command missing terminating dot
-    run eed test.txt $'$a\nnew line at end'
-
+    run eed --debug test.txt $'$a\nnew line at end'
     # Should succeed with auto-completion of w/q and auto-fix of dot
     [ "$status" -eq 0 ]
 
@@ -130,8 +125,7 @@ teardown() {
 
 @test "auto-completion: handles multiple unclosed input modes" {
     # Test multiple input commands missing terminators
-    run eed test.txt $'$a\nnew line at end\n1i\ninserted at beginning'
-
+    run eed --debug test.txt $'$a\nnew line at end\n1i\ninserted at beginning'
     # Should succeed with auto-completion of two dots, w, and q
     [ "$status" -eq 0 ]
 
@@ -141,7 +135,7 @@ teardown() {
 
 @test "auto-completion: properly nested input modes" {
     # Test properly terminated input mode - should not add extra dots
-    run eed test.txt $'$a\nnew line at end\n.\n1i\ninserted at beginning\n.'
+    run eed --debug test.txt $'$a\nnew line at end\n.\n1i\ninserted at beginning\n.'
 
     # Should succeed with auto-completion of only w and q
     [ "$status" -eq 0 ]
