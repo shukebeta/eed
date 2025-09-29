@@ -36,19 +36,9 @@ _report_auto_fix_warnings() {
 }
 
 # Detect and auto-fix unterminated input blocks (a/c/i) by inserting a '.' where needed.
-# Rules:
-#  - Only auto-insert '.' when there is a write/quit (w or q) somewhere in the script
-#  - If no w/q is present, refuse to auto-fix to avoid masking script truncation errors
+# Note: Auto-completion ensures w/q commands are always present, so we can safely auto-fix
 detect_and_fix_unterminated_input() {
     local script="$1"
-
-    # Pre-scan: does the script contain any write/quit commands?
-    local has_wq=0
-    if _has_write_or_quit_commands "$script"; then
-        has_wq=1  # Found w/q commands
-    else
-        has_wq=0  # No w/q commands
-    fi
 
     local in_input=false
     local changed=0
@@ -87,18 +77,10 @@ detect_and_fix_unterminated_input() {
         fi
     done <<< "$script"
 
-    # If file ended while still in input mode:
+    # If file ended while still in input mode, auto-insert terminator
     if [ "$in_input" = true ]; then
-        # Only auto-insert terminator if there is a write/quit somewhere in the script.
-        if [ "$has_wq" -eq 1 ]; then
-            out_lines+=(".")
-            changed=1
-        else
-            echo "✗ Unterminated input block detected and no write/quit command present — refusing to auto-fix." >&2
-            echo "   This often indicates heredoc truncation or mis-nested heredocs. Please add a terminating '.'" >&2
-            echo "   or include an explicit write/quit command if you intend to save/quit." >&2
-            return 1
-        fi
+        out_lines+=(".")
+        changed=1
     fi
 
     # Report any changes made to user

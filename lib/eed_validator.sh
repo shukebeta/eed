@@ -68,11 +68,8 @@ is_ed_script_valid() {
         return 0  # Success but no operations
     fi
 
-    # Check if script ends with 'q' or 'Q' command
-    if ! echo "$script" | grep -q '[qQ]$'; then
-        echo "Warning: Ed script does not end with 'q' or 'Q' command" >&2
-        # Don't fail - just warn, as user might intentionally want this
-    fi
+    # Note: Auto-completion will add missing q commands automatically
+    # No need to check for q/Q commands here
 
     return 0
 }
@@ -379,5 +376,72 @@ determine_ordering() {
         echo "ascending"
     else
         echo "unordered"
+    fi
+}
+
+# Auto-complete missing w/q commands for AI assistance
+# For modifying commands: add missing w and q
+# For view-only commands: add missing q
+# Note: Dot termination is handled separately by detect_and_fix_unterminated_input
+auto_complete_ed_script() {
+    local script="$1"
+    local script_type="$2"
+    local needs_completion=false
+    local completion_message=""
+
+    # Check if script already has write command
+    local has_write=false
+    if echo "$script" | grep -q "^w$\|^w "; then
+        has_write=true
+    fi
+
+    # Check if script already has quit command (q or Q)
+    local has_quit=false
+    if echo "$script" | grep -q "^[qQ]$"; then
+        has_quit=true
+    fi
+
+    # Apply auto-completion based on script type
+    case "$script_type" in
+        "has_modifying")
+            if [ "$has_write" = false ]; then
+                script="$script"$'\nw'
+                needs_completion=true
+                if [ -n "$completion_message" ]; then
+                    completion_message="$completion_message and w"
+                else
+                    completion_message="w"
+                fi
+            fi
+            if [ "$has_quit" = false ]; then
+                script="$script"$'\nq'
+                needs_completion=true
+                if [ -n "$completion_message" ]; then
+                    completion_message="$completion_message and q"
+                else
+                    completion_message="q"
+                fi
+            fi
+            ;;
+        "view_only")
+            if [ "$has_quit" = false ]; then
+                script="$script"$'\nq'
+                needs_completion=true
+                if [ -n "$completion_message" ]; then
+                    completion_message="$completion_message and q"
+                else
+                    completion_message="q"
+                fi
+            fi
+            ;;
+    esac
+
+    # Output results
+    if [ "$needs_completion" = true ]; then
+        echo "AUTO_COMPLETED:$completion_message"
+        echo "$script"
+    else
+        echo "NO_COMPLETION"
+        echo "$script"
     fi
 }

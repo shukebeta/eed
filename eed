@@ -203,10 +203,29 @@ if [ "$DEBUG_MODE" = true ]; then
 fi
 
 
+# Note: Auto-completion will be applied after reordering to preserve changes
+
 # --- Script Validation ---
 if ! validation_result=$(is_ed_script_valid "$ED_SCRIPT"); then
     echo "$validation_result" >&2
     exit 1
+fi
+
+# --- Auto-completion for missing w/q commands ---
+# Apply auto-completion BEFORE fixing unterminated input to ensure w/q commands are present
+SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
+if [ "$SCRIPT_TYPE" != "invalid_command" ]; then
+    AUTO_COMPLETION_OUTPUT=$(auto_complete_ed_script "$ED_SCRIPT" "$SCRIPT_TYPE")
+    AUTO_COMPLETION_STATUS=$(echo "$AUTO_COMPLETION_OUTPUT" | head -n1)
+    AUTO_COMPLETED_SCRIPT=$(echo "$AUTO_COMPLETION_OUTPUT" | tail -n+2)
+
+    # Handle auto-completion results
+    if [[ "$AUTO_COMPLETION_STATUS" == AUTO_COMPLETED:* ]]; then
+        COMPLETION_DETAILS="${AUTO_COMPLETION_STATUS#AUTO_COMPLETED:}"
+        [ "$DEBUG_MODE" = true ] && echo "Debug mode: auto-completed missing commands: $COMPLETION_DETAILS" >&2
+        echo "💡 Auto-completed missing ed commands: $COMPLETION_DETAILS" >&2
+        ED_SCRIPT="$AUTO_COMPLETED_SCRIPT"
+    fi
 fi
 
 # --- Auto-fix unterminated input blocks (a/c/i)
@@ -281,6 +300,8 @@ if [ "$DISABLE_AUTO_REORDER" = "false" ]; then
     # Always succeed after reordering (treat as normal operation)
     true
 fi
+
+# Note: Auto-completion was applied earlier before input block fixing
 
 # File creation happens later, after validation passes
 
