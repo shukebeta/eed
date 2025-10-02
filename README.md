@@ -16,14 +16,32 @@ eed is an AI-oriented text editor designed for programmatic collaboration with A
 
 Quick usage
 ```
-eed <file> <ed_script>
+eed [OPTIONS] <file> {SCRIPT|-}
 
-# Example (quoted heredoc, recommended)
-eed file.txt - <<'EOF'
-5d
+# Examples (preferred order):
+
+# 1) Auto-commit mode for git repositories (recommended for git)
+# Use -m to apply edits and create an atomic commit
+# Example:
+eed -m "Remove first line" path/to/file - <<'EOF'
+1d
 w
 q
 EOF
+
+# 2) Quoted heredoc with explicit `-` (preferred for non-git preview workflows)
+# Example:
+eed path/to/file - <<'EOF'
+1d
+w
+q
+EOF
+
+# 3) Pipe (explicit stdin - script-friendly)
+# Example:
+printf '1d\nw\nq\n' | eed path/to/file -
+
+# Note: eed supports a forgiving stdin mode if '-' is omitted when piping, but prefer explicit '-' in scripts for clarity.
 ```
 
 ## Recent Improvements (v2.1)
