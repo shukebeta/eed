@@ -320,3 +320,81 @@ get_relative_path() {
     printf '%s\n' "$rel"
 }
 
+
+# Robust boolean parsing: accepts true/false (recommended) and 1/0 (compatibility)
+parse_boolean() {
+    local value="$1"
+    if [ "$value" = "true" ] || [ "$value" = "1" ]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+}
+
+
+# Execute preview mode: Create preview file and show diff
+# Parameters: file_path, preview_file, ed_script, is_git_repo, debug_mode
+execute_preview_mode() {
+    local file_path="$1"
+    local preview_file="$2"
+    local ed_script="$3"
+    local is_git_repo="$4"
+    local debug_mode="$5"
+
+    # Create file if it doesn't exist (after all validation passes)
+    if [ ! -f "$file_path" ]; then
+        mkdir -p "$(dirname "$file_path")"
+        echo "" > "$file_path"
+        echo "Creating new file: $file_path" >&2
+    fi
+
+    # Copy file and execute ed
+    cp "$file_path" "$preview_file"
+
+    if [ "$debug_mode" = true ]; then
+        echo "Debug mode: executing ed" >&2
+    fi
+
+    if ! printf '%s\n' "$ed_script" | ed -s "$preview_file"; then
+        echo "✗ Edit command failed" >&2
+        echo "  No changes were made to the original file." >&2
+        echo "Commands attempted:" >&2
+        printf '%s\n' "$ed_script" >&2
+        rm -f "$preview_file"
+        exit 1
+    fi
+
+    # Show preview results
+    echo "✨ Edits applied to a temporary preview. Review the changes below:"
+    echo
+
+    if diff -q "$file_path" "$preview_file" >/dev/null 2>&1; then
+        echo "No changes were made to the file content."
+        # Don't remove preview file, keep it around for test verification
+        if [ "$debug_mode" = true ]; then
+            echo "Debug mode: No changes needed, preview file kept" >&2
+        fi
+    else
+        # Show the diff using git diff for better formatting
+        if command -v git >/dev/null 2>&1; then
+            # Show diff and ignore status since finding changes returns 1
+            git diff --no-index --no-prefix "$file_path" "$preview_file" || true
+        else
+            # Show diff and ignore exit status since differences cause non-zero
+            diff -u "$file_path" "$preview_file" || true
+        fi
+
+        echo
+        echo "To apply these changes, run:"
+        # Check if we're in a git repository for enhanced suggestions
+        if [ "$is_git_repo" = true ]; then
+            echo "  commit '$file_path' \"your commit message\""
+        else
+            echo "  mv '$preview_file' '$file_path'"
+        fi
+
+        echo
+        echo "To discard these changes, run:"
+        echo "  rm '$preview_file'"
+    fi
+}

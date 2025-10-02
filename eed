@@ -9,7 +9,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$REPO_ROOT/lib/eed_common.sh"
+
+# Source git-specific operations
+source "$REPO_ROOT/lib/eed_git.sh"
+
 source "$REPO_ROOT/lib/eed_validator.sh"
+
 source "$REPO_ROOT/lib/eed_auto_fix_unescaped_slashes.sh"
 
 # --- Variable Precedence System ---
@@ -21,60 +26,10 @@ source "$REPO_ROOT/lib/eed_auto_fix_unescaped_slashes.sh"
 #
 # Boolean Values: Recommended: true/false (strings). Compatibility: 1/0 also accepted.
 # Note: EED_FORCE_OVERRIDE is emergency-only and bypasses all safety checks
-
-# Robust boolean parsing: accepts true/false (recommended) and 1/0 (compatibility)
-parse_boolean() {
-    local value="$1"
-    if [ "$value" = "true" ] || [ "$value" = "1" ]; then
-        echo "true"
-    else
-        echo "false"
-    fi
-}
-
 DEBUG_MODE="$(parse_boolean "${EED_DEBUG:-false}")"
 DISABLE_AUTO_REORDER="$(parse_boolean "${EED_DISABLE_AUTO_REORDER:-false}")"
 
 
-
-# --- Helper Functions ---
-
-# Normalize git repository root path for cross-platform compatibility
-# On Windows/gitbash, git returns Windows-style paths but other commands use Unix-style
-normalize_git_root() {
-    local git_root="$1"
-    if [ -z "$git_root" ]; then
-        echo ""
-        return
-    fi
-
-    # On Windows with gitbash, convert Windows path to Unix format
-    if command -v cygpath >/dev/null 2>&1; then
-        cygpath -u "$git_root"
-    else
-        echo "$git_root"
-    fi
-}
-
-# Auto-save any uncommitted work in progress before making new edits
-# Assumes we're already in a git repository
-auto_save_work_in_progress() {
-    local file_path="$1"
-
-    # Find the git repository root containing the target file
-    local repo_root
-    repo_root=$(git -C "$(dirname "$file_path")" rev-parse --show-toplevel 2>/dev/null)
-    if [ -z "$repo_root" ]; then return 0; fi # Not in a git repository
-    repo_root=$(normalize_git_root "$repo_root")
-
-    # Auto-save if there are ANY uncommitted changes (working directory OR index)
-    # Critical fix: Check both unstaged (working directory) AND staged (index) changes
-    if ! git -C "$repo_root" diff --quiet || ! git -C "$repo_root" diff --cached --quiet; then
-        echo "Auto-saving work in progress..." >&2
-        # Add ALL changes from repo root, commit from repo root
-        git -C "$repo_root" add -A && git -C "$repo_root" commit -m "eed-history: WIP auto-save before new edit" --no-verify --quiet
-    fi
-}
 
 # --- Argument Parsing ---
 # CLI arguments override environment variables
@@ -103,45 +58,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --undo)
-            # Undo last eed-history commit using git revert (non-destructive)
-
-            # Find git repository root from current directory
-            repo_root=""
-            if ! repo_root=$(git rev-parse --show-toplevel 2>/dev/null); then
-                echo "Error: Not in a git repository" >&2
-                exit 1
-            fi
-            repo_root=$(normalize_git_root "$repo_root")
-
-            # Find the most recent eed-history commit
-            last_eed_commit_hash=""
-            last_eed_commit_hash=$(git -C "$repo_root" log --grep="eed-history:" --format=%H -n 1)
-
-            if [ -z "$last_eed_commit_hash" ]; then
-                echo "Error: No eed-history commit found to undo" >&2
-                echo "Use 'git log --grep=\"eed-history:\"' to see all eed commits" >&2
-                exit 1
-            fi
-
-            # Show what will be reverted
-            echo "Found eed-history commit to revert:"
-            git -C "$repo_root" log --oneline -1 "$last_eed_commit_hash"
-            echo
-
-            # Perform the revert
-            if git -C "$repo_root" revert --no-edit "$last_eed_commit_hash"; then
-                echo "Last eed-history commit undone"
-                echo "   Original commit preserved in history for audit trail."
-                echo "   To undo this revert (restore the changes), run:"
-                echo "     git revert HEAD"
-            else
-                echo "❌ git revert failed. This may be due to merge conflicts." >&2
-                echo "   Please resolve conflicts manually and complete the revert:" >&2
-                echo "     git revert --continue  (after resolving conflicts)" >&2
-                echo "     git revert --abort     (to cancel the revert)" >&2
-                exit 1
-            fi
-            exit 0
+            handle_undo_command
             ;;
         --help|-h)
             show_help
@@ -330,144 +247,10 @@ fi
 
 # For modifying commands, choose execution mode
 if [ "$IS_GIT_REPO" = true ]; then
-    # Git mode: Direct file editing (no preview file)
-    execute_git_mode() {
-        # Create file if it doesn't exist
-        if [ ! -f "$FILE_PATH" ]; then
-            mkdir -p "$(dirname "$FILE_PATH")"
-            echo "" > "$FILE_PATH"
-            echo "Creating new file: $FILE_PATH" >&2
-        fi
-
-        # Auto-save work in progress if there are uncommitted changes
-        auto_save_work_in_progress "$FILE_PATH"
-
-        # Store original content for rollback if needed
-        local original_content
-        original_content=$(cat "$FILE_PATH")
-
-        # Execute ed commands directly on the file
-        if [ "$DEBUG_MODE" = true ]; then
-            echo "Debug mode: executing ed on file directly" >&2
-        fi
-
-        if ! printf '%s\n' "$ED_SCRIPT" | ed -s "$FILE_PATH"; then
-            echo "✗ Edit command failed" >&2
-            echo "  Restoring original file content." >&2
-            echo "$original_content" > "$FILE_PATH"
-            exit 1
-        fi
-
-        # Check if any changes were made
-        if diff -q <(echo "$original_content") "$FILE_PATH" >/dev/null 2>&1; then
-            echo "No changes were made to the file content."
-            exit 0
-        fi
-
-        # Handle auto-commit vs manual commit
-        if [ "$AUTO_COMMIT_MODE" = true ]; then
-            # Auto-commit mode: commit and show result
-            # Get relative path from repo root (cross-platform compatible)
-            local relative_path
-            relative_path=$(get_relative_path "$FILE_PATH" "$REPO_ROOT_FOR_FILE")
-
-            git -C "$REPO_ROOT_FOR_FILE" add "$relative_path"
-
-            # Check for other staged files (for transparency, not blocking)
-            local other_staged_files
-            other_staged_files=$(git -C "$REPO_ROOT_FOR_FILE" diff --cached --name-only | grep -v "^$relative_path$" || true)
-
-            git -C "$REPO_ROOT_FOR_FILE" commit -m "eed-history: $COMMIT_MESSAGE" --no-verify
-
-            echo "✅ Changes successfully committed. Details below:"
-            echo
-            git -C "$REPO_ROOT_FOR_FILE" show HEAD
-
-            # Transparency notice: inform about other files if present
-            if [ -n "$other_staged_files" ]; then
-                echo
-                echo "💡 Note: This commit also included other staged files:"
-                echo "$other_staged_files" | sed 's/^/   /'
-                echo "   (This may indicate external tools modified the staging area)"
-            fi
-
-            echo
-            echo "To undo these changes, run: eed --undo"
-        else
-            # Manual commit mode: stage changes and show instructions
-            local relative_path
-            relative_path=$(get_relative_path "$FILE_PATH" "$REPO_ROOT_FOR_FILE")
-
-            git -C "$REPO_ROOT_FOR_FILE" add "$relative_path"
-            echo "⚠️ You have made the following uncommitted changes:"
-            echo
-            git -C "$REPO_ROOT_FOR_FILE" diff HEAD "$relative_path"
-            echo
-            echo "To commit: commit \"$FILE_PATH\" \"commit message\""
-            echo "To discard: git checkout HEAD \"$FILE_PATH\""
-        fi
-    }
-    execute_git_mode
+    execute_git_mode "$FILE_PATH" "$ED_SCRIPT" "$REPO_ROOT_FOR_FILE" "$AUTO_COMMIT_MODE" "$COMMIT_MESSAGE" "$DEBUG_MODE"
     exit 0
 else
     # Preview mode: Traditional workflow with preview file
     PREVIEW_FILE="${FILE_PATH}.eed.preview"
-fi
-
-# Create file if it doesn't exist (after all validation passes)
-if [ ! -f "$FILE_PATH" ]; then
-    mkdir -p "$(dirname "$FILE_PATH")"
-    echo "" > "$FILE_PATH"
-    echo "Creating new file: $FILE_PATH" >&2
-fi
-
-
-# Copy file and execute ed
-cp "$FILE_PATH" "$PREVIEW_FILE"
-
-if [ "$DEBUG_MODE" = true ]; then
-    echo "Debug mode: executing ed" >&2
-fi
-
-if ! printf '%s\n' "$ED_SCRIPT" | ed -s "$PREVIEW_FILE"; then
-    echo "✗ Edit command failed" >&2
-    echo "  No changes were made to the original file." >&2
-    echo "Commands attempted:" >&2
-    printf '%s\n' "$ED_SCRIPT" >&2
-    rm -f "$PREVIEW_FILE"
-    exit 1
-fi
-
-# --- Preview Mode Workflow ---
-echo "✨ Edits applied to a temporary preview. Review the changes below:"
-echo
-
-if diff -q "$FILE_PATH" "$PREVIEW_FILE" >/dev/null 2>&1; then
-    echo "No changes were made to the file content."
-    # Don't remove preview file, keep it around for test verification
-    if [ "$DEBUG_MODE" = true ]; then
-        echo "Debug mode: No changes needed, preview file kept" >&2
-    fi
-else
-    # Show the diff using git diff for better formatting
-    if command -v git >/dev/null 2>&1; then
-        # Show diff and ignore status since finding changes returns 1
-        git diff --no-index --no-prefix "$FILE_PATH" "$PREVIEW_FILE" || true
-    else
-        # Show diff and ignore exit status since differences cause non-zero
-        diff -u "$FILE_PATH" "$PREVIEW_FILE" || true
-    fi
-
-    echo
-    echo "To apply these changes, run:"
-    # Check if we're in a git repository for enhanced suggestions
-    if [ "$IS_GIT_REPO" = true ]; then
-        echo "  commit '$FILE_PATH' \"your commit message\""
-    else
-        echo "  mv '$PREVIEW_FILE' '$FILE_PATH'"
-    fi
-
-    echo
-    echo "To discard these changes, run:"
-    echo "  rm '$PREVIEW_FILE'"
+    execute_preview_mode "$FILE_PATH" "$PREVIEW_FILE" "$ED_SCRIPT" "$IS_GIT_REPO" "$DEBUG_MODE"
 fi
