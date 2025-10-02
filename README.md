@@ -4,11 +4,14 @@ eed is an AI-oriented text editor designed for programmatic collaboration with A
 
 ## Key Features
 
-- **Preview-Confirm Workflow (default)**: Edits are written to `<file>.eed.preview` for review; use `--force` to apply directly
-- **Automatic Safety & Reordering**: Intelligently reorders line operations to avoid conflicts and detects unsafe patterns
-- **Smart Git Integration**: Auto-stages changes in force mode, suggests staging commands in preview mode
-- **Bulletproof Error Handling**: Original files are never corrupted, even when edit operations fail
-- **Intelligent Diff Display**: Uses `git diff --no-index` for superior code movement visualization
+- **Preview-Confirm Workflow (default)**: Edits are written to `<file>.eed.preview` for review. In git repositories prefer auto-commit mode using `-m "message"` which applies edits and creates an atomic git commit.
+- **Local History & Atomic Commits**: Auto-saves WIP, provides a `commit` command to apply preview files and create commits prefixed with `eed-history:`, and supports `--undo` to revert the last eed-history commit safely.
+- **Automatic Safety & Reordering**: Intelligently reorders line operations to avoid conflicts and detects unsafe patterns.
+- **Auto-completion & Auto-fix**: Auto-completes missing `w`/`q` commands and auto-fixes common issues (such as unescaped slashes and unterminated input blocks).
+- **Cross-platform Compatibility**: Normalizes paths and improves Git Bash/Windows support.
+- **Smart Git Integration**: Auto-stages changes when using auto-commit and provides clear apply instructions in preview mode.
+- **Bulletproof Error Handling**: Original files are never corrupted, even when edit operations fail.
+- **Intelligent Diff Display**: Uses `git diff --no-index` for superior code movement visualization.
 - **Shell-Safe Invocation**: Use quoted heredocs to prevent shell expansion and preserve literal ed scripts
 
 Quick usage
