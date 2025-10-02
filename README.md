@@ -52,19 +52,19 @@ printf '1d\nw\nq\n' | eed path/to/file -
 - **Enhanced testing**: Added comprehensive tests to ensure file safety under all failure scenarios
 
 ### 🎯 Unified Editing Strategy
-Both preview and force modes use a consistent workflow:
-- **Preview mode**: Edit preview file → Show intelligent diff → Manual apply with git staging guidance
-- **Force mode**: Edit preview file → Auto-apply → Automatic git staging in repos
+Consistent workflows simplify both safe experimentation and fast iterations:
+- **Preview mode (default / non-git or explicit preview)**: Edits are written to a preview file (`<file>.eed.preview`) for review; inspect the diff and apply with the `commit` helper or discard the preview file.
+- **Auto-commit mode (recommended inside git repos)**: Use `-m "message"` (or `--message`) to apply edits and create an atomic git commit; eed will auto-stage the changed file(s) and run `git commit` with the provided message.
 
 ### 🚀 Proactive Git Integration
-- **Force mode**: Automatically executes `git add` after successful edits in git repositories
-- **Preview mode**: Shows complete apply command including git staging when in repos
-- **Smart detection**: Only activates git features when actually inside a git repository
+- **Auto-commit (-m)**: When inside a git repository and `-m` is provided, eed auto-stages and commits edits in an atomic `eed-history:` commit.
+- **Preview mode (in repos)**: eed still creates a preview file and prints an explicit `commit <file> "message"` command to apply changes; this preserves the preview-confirm workflow even in repos.
+- **Smart detection**: Git behaviors only activate when eed detects a git repository for the target file.
 
 ### 🧠 Intelligent Script Processing
-- **Auto-reordering**: Automatically reorders ascending line operations to prevent conflicts
-- **Complex pattern detection**: Identifies potentially unsafe scripts and provides safety guidance
-- **Override support**: Use `EED_FORCE_OVERRIDE=true` to bypass safety checks when needed
+- **Auto-reordering**: Automatically reorders ascending line-number edits to prevent positional conflicts when safe to do so.
+- **Complex pattern detection**: Identifies potentially unsafe scripts (global commands, overlapping ranges, move operations) and disables automatic reordering with guidance for the user.
+- **Emergency override (use with extreme caution)**: An environment variable `EED_FORCE_OVERRIDE` exists for emergency situations to bypass safety checks; this is not recommended for normal workflows.
 
 ### 📊 Enhanced Preview Experience
 - **Intelligent diff**: Uses `git diff --no-index` for superior code movement visualization
