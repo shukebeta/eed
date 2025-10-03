@@ -35,6 +35,10 @@ auto_save_work_in_progress() {
     if [ -z "$repo_root" ]; then return 0; fi # Not in a git repository
     repo_root=$(normalize_git_root "$repo_root")
 
+    # Normalize repo_root to match file_path format (resolve symlinks)
+    # Use pwd -P to resolve symlinks (more reliable than realpath on GitBash)
+    repo_root=$(cd "$repo_root" && pwd -P)
+
     # Auto-save if there are ANY uncommitted changes (working directory OR index)
     # Critical fix: Check both unstaged (working directory) AND staged (index) changes
     if ! git -C "$repo_root" diff --quiet || ! git -C "$repo_root" diff --cached --quiet; then
@@ -95,19 +99,21 @@ execute_git_mode() {
     local commit_message="$5"
     local debug_mode="$6"
 
-    # Create file if it doesn't exist (needed before path normalization)
+    # Normalize file path to absolute path FIRST (resolve symlinks like /tmp)
+    # This must happen before any git operations to ensure consistent paths
+    # Use pwd -P to resolve symlinks (more reliable than realpath on GitBash)
+    if [ -e "$file_path" ]; then
+        file_path=$(cd "$(dirname "$file_path")" && pwd -P)/$(basename "$file_path")
+    elif [ -e "$(dirname "$file_path")" ]; then
+        file_path=$(cd "$(dirname "$file_path")" && pwd -P)/$(basename "$file_path")
+    fi
+    repo_root=$(cd "$repo_root" && pwd -P)
+
+    # Create file if it doesn't exist (after path normalization)
     if [ ! -f "$file_path" ]; then
         mkdir -p "$(dirname "$file_path")"
         echo "" > "$file_path"
         echo "Creating new file: $file_path" >&2
-    fi
-
-    # Normalize file path to absolute path (resolve symlinks like /tmp)
-    # This ensures file_path and repo_root are in compatible formats for get_relative_path
-    if command -v realpath >/dev/null 2>&1; then
-        file_path=$(realpath "$file_path")
-    else
-        file_path=$(cd "$(dirname "$file_path")" && pwd)/$(basename "$file_path")
     fi
 
     # Auto-save work in progress if there are uncommitted changes
