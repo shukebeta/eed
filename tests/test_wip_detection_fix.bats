@@ -44,7 +44,7 @@ teardown() {
 eed added this line
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "eed edit" subdir/file3.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "eed edit" subdir/file3.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]
@@ -84,7 +84,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "eed edit" subdir/file3.txt'
 eed line
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "eed edit" file2.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "eed edit" file2.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]
@@ -120,7 +120,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "eed edit" file2.txt'
 new content
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "eed change" subdir/file3.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "eed change" subdir/file3.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]
@@ -150,7 +150,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "eed change" subdir/file3.txt'
 clean directory edit
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "clean edit" file1.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "clean edit" file1.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" != *"Auto-saving work in progress"* ]]
@@ -188,7 +188,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "clean edit" file1.txt'
 AI modification
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "AI change" subdir/file3.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "AI change" subdir/file3.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]
@@ -244,7 +244,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "AI change" subdir/file3.txt'
 eed addition
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "test" subdir/file3.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "test" subdir/file3.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]

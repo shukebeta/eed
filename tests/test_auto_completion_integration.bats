@@ -33,7 +33,7 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Should contain auto-completion message
-    echo "$output" | grep -q "💡 Auto-completed missing ed commands: w and q"
+    echo "$output" | grep -q "Auto-completed missing ed commands: w and q"
 
     # Should show preview diff (indicating the command actually worked)
     echo "$output" | grep -q "line 1"
@@ -47,8 +47,8 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Should only add q, not w and q
-    echo "$output" | grep -q "💡 Auto-completed missing ed commands: q"
-    ! echo "$output" | grep -q "💡 Auto-completed missing ed commands: w and q"
+    echo "$output" | grep -q "Auto-completed missing ed commands: q"
+    ! echo "$output" | grep -q "Auto-completed missing ed commands: w and q"
 }
 
 @test "integration: auto-completion adds q to view-only command" {
@@ -59,7 +59,7 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Should add q
-    echo "$output" | grep -q "💡 Auto-completed missing ed commands: q"
+    echo "$output" | grep -q "Auto-completed missing ed commands: q"
 }
 
 @test "integration: complete script needs no auto-completion" {
@@ -70,7 +70,7 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Should NOT mention auto-completion
-    ! echo "$output" | grep -q "💡 Auto-completed"
+    ! echo "$output" | grep -q "Auto-completed"
 }
 
 @test "integration: auto-completion works with input mode commands" {
@@ -81,7 +81,7 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Should add w and q
-    echo "$output" | grep -q "💡 Auto-completed missing ed commands: w and q"
+    echo "$output" | grep -q "Auto-completed missing ed commands: w and q"
 }
 
 @test "integration: auto-completion works after reordering" {
@@ -93,7 +93,7 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Should contain auto-completion message (w and q added)
-    echo "$output" | grep -q "💡 Auto-completed missing ed commands: w and q"
+    echo "$output" | grep -q "Auto-completed missing ed commands: w and q"
 
     # Should show that reordering occurred AND auto-completion worked
     # (This tests that auto-completion happens AFTER reordering)
@@ -115,7 +115,7 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Should contain auto-completion message
-    echo "$output" | grep -q "💡 Auto-completed missing ed commands: w and q"
+    echo "$output" | grep -q "Auto-completed missing ed commands: w and q"
 
     # Should show git status (not preview in git mode)
     echo "$output" | grep -q "uncommitted changes"

@@ -4,6 +4,7 @@
 # Provides bulletproof safety guarantees and intelligent automation for AI systems
 
 set -euo pipefail
+set +H  # Disable history expansion to prevent ! from causing issues
 
 # --- Configuration ---
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -120,31 +121,12 @@ if [ "$DEBUG_MODE" = true ]; then
 fi
 
 
-# Note: Auto-completion will be applied after reordering to preserve changes
-
 # --- Script Validation ---
 if ! validation_result=$(is_ed_script_valid "$ED_SCRIPT"); then
     echo "$validation_result" >&2
     exit 1
 fi
 
-# --- STAGE 1: Auto-completion for missing w/q commands ---
-# Two-stage pipeline: w/q completion → dot termination
-# Stage 1 ensures w/q commands are present, Stage 2 handles dot termination
-# DON'T CHANGE THE ORDER - Stage 2 depends on Stage 1's guarantees
-SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
-if [ "$SCRIPT_TYPE" != "invalid_command" ]; then
-    AUTO_COMPLETION_OUTPUT=$(auto_complete_ed_script "$ED_SCRIPT" "$SCRIPT_TYPE")
-    AUTO_COMPLETION_STATUS=$(echo "$AUTO_COMPLETION_OUTPUT" | head -n1)
-    AUTO_COMPLETED_SCRIPT=$(echo "$AUTO_COMPLETION_OUTPUT" | tail -n+2)
-
-    # Handle auto-completion results
-    if [[ "$AUTO_COMPLETION_STATUS" == AUTO_COMPLETED:* ]]; then
-        COMPLETION_DETAILS="${AUTO_COMPLETION_STATUS#AUTO_COMPLETED:}"
-        [ "$DEBUG_MODE" = true ] && echo "💡 Auto-completed missing ed commands: $COMPLETION_DETAILS" >&2
-        ED_SCRIPT="$AUTO_COMPLETED_SCRIPT"
-    fi
-fi
 
 # --- STAGE 2: Auto-fix unterminated input blocks (a/c/i) ---
 # Stage 2 can safely assume w/q commands exist (guaranteed by Stage 1)
@@ -220,9 +202,26 @@ if [ "$DISABLE_AUTO_REORDER" = "false" ]; then
     true
 fi
 
-# Note: Auto-completion was applied earlier before input block fixing
 
 # File creation happens later, after validation passes
+
+# --- STAGE 1: Auto-completion for missing w/q commands ---
+# Two-stage pipeline: w/q completion → dot termination
+# Stage 1 ensures w/q commands are present, Stage 2 handles dot termination
+# Applied AFTER reordering to preserve changes
+SCRIPT_TYPE=$(classify_ed_script "$ED_SCRIPT")
+if [ "$SCRIPT_TYPE" != "invalid_command" ]; then
+    AUTO_COMPLETION_OUTPUT=$(auto_complete_ed_script "$ED_SCRIPT" "$SCRIPT_TYPE")
+    AUTO_COMPLETION_STATUS=$(echo "$AUTO_COMPLETION_OUTPUT" | head -n1)
+    AUTO_COMPLETED_SCRIPT=$(echo "$AUTO_COMPLETION_OUTPUT" | tail -n+2)
+
+    # Handle auto-completion results
+    if [[ "$AUTO_COMPLETION_STATUS" == AUTO_COMPLETED:* ]]; then
+        COMPLETION_DETAILS="${AUTO_COMPLETION_STATUS#AUTO_COMPLETED:}"
+        [ "$DEBUG_MODE" = true ] && echo "💡 Auto-completed missing ed commands: $COMPLETION_DETAILS" >&2
+        ED_SCRIPT="$AUTO_COMPLETED_SCRIPT"
+    fi
+fi
 
 # --- Ed Execution and Preview Generation ---
 

@@ -30,7 +30,7 @@ teardown() {
 eed only change
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "clean edit" target.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "clean edit" target.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Changes successfully committed"* ]]
@@ -46,7 +46,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "clean edit" target.txt'
 eed edit content
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed target.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"You have made the following uncommitted changes"* ]]
@@ -79,7 +79,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed target.txt'
 auto commit test
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "auto test" target.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "auto test" target.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]] # WIP triggered
@@ -98,7 +98,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "auto test" target.txt'
 new line
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed target.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
     [ "$status" -eq 0 ]
 
     # Stage multiple external files
@@ -128,7 +128,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed target.txt'
 eed modified content
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed target.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"You have made the following uncommitted changes"* ]]
@@ -183,7 +183,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed target.txt'
 auto commit with external
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "auto edge test" target.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "auto edge test" target.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]] # WIP triggered
@@ -215,7 +215,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "auto edge test" target.txt'
 // eed addition
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed target.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
     [ "$status" -eq 0 ]
 
     # External tools stage multiple files
@@ -254,7 +254,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed target.txt'
 format test change
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed target.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
     [ "$status" -eq 0 ]
 
     echo "external format change" > other.txt

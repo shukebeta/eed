@@ -33,7 +33,7 @@ teardown() {
 function hello() { console.log(\"Hello World\"); }
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Update greeting" script.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Update greeting" script.js'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Changes successfully committed"* ]]
@@ -77,7 +77,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Update greeting" script.js'
 // Added by eed
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Add comment" script.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Add comment" script.js'
     [ "$status" -eq 0 ]
 
     # Make manual commits after eed
@@ -127,7 +127,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Add comment" script.js'
 // From subdir
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Add from subdir" ../script.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Add from subdir" ../script.js'
     [ "$status" -eq 0 ]
 
     # Undo from subdirectory
@@ -147,7 +147,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Add from subdir" ../script.js'
 function hello() { console.log(\"Goodbye\"); }
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Change to goodbye" script.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Change to goodbye" script.js'
     [ "$status" -eq 0 ]
 
     # Verify change
@@ -195,14 +195,14 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Change to goodbye" script.js'
 // First change
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "First eed change" script.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "First eed change" script.js'
     [ "$status" -eq 0 ]
 
     run bash -c 'echo "2a
 // Second change
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Second eed change" script.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Second eed change" script.js'
     [ "$status" -eq 0 ]
 
     # Manual commit in between

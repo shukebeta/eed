@@ -48,7 +48,7 @@ teardown() {
 // Updated component  
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Update Button component" src/components/Button.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Update Button component" src/components/Button.js'
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]
@@ -91,7 +91,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Update Button component" src/components/B
 console.log(\"new file\");
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Add new file" another/level/newfile.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Add new file" another/level/newfile.js'
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]
@@ -119,7 +119,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Add new file" another/level/newfile.js'
 // No WIP needed
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Update without WIP" src/components/Button.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Update without WIP" src/components/Button.js'
     
     [ "$status" -eq 0 ]
     [[ "$output" != *"Auto-saving work in progress"* ]]
@@ -143,7 +143,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Update without WIP" src/components/Button
 export const deep = \"file\";
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Deep edit" very/deep/subdirectory/deep.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Deep edit" very/deep/subdirectory/deep.js'
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]
@@ -170,7 +170,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "Deep edit" very/deep/subdirectory/deep.js
 // Manual commit test
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed src/components/Button.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" src/components/Button.js'
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]

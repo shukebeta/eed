@@ -39,7 +39,7 @@ teardown() {
 // Cross-platform test
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "cross-platform test" src/components/Button.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "cross-platform test" src/components/Button.js'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Changes successfully committed"* ]]
@@ -58,7 +58,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "cross-platform test" src/components/Butto
 // Deep path test
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "deep path" tests/unit/Button.test.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "deep path" tests/unit/Button.test.js'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Changes successfully committed"* ]]
@@ -77,7 +77,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "deep path" tests/unit/Button.test.js'
 # Updated root file
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "root file test" root.txt'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "root file test" root.txt'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Changes successfully committed"* ]]
@@ -98,7 +98,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "root file test" root.txt'
 // Manual commit test
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed src/components/Button.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" src/components/Button.js'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"You have made the following uncommitted changes"* ]]
@@ -127,7 +127,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed src/components/Button.js'
 // From subdir
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "from subdir" components/Button.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "from subdir" components/Button.js'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Changes successfully committed"* ]]
@@ -150,7 +150,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "from subdir" components/Button.js'
 // Function verification
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "function test" src/components/Button.js'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "function test" src/components/Button.js'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Changes successfully committed"* ]]
@@ -166,7 +166,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "function test" src/components/Button.js'
 // Another test
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "second test" docs/README.md'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "second test" docs/README.md'
 
     [ "$status" -eq 0 ]
     run git show --name-only HEAD
@@ -186,7 +186,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "second test" docs/README.md'
 Updated content with spaces
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "spaces test" "file with spaces.txt"'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "spaces test" "file with spaces.txt"'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Changes successfully committed"* ]]
@@ -216,7 +216,7 @@ q" | '"$BATS_TEST_DIRNAME"'/../eed -m "spaces test" "file with spaces.txt"'
 // macOS compat test
 .
 w
-q" | '"$BATS_TEST_DIRNAME"'/../eed -m "macOS test" "'$file'"'
+q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "macOS test" "'$file'"'
 
         [ "$status" -eq 0 ]
         [[ "$output" == *"Changes successfully committed"* ]]
