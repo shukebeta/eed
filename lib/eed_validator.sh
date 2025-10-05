@@ -188,21 +188,42 @@ no_dot_trap() {
         [[ "$cmd" =~ ^[wqQ]$ ]]
     }
 
+    local in_input_mode=false
+    
     for i in "${!lines[@]}"; do
         local line="${lines[i]}"
         line_count=$((line_count + 1))
+        
+        # Track if we're entering input mode
+        if [[ "$line" =~ ^[[:space:]]*[0-9,\$]*[[:space:]]*[aAcCiI]([[:space:]]|$) ]]; then
+            in_input_mode=true
+            continue
+        fi
 
         if [[ "$line" == "." ]]; then
             local next_line="${lines[$((i+1))]:-}"
+            
+            # If we're in input mode and next line is a command,
+            # this is a normal terminator (NOT suspicious)
+            if [[ "$in_input_mode" == true ]] && is_valid_ed_command "$next_line"; then
+                in_input_mode=false
+                continue
+            fi
+            
+            # If we're in input mode but next line is NOT a command,
+            # this might be a content dot (keep in input mode, mark suspicious)
+            if [[ "$in_input_mode" == true ]]; then
+                suspicious_line_numbers+=($i)
+                # Don't exit input mode - there might be more content
+                continue
+            fi
 
+            # Not in input mode - this dot is suspicious
             if [[ "$is_confirmed_tutorial" == true ]]; then
-                # Already confirmed tutorial - this dot is suspicious
                 suspicious_line_numbers+=($i)
             elif is_valid_ed_command "$next_line"; then
-                # Dot followed by valid ed command - potentially suspicious
                 suspicious_line_numbers+=($i)
             else
-                # Dot not followed by valid ed command - immediately suspicious
                 suspicious_line_numbers+=($i)
             fi
         fi

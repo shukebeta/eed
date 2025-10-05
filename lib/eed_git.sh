@@ -146,7 +146,7 @@ execute_git_mode() {
     # Always auto-commit with provided message or quick edit default
     if [ -z "$commit_message" ]; then
         local current_time
-        current_time=$(date '+%H:%M')
+        current_time=$(date '+%H:%M:%S')
         commit_message="Quick edit on $relative_path at $current_time"
     fi
 

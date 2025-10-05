@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-# Test suite for eed local history system (commit script and --undo functionality)
+# Test suite for eed local history system (--undo and WIP auto-save functionality)
 
 # Constants
 readonly TEST_EMAIL="test@example.com"
@@ -25,7 +25,6 @@ setup() {
     
     # Store the path to eed and commit scripts
     EED_SCRIPT="$BATS_TEST_DIRNAME/../eed"
-    COMMIT_SCRIPT="$BATS_TEST_DIRNAME/../commit"
 }
 
 # Helper functions
@@ -65,15 +64,6 @@ verify_preview_exists() {
 verify_preview_removed() {
     local file="$1"
     [ ! -f "$file.eed.preview" ]
-}
-
-commit_changes() {
-    local file="$1"
-    local message="$2"
-
-    # Use the upgraded commit script that handles both git mode and preview mode
-    run "$COMMIT_SCRIPT" "$file" "$message"
-    assert_success
 }
 
 verify_file_contains() {
@@ -141,55 +131,6 @@ EOF
     verify_git_commit_message "$commit_msg"
 }
 
-@test "commit script displays comprehensive help information" {
-    # Purpose: Verify help output contains all required information for users
-    run "$COMMIT_SCRIPT" --help
-    assert_success
-    
-    assert_output_contains "Apply eed preview changes"
-    assert_output_contains "Usage: commit"
-    assert_output_contains "eed --undo"
-    assert_output_contains "EXAMPLES"
-}
-
-@test "commit script rejects invocation without required arguments" {
-    # Purpose: Verify proper error handling and user guidance for missing arguments
-    run "$COMMIT_SCRIPT"
-    assert_failure
-    
-    assert_output_contains "Usage: commit"
-    assert_output_contains "Use 'commit --help'"
-}
-
-@test "commit script fails when no staged changes exist" {
-    # Purpose: Verify workflow enforcement - commit requires prior eed changes
-    run "$COMMIT_SCRIPT" test.txt "some message"
-    assert_failure
-
-    assert_output_contains "No staged changes for test.txt"
-    assert_output_contains "Run 'eed test.txt ...' first"
-
-    # Verify original file unchanged
-    verify_file_contains "test.txt" "$INITIAL_CONTENT"
-}
-
-@test "commit script fails gracefully outside git repository" {
-    # Purpose: Verify git dependency is properly enforced and reported
-    local nogit_dir
-    create_non_git_environment nogit_dir
-    
-    echo "content" > file.txt
-    echo "preview content" > file.txt.eed.preview
-    
-    run "$COMMIT_SCRIPT" file.txt "test message"
-    assert_failure
-    assert_output_contains "Not in a git repository"
-    
-    # Verify preview file preserved (atomic failure)
-    [ -f "file.txt.eed.preview" ]
-    
-    cleanup_non_git_environment "$nogit_dir"
-}
 
 @test "eed --undo reverts last eed-history commit completely" {
     # Purpose: Verify undo functionality restores exact previous state
@@ -317,22 +258,3 @@ EOF
     assert_output_contains "subfile.txt"
 }
 
-@test "commit script maintains atomicity when git operations fail" {
-    # Purpose: Verify commit operation is atomic - all changes or no changes
-    local test_content="# Content for atomic test"
-
-    create_eed_edit "test.txt" "$test_content"
-    # In git mode, file is directly modified and staged
-    verify_file_contains "test.txt" "$test_content"
-
-    # Simulate git failure by corrupting repository
-    rm -rf .git
-
-    # Attempt commit - should fail cleanly
-    run "$COMMIT_SCRIPT" test.txt "test message"
-    assert_failure
-    assert_output_contains "Not in a git repository"
-
-    # Verify failure state - file remains modified but commit failed
-    verify_file_contains "test.txt" "$test_content"
-}

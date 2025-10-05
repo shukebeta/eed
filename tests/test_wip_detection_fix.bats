@@ -203,7 +203,7 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "AI change" subdir/file3.txt'
     [ "$status" -eq 0 ]
     [[ "$output" == *"file1.txt"* ]]     # unstaged changes
     [[ "$output" == *"file2.txt"* ]]     # mixed staged/unstaged
-    [[ "$output" == *"new_file.txt"* ]]  # untracked file
+    [[ "$output" != *"new_file.txt"* ]]  # untracked file NOT saved (by design)
 
     # Verify actual content is preserved
     run git show "$WIP_COMMIT":file1.txt
@@ -214,9 +214,6 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "AI change" subdir/file3.txt'
     [ "$status" -eq 0 ]
     [[ "$output" == "important work 3" ]] # Latest version preserved
 
-    run git show "$WIP_COMMIT":new_file.txt
-    [ "$status" -eq 0 ]
-    [[ "$output" == "brand new work" ]]
 }
 
 @test "WIP auto-save - comparison with old buggy behavior simulation" {

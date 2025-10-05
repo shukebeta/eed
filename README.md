@@ -55,5 +55,10 @@ Both preview and force modes use a consistent workflow:
 - **Debug mode**: Detailed technical information available with `--debug` flag
 - **Robust patterns**: Comprehensive regex validation for all ed command types
 
+
+### 🔒 WIP Auto-save Policy
+- **Tracked files only**: `git add -u` ensures only already-tracked modifications are saved
+- **Untracked files ignored**: New files (.env, temp files, etc.) are never auto-committed
+- **Safe by default**: Prevents accidental inclusion of sensitive or temporary content
 ## Installation
 - Copy `eed` and `lib/` into a directory on your PATH (for example, `~/bin`).

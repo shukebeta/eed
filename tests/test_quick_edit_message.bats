@@ -51,7 +51,7 @@ EOF
     [[ "$output" == *"Quick edit on src/utils/helper.js"* ]]
 }
 
-@test "quick edit message - includes timestamp in HH:MM format" {
+@test "quick edit message - includes timestamp in HH:MM:SS format" {
     # Create simple file
     echo "hello" > test.txt
     git add .
@@ -70,8 +70,8 @@ EOF
     # Verify commit message includes timestamp
     run git log --format="%s" -1
     [ "$status" -eq 0 ]
-    # Check for pattern "at HH:MM" where HH:MM is valid time format
-    [[ "$output" =~ at\ [0-2][0-9]:[0-5][0-9]$ ]]
+    # Check for pattern "at HH:MM:SS" where HH:MM is valid time format
+    [[ "$output" =~ at\ [0-2][0-9]:[0-5][0-9]:[0-5][0-9]$ ]]
 }
 
 @test "quick edit message - complete format verification" {
@@ -94,7 +94,7 @@ EOF
     # Verify complete message format
     run git log --format="%s" -1
     [ "$status" -eq 0 ]
-    [[ "$output" =~ ^eed-history:\ Quick\ edit\ on\ src/components/Button\.js\ at\ [0-2][0-9]:[0-5][0-9]$ ]]
+    [[ "$output" =~ ^eed-history:\ Quick\ edit\ on\ src/components/Button\.js\ at\ [0-2][0-9]:[0-5][0-9]:[0-5][0-9]$ ]]
 }
 
 @test "quick edit message - different from custom message" {
@@ -192,7 +192,7 @@ EOF
 
     # Get current time before edit
     local before_edit_time
-    before_edit_time=$(date '+%H:%M')
+    before_edit_time=$(date '+%H:%M:%S')
 
     # Edit file
     run "$SCRIPT_UNDER_TEST" file.txt - <<'EOF'
@@ -206,7 +206,7 @@ EOF
 
     # Get time after edit
     local after_edit_time
-    after_edit_time=$(date '+%H:%M')
+    after_edit_time=$(date '+%H:%M:%S')
 
     # Verify commit message timestamp is within range
     run git log --format="%s" -1
@@ -214,10 +214,10 @@ EOF
 
     # Extract timestamp from commit message
     local commit_time
-    commit_time=$(echo "$output" | grep -oE '[0-2][0-9]:[0-5][0-9]$')
+    commit_time=$(echo "$output" | grep -oE '[0-2][0-9]:[0-5][0-9]:[0-5][0-9]$')
 
     # Verify timestamp is valid (we can't test exact match due to timing)
-    [[ "$commit_time" =~ ^[0-2][0-9]:[0-5][0-9]$ ]]
+    [[ "$commit_time" =~ ^[0-2][0-9]:[0-5][0-9]:[0-5][0-9]$ ]]
 }
 
 @test "quick edit message - preserves special characters in path" {
