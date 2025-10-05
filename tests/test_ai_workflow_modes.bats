@@ -192,7 +192,7 @@ q"
     run git commit -m "Initial commit"
     [ "$status" -eq 0 ]
 
-    # AI makes changes in preview mode
+    # AI makes changes in git mode (auto-commits)
     run "$SCRIPT_UNDER_TEST" app.py "1a
 # AI-added comment
 .
@@ -200,9 +200,8 @@ w
 q"
     [ "$status" -eq 0 ]
 
-    # Should show commit command instructions
-    [[ "$output" == *"commit "* ]]
-    [[ "$output" == *"commit message"* ]]
+    # Should show auto-commit success
+    [[ "$output" == *"Changes successfully committed"* ]]
 
     # In git mode, file is directly modified (no preview file)
     run grep -q "AI-added comment" app.py
@@ -221,15 +220,14 @@ q"
     run git rev-parse --is-inside-work-tree
     [ "$status" -ne 0 ]
 
-    # Test: eed should detect git repo from target file's directory and show git hint
+    # Test: eed should detect git repo from target file's directory and auto-commit
     run "$SCRIPT_UNDER_TEST" gitdir/testfile.txt "a
 # Added content
 .
 w
 q"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"commit "* ]]
-    [[ "$output" == *"commit message"* ]]
+    [[ "$output" == *"Changes successfully committed"* ]]
 }
 
 @test "no changes scenario - handles gracefully" {

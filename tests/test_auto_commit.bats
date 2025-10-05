@@ -107,7 +107,7 @@ q"
     [ -z "$git_status_output" ]  # No unstaged changes
 }
 
-@test "git repo without -m parameter - manual commit mode" {
+@test "git repo without -m parameter - quick edit mode" {
     # Initialize git repo
     run git init .
     [ "$status" -eq 0 ]
@@ -122,34 +122,32 @@ q"
     run git commit -m "Initial commit"
     [ "$status" -eq 0 ]
 
-    # Test manual commit mode without -m parameter
+    # Test quick edit mode without -m parameter
     run "$SCRIPT_UNDER_TEST" app.py "2c
-    print('Manual commit test')
+    print('Quick edit test')
 .
 w
 q"
     [ "$status" -eq 0 ]
 
-    # Should show diff and commit instructions
-    [[ "$output" == *"-"*"Hello World"* ]]
-    [[ "$output" == *"+"*"Manual commit test"* ]]
-    [[ "$output" == *"commit "* ]]
-    [[ "$output" == *"commit message"* ]]
+    # Should show auto-commit success message
+    [[ "$output" == *"Changes successfully committed"* ]]
 
     # File should be directly updated (no preview file)
-    run grep -q "Manual commit test" app.py
+    run grep -q "Quick edit test" app.py
     [ "$status" -eq 0 ]
     [ ! -f app.py.eed.preview ]
 
-    # Verify file is modified and staged
+    # Verify git commit was created with quick edit message
+    run git log --format="%s" -1
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Quick edit on app.py at"* ]]
+
+    # Verify file is committed (no uncommitted changes)
     run git status --porcelain
     [ "$status" -eq 0 ]
-    [[ "$output" == *"M  app.py"* ]]  # Modified and staged
-
-    # No new commit should exist
-    run git log --oneline -1
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Initial commit"* ]]
+    git_status_output="$output"
+    [ -z "$git_status_output" ]  # No uncommitted changes
 }
 
 @test "git repo - --message parameter (long form)" {

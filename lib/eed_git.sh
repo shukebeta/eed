@@ -44,7 +44,7 @@ auto_save_work_in_progress() {
     if ! git -C "$repo_root" diff --quiet || ! git -C "$repo_root" diff --cached --quiet; then
         echo "Auto-saving work in progress..." >&2
         # Add ALL changes from repo root, commit from repo root
-        git -C "$repo_root" add -A && git -C "$repo_root" commit -m "eed-history: WIP auto-save before new edit" --no-verify --quiet
+        git -C "$repo_root" add -u && git -C "$repo_root" commit -m "eed-history: WIP auto-save before new edit" --no-verify --quiet
     fi
 }
 
@@ -89,16 +89,14 @@ handle_undo_command() {
     exit 0
 }
 
-# Execute git mode: Direct file editing with auto-commit or manual commit
-# Parameters: file_path, ed_script, repo_root, auto_commit_mode, commit_message, debug_mode
+# Execute git mode: Direct file editing with auto-commit
+# Parameters: file_path, ed_script, repo_root, commit_message, debug_mode
 execute_git_mode() {
     local file_path="$1"
     local ed_script="$2"
     local repo_root="$3"
-    local auto_commit_mode="$4"
-    local commit_message="$5"
-    local debug_mode="$6"
-
+    local commit_message="$4"
+    local debug_mode="$5"
     # Normalize file path to absolute path FIRST (resolve symlinks like /tmp)
     # This must happen before any git operations to ensure consistent paths
     # Use pwd -P to resolve symlinks (more reliable than realpath on GitBash)
@@ -141,46 +139,37 @@ execute_git_mode() {
         exit 0
     fi
 
-    # Handle auto-commit vs manual commit
-    if [ "$auto_commit_mode" = true ]; then
-        # Auto-commit mode: commit and show result
-        # Get relative path from repo root (cross-platform compatible)
-        local relative_path
-        relative_path=$(get_relative_path "$file_path" "$repo_root")
+    # Get relative path from repo root (cross-platform compatible)
+    local relative_path
+    relative_path=$(get_relative_path "$file_path" "$repo_root")
 
-        git -C "$repo_root" add "$relative_path"
-
-        # Check for other staged files (for transparency, not blocking)
-        local other_staged_files
-        other_staged_files=$(git -C "$repo_root" diff --cached --name-only | grep -v "^$relative_path$" || true)
-
-        git -C "$repo_root" commit -m "eed-history: $commit_message" --no-verify
-
-        echo "✅ Changes successfully committed. Details below:"
-        echo
-        git -C "$repo_root" show HEAD
-
-        # Transparency notice: inform about other files if present
-        if [ -n "$other_staged_files" ]; then
-            echo
-            echo "💡 Note: This commit also included other staged files:"
-            echo "$other_staged_files" | sed 's/^/   /'
-            echo "   (This may indicate external tools modified the staging area)"
-        fi
-
-        echo
-        echo "To undo these changes, run: eed --undo"
-    else
-        # Manual commit mode: stage changes and show instructions
-        local relative_path
-        relative_path=$(get_relative_path "$file_path" "$repo_root")
-
-        git -C "$repo_root" add "$relative_path"
-        echo "⚠️ You have made the following uncommitted changes:"
-        echo
-        git -C "$repo_root" diff HEAD "$relative_path"
-        echo
-        echo "To commit: commit \"$file_path\" \"commit message\""
-        echo "To discard: git checkout HEAD \"$file_path\""
+    # Always auto-commit with provided message or quick edit default
+    if [ -z "$commit_message" ]; then
+        local current_time
+        current_time=$(date '+%H:%M')
+        commit_message="Quick edit on $relative_path at $current_time"
     fi
+
+    git -C "$repo_root" add "$relative_path"
+
+    # Check for other staged files (for transparency, not blocking)
+    local other_staged_files
+    other_staged_files=$(git -C "$repo_root" diff --cached --name-only | grep -v "^$relative_path$" || true)
+
+    git -C "$repo_root" commit -m "eed-history: $commit_message" --no-verify
+
+    echo "✅ Changes successfully committed. Details below:"
+    echo
+    git -C "$repo_root" show HEAD
+
+    # Transparency notice: inform about other files if present
+    if [ -n "$other_staged_files" ]; then
+        echo
+        echo "💡 Note: This commit also included other staged files:"
+        echo "$other_staged_files" | sed 's/^/   /'
+        echo "   (This may indicate external tools modified the staging area)"
+    fi
+
+    echo
+    echo "To undo these changes, run: eed --undo"
 }

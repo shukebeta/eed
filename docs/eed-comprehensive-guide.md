@@ -29,15 +29,16 @@ NEVER use Windows paths (C:\path\to\file). Always use forward slashes (/), as ba
 MEMORY AID: Think "forward slashes" not "backslashes".
 
 NEW WORKFLOW: Smart Git Integration
-Git repositories:
-- Auto-commit mode: `eed -m "message" file.js ...` → direct edit + commit
-- Manual commit mode: `eed file.js ...` → direct edit + stage → `commit file.js "message"`
+Git repositories (always auto-commit):
+- With custom message: `eed -m "message" file.js ...` → direct edit + commit with custom message
+- Quick edit: `eed file.js ...` → direct edit + commit as "Quick edit on file.js at HH:MM"
 
 Non-git directories:
 - Preview mode: `eed file.txt ...` → creates .eed.preview → manual apply
 
 Features:
 - Automatic WIP saves before new edits
+- All edits auto-commit in git repos (no manual commit needed)
 - Use `eed --undo` to revert last eed-history commit
 - All commits use "eed-history:" prefix for easy management
 
@@ -57,10 +58,9 @@ Features:
 
 ```bash
 eed [OPTIONS] <file> {SCRIPT|-}
-commit <file> "commit message"  # Apply staged changes with git commit (git repos)
 
 OPTIONS:
-  -m, --message <msg>  Auto-commit changes with specified message (git repos only)
+  -m, --message <msg>  Auto-commit with custom message (default: "Quick edit on <file> at HH:MM")
   --debug              Show detailed debugging information
   --disable-auto-reorder  Disable automatic command reordering
   --undo               Undo last eed-history commit
@@ -71,7 +71,7 @@ Important: `SCRIPT` may be provided as an explicit string, `-` to force reading 
 
 Recommended usage patterns (priority order):
 
-1) Auto-commit mode for git repositories (fastest workflow) **← RECOMMENDED FOR GIT**
+1) Git repo with custom message (descriptive commits) **← RECOMMENDED FOR GIT**
 ```bash
 eed -m "Remove first line" path/to/file - <<'EOF'
 1d
@@ -80,39 +80,36 @@ q
 EOF
 ```
 
-2) Quoted heredoc with explicit `-` (robust, readable) **← PREFERRED FOR NON-GIT**
+2) Git repo with quick edit (fast iterations) **← FAST WORKFLOW**
 ```bash
 eed path/to/file - <<'EOF'
 1d
 w
 q
 EOF
+# Auto-commits as "eed-history: Quick edit on path/to/file at HH:MM"
 ```
 
-3) Pipe (quick & script-friendly)
+3) Non-git with preview mode (safe experimentation) **← PREFERRED FOR NON-GIT**
+```bash
+eed path/to/file - <<'EOF'
+1d
+w
+q
+EOF
+# Creates .eed.preview file for manual review
+```
+
+4) Pipe (quick & script-friendly)
 ```bash
 printf '1d\nw\nq\n' | eed path/to/file -        # explicit stdin with '-'
 ```
 Note: `eed` also supports a forgiving mode — if you pipe but omit the `-`, eed will still read stdin and proceed, and will append a friendly tip on success. For clarity and reproducibility, prefer the explicit `-` when scripting.
 
-4) Quoted heredoc as an argument (legacy syntax, avoid)
-```bash
-eed path/to/file "$(cat <<'EOF'
-1d
-w
-q
-EOF
-)"
-```
-Note: This syntax is legacy. Use the direct heredoc (option 1) instead.
-
 **Options:**
 - `--debug` — Show detailed execution info, preserve temp files
 - `--disable-auto-reorder` — Disable automatic script reordering (expert mode)
-- `--undo` — Undo last eed-history commit (git reset --hard HEAD~1)
-
-**Commands:**
-- `commit <file> "message"` — Apply preview changes and create atomic git commit
+- `--undo` — Undo last eed-history commit (git revert)
 
 ## The Preview-Confirm Workflow
 
@@ -138,9 +135,9 @@ EOF
  line3
 ```
 
-To apply these changes, run:
+To apply these changes (non-git repos), run:
 ```bash
-commit 'sample.txt' "your commit message"
+mv 'sample.txt.eed.preview' 'sample.txt'
 ```
 
 To discard these changes, run:
@@ -148,39 +145,56 @@ To discard these changes, run:
 rm 'sample.txt.eed.preview'
 ```
 
-## Local History System
+Note: In git repositories, changes are auto-committed immediately (no preview file created).
 
-eed now includes a revolutionary local history system using atomic git commits:
+## Auto-Commit System (Git Repositories)
+
+eed provides automatic git integration for seamless version control:
 
 ### Workflow
-1. **Auto-save WIP**: Before each edit, eed automatically saves any uncommitted work
-2. **Preview creation**: Edits go to `.eed.preview` files first
-3. **Atomic commit**: Use `commit` command to apply changes and create git commit
+1. **Auto-save WIP**: Before each edit, eed automatically commits any uncommitted work
+2. **Direct editing**: Changes are applied directly to files (no preview files)
+3. **Auto-commit**: All changes are automatically committed with descriptive messages
 4. **Easy undo**: Use `eed --undo` to revert last eed-history commit
 
-### Example
+### Example with Custom Message
 ```bash
-# Make changes
-eed file.js - <<'EOF'
+# Edit with custom commit message
+eed -m "add header comment" file.js - <<'EOF'
 1a
 // Added by eed
 .
 w
 q
 EOF
-
-# Apply with descriptive commit
-commit file.js "add header comment"
+# Automatically commits as "eed-history: add header comment"
 
 # Later, undo if needed
 eed --undo
 ```
 
+### Example with Quick Edit
+```bash
+# Quick edit without custom message
+eed file.js - <<'EOF'
+1a
+// Quick fix
+.
+w
+q
+EOF
+# Automatically commits as "eed-history: Quick edit on file.js at HH:MM"
+
+# Undo if needed
+eed --undo
+```
+
 ### Features
-- **Safe**: Original files never corrupted
-- **Atomic**: All-or-nothing commits with special "eed-history:" prefix
+- **Fast**: No manual commit steps required
+- **Safe**: Original files protected by git
+- **Atomic**: All-or-nothing commits with "eed-history:" prefix
 - **Reversible**: Easy undo with `--undo` flag
-- **Self-hosting**: Use eed to improve eed itself
+- **Flexible**: Use custom messages or auto-generated quick edit messages
 
 ### View Operations Execute Directly
 
@@ -458,24 +472,43 @@ mv yourfile.eed.preview yourfile.txt
 git checkout -- yourfile.txt
 ```
 
-**Best practice**: After each successful edit, stage your progress with `git add yourfile.txt` to create safe restore points.
+**Best practice**: In git repositories, eed automatically commits all changes. Use `eed --undo` to revert if needed.
 
 ## Advanced Usage
 
-### Preview Mode with Local History
+### Auto-Commit Mode (Git Repositories)
 ```bash
-# Preview mode (default) - safe for experimentation
+# Quick edit - fast iterations
+eed file.txt - <<'EOF'
+1,$s/old/new/g
+w
+q
+EOF
+# Auto-commits as "eed-history: Quick edit on file.txt at HH:MM"
+
+# Or with custom message
+eed -m "replace old with new" file.txt - <<'EOF'
+1,$s/old/new/g
+w
+q
+EOF
+# Auto-commits as "eed-history: replace old with new"
+
+# Undo if needed
+eed --undo
+```
+
+### Preview Mode (Non-Git Directories)
+```bash
+# Creates .eed.preview file for manual review
 eed file.txt - <<'EOF'
 1,$s/old/new/g
 w
 q
 EOF
 
-# Apply changes with commit
-commit file.txt "replace old with new"
-
-# Undo if needed
-eed --undo
+# Apply changes manually
+mv file.txt.eed.preview file.txt
 ```
 
 ### Combining with Other Tools
@@ -523,38 +556,47 @@ eed --debug file.txt 'your commands here'
 
 ## Git Integration and Safety
 
-eed provides multiple layers of safety through git integration:
+eed provides automatic git integration with multiple safety layers:
 
-### Auto-save Work in Progress
-Before each edit, eed automatically saves any uncommitted changes:
+### Auto-Save Work in Progress
+Before each edit, eed automatically commits any uncommitted changes:
 ```bash
 # Auto-saving work in progress...
 # [master 543c56d] eed-history: WIP auto-save before new edit
 ```
 
-### Atomic Commits
-The `commit` command creates atomic commits with special prefixes:
+### Automatic Commits
+All edits in git repositories are automatically committed:
 ```bash
-commit file.js "add validation logic"
+# With custom message
+eed -m "add validation logic" file.js - <<'EOF'
+...
+EOF
 # [master 140822e] eed-history: add validation logic
+
+# Without message (quick edit)
+eed file.js - <<'EOF'
+...
+EOF
+# [master 67f3a21] eed-history: Quick edit on file.js at 18:12
 ```
 
 ### Easy Recovery
 Multiple options for undoing changes:
 ```bash
-# Undo last eed-history commit
+# Undo last eed-history commit (recommended)
 eed --undo
 
 # Or use git directly
-git reset --hard HEAD~1
-
-# Or restore from preview
-mv file.txt.eed.preview file.txt
+git revert <commit-hash>
 ```
 
 ### Best Practices
+- Use `-m` for descriptive commits when the change is intentional
+- Use quick edit (without `-m`) for rapid iterations and experiments
 - Each commit is atomic and reversible
-- Use descriptive commit messages
 - All eed commits use "eed-history:" prefix for easy identification
 - Safe for later squashing or rebasing
+- No manual staging or commit commands needed
+- Quick edit messages include file path and timestamp for easy reference
 

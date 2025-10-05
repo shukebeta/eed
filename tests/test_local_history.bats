@@ -120,16 +120,23 @@ teardown() {
     rm -rf "$TEST_TEMP_DIR"
 }
 
-@test "git mode stages changes and commit script creates git commit with eed-history prefix" {
-    # Purpose: Verify complete commit workflow in git mode - direct editing and git integration
+@test "git mode auto-commits with custom message when -m provided" {
+    # Purpose: Verify auto-commit workflow in git mode with custom message
     local test_content="# Test comment added"
     local commit_msg="add test comment"
 
-    create_eed_edit "test.txt" "$test_content"
-    # In git mode, file is modified directly and staged (no preview file)
-    verify_file_contains "test.txt" "$test_content"
+    # Use -m flag to provide custom commit message
+    run "$EED_SCRIPT" -m "$commit_msg" "test.txt" - <<EOF
+1a
+$test_content
+.
+w
+q
+EOF
+    assert_success
 
-    commit_changes "test.txt" "$commit_msg"
+    # In git mode, file is modified directly and committed
+    verify_file_contains "test.txt" "$test_content"
 
     verify_git_commit_message "$commit_msg"
 }
@@ -188,24 +195,31 @@ teardown() {
     # Purpose: Verify undo functionality restores exact previous state
     local test_content="# Line added for undo test"
     local commit_msg="test undo functionality"
-    
+
     # Record initial state
     local initial_line_count
     initial_line_count=$(wc -l < test.txt)
-    
-    create_eed_edit "test.txt" "$test_content"
-    commit_changes "test.txt" "$commit_msg"
+
+    # Use -m flag for auto-commit
+    run "$EED_SCRIPT" -m "$commit_msg" "test.txt" - <<EOF
+1a
+$test_content
+.
+w
+q
+EOF
+    assert_success
     verify_file_contains "test.txt" "$test_content"
-    
+
     # Perform undo
     run "$EED_SCRIPT" --undo
     assert_success
     assert_output_contains "Last eed-history commit undone"
-    
+
     # Verify complete reversion
     verify_file_not_contains "test.txt" "$test_content"
     verify_file_contains "test.txt" "$INITIAL_CONTENT"
-    
+
     # Verify line count restored
     local final_line_count
     final_line_count=$(wc -l < test.txt)

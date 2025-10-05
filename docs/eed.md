@@ -18,6 +18,8 @@ EOF
    - `q` - quit editor
 
 ### In a git repository - **Auto-commit workflow**
+
+With `-m` flag (custom commit message):
 ```bash
 eed -m "Fix validation logic" file.js - <<'EOF'
 2c
@@ -26,12 +28,26 @@ validated input
 w
 q
 EOF
+```
 
-# Revert the changes when needed
+Without `-m` flag (quick edit with auto-generated message):
+```bash
+eed file.js - <<'EOF'
+2c
+validated input
+.
+w
+q
+EOF
+# Automatically commits as "eed-history: Quick edit on file.js at HH:MM"
+```
+
+Revert when needed:
+```bash
 eed --undo
 ```
 
-### In a non-git repository- **Manual commit workflow** (for review before commit):
+### In a non-git repository - **Preview workflow**
 ```bash
 eed file.txt - <<'EOF'
 5d

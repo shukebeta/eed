@@ -38,7 +38,6 @@ FILE_PATH=""
 ED_SCRIPT=""
 ED_SCRIPT_PROVIDED=false
 COMMIT_MESSAGE=""
-AUTO_COMMIT_MODE=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -55,7 +54,6 @@ while [[ $# -gt 0 ]]; do
                 error_exit "Option $1 requires a commit message" 1 true
             fi
             COMMIT_MESSAGE="$2"
-            AUTO_COMMIT_MODE=true
             shift 2
             ;;
         --undo)
@@ -246,7 +244,7 @@ fi
 
 # For modifying commands, choose execution mode
 if [ "$IS_GIT_REPO" = true ]; then
-    execute_git_mode "$FILE_PATH" "$ED_SCRIPT" "$REPO_ROOT_FOR_FILE" "$AUTO_COMMIT_MODE" "$COMMIT_MESSAGE" "$DEBUG_MODE"
+    execute_git_mode "$FILE_PATH" "$ED_SCRIPT" "$REPO_ROOT_FOR_FILE" "$COMMIT_MESSAGE" "$DEBUG_MODE"
     exit 0
 else
     # Preview mode: Traditional workflow with preview file

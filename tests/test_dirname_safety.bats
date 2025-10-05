@@ -161,32 +161,44 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "Deep edit" very/deep/subdirectory/deep.
     [[ "$output" == *"very/deep/subdirectory/deep.js"* ]]
 }
 
-@test "dirname safety - manual commit mode preserves correct paths" {
-    # Test manual commit mode (without -m flag)
+@test "dirname safety - auto-commit mode preserves correct paths" {
+    # Test auto-commit (without -m flag) with WIP auto-save
     echo '{"dependencies": {"new": "1.0.0"}}' > package.json
-    
-    # Edit file in subdirectory without auto-commit
+
+    # Edit file in subdirectory - should auto-save package.json first, then commit Button.js
     run bash -c 'echo "1a
-// Manual commit test
+// Quick edit test
 .
 w
 q" | "'"$BATS_TEST_DIRNAME"'/../eed" src/components/Button.js'
-    
+
     [ "$status" -eq 0 ]
     [[ "$output" == *"Auto-saving work in progress"* ]]
-    [[ "$output" == *"You have made the following uncommitted changes"* ]]
-    
-    # Verify the file is properly staged
-    run git diff --cached --name-only
+    [[ "$output" == *"Changes successfully committed"* ]]
+
+    # Verify 2 eed-history commits were created (one for package.json, one for Button.js)
+    run git log --grep="eed-history:" --oneline -n 2
+    [ "$status" -eq 0 ]
+
+    # Should have exactly 2 eed-history commits
+    commit_count=$(echo "$output" | wc -l)
+    [ "$commit_count" -eq 2 ]
+
+    # Verify latest commit (Button.js quick edit) has correct path
+    run git log --grep="Quick edit" --format="%H" -n 1
+    [ "$status" -eq 0 ]
+    LATEST_COMMIT="$output"
+
+    run git show --name-only "$LATEST_COMMIT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"src/components/Button.js"* ]]
-    
-    # Verify WIP commit contains package.json
-    run git log --grep="WIP auto-save" --format="%H" -1
+
+    # Verify second-to-last commit (package.json WIP auto-save) has package.json
+    run git log --grep="WIP auto-save" --format="%H" -n 1
     [ "$status" -eq 0 ]
-    WIP_COMMIT="$output"
-    
-    run git show --name-only "$WIP_COMMIT"  
+    PREVIOUS_COMMIT="$output"
+
+    run git show --name-only "$PREVIOUS_COMMIT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"package.json"* ]]
 }

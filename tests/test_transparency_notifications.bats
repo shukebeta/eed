@@ -37,21 +37,14 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "clean edit" target.txt'
     [[ "$output" != *"This commit also included other staged files"* ]]
 }
 
-@test "transparency - notification when other files present (edge case simulation)" {
-    # Simulate the edge case: something stages a file between WIP and commit
-    # We'll do this by manually staging after eed preview but before commit
+@test "transparency - notification when other files present (commit script test)" {
+    # Test commit script's transparency notification when other files are staged
 
-    # First, create a clean eed edit (no WIP trigger)
-    run bash -c 'echo "1c
-eed edit content
-.
-w
-q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
+    # Manually stage target file (simulating eed's staging)
+    echo "eed edit content" > target.txt
+    git add target.txt
 
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"You have made the following uncommitted changes"* ]]
-
-    # Now simulate external tool adding file to staging area
+    # Simulate external tool adding file to staging area
     echo "external change" > other.txt
     git add other.txt
 
@@ -93,13 +86,9 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "auto test" target.txt'
 }
 
 @test "transparency - multiple other staged files listed" {
-    # Create eed preview
-    run bash -c 'echo "1a
-new line
-.
-w
-q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
-    [ "$status" -eq 0 ]
+    # Manually stage target file
+    echo "new line" > target.txt
+    git add target.txt
 
     # Stage multiple external files
     echo "change 1" > other.txt
@@ -119,23 +108,15 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
     [[ "$output" == *"subdir/nested.txt"* ]]
 }
 
-@test "transparency - real world edge case: external staging between WIP and commit" {
-    # This test simulates the exact edge case that transparency notifications address:
-    # WIP auto-save → external tool stages files → eed commit includes unexpected files
+@test "transparency - real world edge case: external staging (commit script test)" {
+    # This test simulates external tool staging files alongside target file
+    # Testing commit script's transparency notification
 
-    # Step 1: Create a clean eed preview (no WIP trigger)
-    run bash -c 'echo "1c
-eed modified content
-.
-w
-q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
-
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"You have made the following uncommitted changes"* ]]
-    [[ "$output" != *"Auto-saving work in progress"* ]] # No WIP triggered
+    # Step 1: Manually stage target file (simulating eed's staging)
+    echo "eed modified content" > target.txt
+    git add target.txt
 
     # Step 2: Simulate external tool/IDE/script modifying staging area
-    # This happens AFTER eed preview but BEFORE commit
     echo "external tool modification" > other.txt
     git add other.txt
 
@@ -210,13 +191,9 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "auto edge test" target.txt'
     git add subdir/nested.txt config.json utils.js
     git commit -m "complex baseline" --quiet
 
-    # Create eed preview
-    run bash -c 'echo "1a
-// eed addition
-.
-w
-q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
-    [ "$status" -eq 0 ]
+    # Manually stage target file
+    echo "// eed addition" > target.txt
+    git add target.txt
 
     # External tools stage multiple files
     echo "external nested change" > subdir/nested.txt
@@ -249,14 +226,11 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
 @test "transparency - notification format and user guidance" {
     # Test that the notification provides helpful context and formatting
 
-    # Create preview and external staging
-    run bash -c 'echo "1c
-format test change
-.
-w
-q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
-    [ "$status" -eq 0 ]
+    # Manually stage target file
+    echo "format test change" > target.txt
+    git add target.txt
 
+    # Stage external files
     echo "external format change" > other.txt
     mkdir -p deep/path
     echo "deep external" > deep/path/file.txt
@@ -276,6 +250,4 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" target.txt'
 
     # Verify normal success message is still present
     [[ "$output" == *"✅ Changes committed"* ]]
-    [[ "$output" == *"💡 Next time, save steps with: eed -m"* ]]
-    [[ "$output" == *"To undo: eed --undo"* ]]
 }

@@ -90,32 +90,28 @@ q" | "'"$BATS_TEST_DIRNAME"'/../eed" -m "root file test" root.txt'
     [[ "$output" != *"/"* ]] || [[ "$output" == *"root.txt"* ]]
 }
 
-@test "cross-platform compatibility - manual commit mode paths" {
+@test "cross-platform compatibility - quick edit mode paths" {
     cd project
 
-    # Test manual commit mode uses same path logic
+    # Test quick edit mode uses correct path logic
     run bash -c 'echo "1a
-// Manual commit test
+// Quick edit test
 .
 w
 q" | "'"$BATS_TEST_DIRNAME"'/../eed" src/components/Button.js'
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"You have made the following uncommitted changes"* ]]
-
-    # File should be staged with correct relative path
-    run git diff --cached --name-only
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"src/components/Button.js"* ]]
-
-    # Complete the commit manually
-    run "$BATS_TEST_DIRNAME"/../commit src/components/Button.js "manual test"
-    [ "$status" -eq 0 ]
+    [[ "$output" == *"Changes successfully committed"* ]]
 
     # Verify path in final commit
     run git show --name-only HEAD
     [ "$status" -eq 0 ]
     [[ "$output" == *"src/components/Button.js"* ]]
+
+    # Verify quick edit commit message includes path (from repo root)
+    run git log --format="%s" -1
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Quick edit on project/src/components/Button.js at"* ]]
 }
 
 @test "cross-platform compatibility - works from different working directories" {

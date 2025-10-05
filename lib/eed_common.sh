@@ -62,10 +62,10 @@ Usage: eed [OPTIONS] <file> [ed_script | -]
 AI-oriented text editor with bulletproof safety guarantees
 
 OPTIONS:
-  -m, --message <msg>  Auto-commit changes with specified message (git repos only)
+  -m, --message <msg>  Auto-commit with custom message (default: "Quick edit on <file> at HH:MM")
   --debug         Show detailed debugging information
   --disable-auto-reorder  Disable automatic command reordering
-  --undo          Undo last eed-history commit (git reset --hard HEAD~1)
+  --undo          Undo last eed-history commit (git revert)
   --help          Show this help message
 
 ARGUMENTS:
@@ -75,20 +75,19 @@ ARGUMENTS:
 
 WORKFLOW MODES:
   Git repositories:
-    With -m: Auto-commit mode (edit file → stage → commit automatically)
-    Without -m: Manual commit mode (edit file → stage → show commit instructions)
+    Always auto-commit mode (edit file → stage → commit automatically)
+    Use -m to provide custom commit message (default: quick edit with file path and time)
 
   Non-git directories:
     Preview mode (edit → create .eed.preview → show apply instructions)
 
 EXAMPLES:
-  # Auto-commit mode (git repos)
+  # Auto-commit with custom message (git repos)
   eed -m "Fix validation logic" file.js $'2c\nvalidated input\n.\nw\nq'
 
-  # Manual commit mode (git repos)
+  # Auto-commit with quick edit message (git repos)
   eed file.js $'2c\nvalidated input\n.\nw\nq'
-  # Then: commit file.js "Fix validation logic"
-
+  # Commits as "eed-history: Quick edit on file.js at HH:MM"
   # Preview mode (non-git)
   eed file.txt $'1a\nHello\n.\nw\nq'
   # Then: mv file.txt.eed.preview file.txt

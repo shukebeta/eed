@@ -108,7 +108,7 @@ teardown() {
     git add test.txt >/dev/null 2>&1
     git commit -m "Initial commit" >/dev/null 2>&1
 
-    # Test auto-completion in preview mode (no --force)
+    # Test auto-completion in git mode (auto-commits)
     run eed --debug test.txt "1d"
 
     # Should succeed
@@ -117,6 +117,6 @@ teardown() {
     # Should contain auto-completion message
     echo "$output" | grep -q "Auto-completed missing ed commands: w and q"
 
-    # Should show git status (not preview in git mode)
-    echo "$output" | grep -q "uncommitted changes"
+    # Should show auto-commit success (git mode auto-commits)
+    echo "$output" | grep -q "Changes successfully committed"
 }
