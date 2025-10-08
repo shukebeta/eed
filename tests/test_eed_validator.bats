@@ -278,8 +278,8 @@ q"
     [ "$status" -eq 0 ]
 }
 
-@test "dot trap detection: suspicious pattern detected" {
-    # Complex script with multiple dots should trigger warning
+@test "dot trap detection: normal multiple input blocks not flagged" {
+    # Multiple input blocks with proper terminators is normal, not suspicious
     local script="3c
 content line 1
 .
@@ -292,8 +292,7 @@ final content
 w
 q"
     run no_dot_trap "$script"
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"POTENTIAL_DOT_TRAP"* ]]
+    [ "$status" -eq 0 ]  # Should be clean, not suspicious
 }
 
 

@@ -48,12 +48,45 @@ q'
   [ "$status" -eq 0 ]
   [[ "$output" =~ "Edits applied to a temporary preview" ]]
 
+  # Save eed output for later verification
+  eed_output="$output"
+
   # Content should be properly inserted in preview
   run grep -q "First line." ed_guide.md.eed.preview
   [ "$status" -eq 0 ]
 
   run grep -q "Second line." ed_guide.md.eed.preview
   [ "$status" -eq 0 ]
+
+  # CRITICAL: Verify structural integrity (prevents false positives)
+  # These assertions ensure smart dot protection actually works
+
+  # Verify the terminator dot inside code block is preserved
+  run grep -n "^\.$" ed_guide.md.eed.preview
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "10:." ]]  # Should be on line 10 (inside code block)
+
+  # Verify w and q commands inside code block are preserved
+  run grep -n "^w$" ed_guide.md.eed.preview
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "11:w" ]]  # Should be on line 11
+
+  run grep -n "^q$" ed_guide.md.eed.preview
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "12:q" ]]  # Should be on line 12
+
+  # Verify closing backticks exist (code block properly closed)
+  run grep -n "^\`\`\`$" ed_guide.md.eed.preview
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "13:\`\`\`" ]]  # Should be on line 13
+
+  # Verify "## Basic Usage" is still at the end (not misplaced)
+  run grep -n "^## Basic Usage$" ed_guide.md.eed.preview
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "14:## Basic Usage" ]]  # Should be on line 14
+
+  # Verify smart dot protection was actually triggered
+  [[ "$eed_output" =~ "Smart dot protection applied" ]]
 }
 
 
@@ -170,7 +203,8 @@ q'
   cat conflict_test.bats
 
   # Check if content was inserted in preview
-  if grep -q "test_with_dots" conflict_test.bats.eed.preview; then
+  run grep -q "test_with_dots" conflict_test.bats.eed.preview
+  if [ "$status" -eq 0 ]; then
     echo "✓ Marker conflicts case worked"
   else
     echo "✗ Marker conflicts case failed"

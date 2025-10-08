@@ -107,11 +107,19 @@ execute_git_mode() {
     fi
     repo_root=$(cd "$repo_root" && pwd -P)
 
-    # Create file if it doesn't exist (after path normalization)
+    # Create file if it doesn't exist (needed before path normalization)
     if [ ! -f "$file_path" ]; then
         mkdir -p "$(dirname "$file_path")"
         echo "" > "$file_path"
         echo "Creating new file: $file_path" >&2
+    fi
+
+    # Normalize file path to absolute path (resolve symlinks like /tmp)
+    # This ensures file_path and repo_root are in compatible formats for get_relative_path
+    if command -v realpath >/dev/null 2>&1; then
+        file_path=$(realpath "$file_path")
+    else
+        file_path=$(cd "$(dirname "$file_path")" && pwd)/$(basename "$file_path")
     fi
 
     # Auto-save work in progress if there are uncommitted changes

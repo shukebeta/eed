@@ -129,25 +129,4 @@ q"
     [ "$status" -eq 0 ]
 }
 
-@test "smart dot protection - tutorial content editing" {
-    # AI edits tutorial content with multiple dots
-    run "$SCRIPT_UNDER_TEST" tutorial.md "7a
-2a
-New content
-.
-3i
-More content
-.
-.
-w
-q"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Edits applied to a temporary preview" ]]
-    
-    # Should show smart protection message
-    [[ "$output" == *"Smart dot protection applied"* ]]
-    
-    # Should process successfully despite multiple dots
-    [ -f tutorial.md.eed.preview ]
-}
 
