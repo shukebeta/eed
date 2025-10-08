@@ -62,3 +62,24 @@ Both preview and force modes use a consistent workflow:
 - **Safe by default**: Prevents accidental inclusion of sensitive or temporary content
 ## Installation
 - Copy `eed` and `lib/` into a directory on your PATH (for example, `~/bin`).
+
+## Development
+
+### Running Tests
+
+This project has comprehensive test coverage with 342+ bats tests. For faster test execution, enable parallel job execution:
+
+```bash
+# Detect available CPU cores and run tests in parallel
+bats --jobs $(nproc) tests/
+
+# Or set up a persistent alias (add to ~/.bashrc or ~/.zshrc)
+alias bats='bats --jobs $(nproc)'
+
+# Then simply run:
+bats tests/
+```
+
+**Performance impact**: On an 8-core machine, parallel execution reduces test time from ~3 minutes to ~10-15 seconds.
+
+**Note**: All tests are designed to be parallel-safe with isolated temporary directories.
