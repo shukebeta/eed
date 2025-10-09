@@ -89,6 +89,89 @@ handle_undo_command() {
     exit 0
 }
 
+# Show compact diff: summarize large hunks to focus on boundaries
+show_compact_diff() {
+    local commit="${1:-HEAD}"
+    local head_lines=3    # Show first N lines of a large hunk
+    local tail_lines=3    # Show last N lines of a large hunk
+    local threshold=7     # Truncate if hunk has more than this many lines
+
+    git show "$commit" | awk -v head="$head_lines" -v tail="$tail_lines" -v threshold="$threshold" '
+    BEGIN {
+        in_hunk = 0
+        hunk_count = 0
+    }
+
+    # Detect hunk header
+    /^@@/ {
+        if (in_hunk && hunk_count > 0) {
+            flush_hunk()
+        }
+        print
+        in_hunk = 1
+        hunk_count = 0
+        delete hunk_lines
+        next
+    }
+
+    # Collect hunk lines (additions/deletions)
+    in_hunk && /^[+\-]/ {
+        hunk_count++
+        hunk_lines[hunk_count] = $0
+        next
+    }
+
+    # Non-hunk line encountered - flush if needed
+    # Context lines within diff (do not flush, just print and continue)
+    in_hunk && /^[[:space:]]/ {
+        # First flush any accumulated changes
+        if (hunk_count > 0) {
+            flush_hunk()
+        }
+        print
+        next
+    }
+
+    # Non-diff line - exit hunk mode
+    in_hunk {
+        flush_hunk()
+        in_hunk = 0
+        print
+        next
+    }
+
+    # Default: print non-diff lines
+    !in_hunk {
+        print
+    }
+
+    END {
+        if (in_hunk && hunk_count > 0) {
+            flush_hunk()
+        }
+    }
+
+    function flush_hunk() {
+        if (hunk_count <= threshold) {
+            # Small hunk: show all lines
+            for (i = 1; i <= hunk_count; i++) {
+                print hunk_lines[i]
+            }
+        } else {
+            # Large hunk: show head, summary, tail
+            for (i = 1; i <= head; i++) {
+                print hunk_lines[i]
+            }
+            printf "   ... [%d more lines] ...\n", hunk_count - head - tail
+            for (i = hunk_count - tail + 1; i <= hunk_count; i++) {
+                print hunk_lines[i]
+            }
+        }
+        hunk_count = 0
+    }
+    '
+}
+
 # Execute git mode: Direct file editing with auto-commit
 # Parameters: file_path, ed_script, repo_root, commit_message, debug_mode
 execute_git_mode() {
@@ -168,7 +251,7 @@ execute_git_mode() {
 
     echo "✅ Changes successfully committed. Details below:"
     echo
-    git -C "$repo_root" show HEAD
+    show_compact_diff HEAD
 
     # Transparency notice: inform about other files if present
     if [ -n "$other_staged_files" ]; then
