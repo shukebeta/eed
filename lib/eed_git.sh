@@ -96,14 +96,14 @@ show_compact_diff() {
     local tail_lines=3    # Show last N lines of a large hunk
     local threshold=7     # Truncate if hunk has more than this many lines
 
-    git show "$commit" | awk -v head="$head_lines" -v tail="$tail_lines" -v threshold="$threshold" '
+    git show --color=always --no-ext-diff "$commit" | awk -v head="$head_lines" -v tail="$tail_lines" -v threshold="$threshold" '
     BEGIN {
         in_hunk = 0
         hunk_count = 0
     }
 
     # Detect hunk header
-    /^@@/ {
+    /^(\033\[[0-9;]*m)*@@/ {
         if (in_hunk && hunk_count > 0) {
             flush_hunk()
         }
@@ -115,7 +115,8 @@ show_compact_diff() {
     }
 
     # Collect hunk lines (additions/deletions)
-    in_hunk && /^[+\-]/ {
+    # Collect hunk lines (additions/deletions) - skip ANSI color codes at line start
+    in_hunk && /^(\033\[[0-9;]*m)*[+\-]/ {
         hunk_count++
         hunk_lines[hunk_count] = $0
         next
@@ -123,7 +124,8 @@ show_compact_diff() {
 
     # Non-hunk line encountered - flush if needed
     # Context lines within diff (do not flush, just print and continue)
-    in_hunk && /^[[:space:]]/ {
+    # Match space or ANSI codes followed by space
+    in_hunk && /^(\033\[[0-9;]*m)*[[:space:]]/ {
         # First flush any accumulated changes
         if (hunk_count > 0) {
             flush_hunk()
