@@ -91,12 +91,13 @@ handle_undo_command() {
 
 # Show compact diff: summarize large hunks to focus on boundaries
 show_compact_diff() {
-    local commit="${1:-HEAD}"
+    local repo_root="${1:-.}"
+    local commit="${2:-HEAD}"
     local head_lines=3    # Show first N lines of a large hunk
     local tail_lines=3    # Show last N lines of a large hunk
     local threshold=7     # Truncate if hunk has more than this many lines
 
-    git show --color=always --no-ext-diff "$commit" | awk -v head="$head_lines" -v tail="$tail_lines" -v threshold="$threshold" '
+    git -C "$repo_root" show --color=always --no-ext-diff "$commit" | awk -v head="$head_lines" -v tail="$tail_lines" -v threshold="$threshold" '
     BEGIN {
         in_hunk = 0
         hunk_count = 0
@@ -255,7 +256,7 @@ execute_git_mode() {
 
     echo "✅ Changes successfully committed. Details below:"
     echo
-    show_compact_diff HEAD
+    show_compact_diff "$repo_root" HEAD
 
     # Transparency notice: inform about other files if present
     if [ -n "$other_staged_files" ]; then
