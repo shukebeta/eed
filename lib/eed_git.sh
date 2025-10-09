@@ -100,10 +100,12 @@ show_compact_diff() {
     BEGIN {
         in_hunk = 0
         hunk_count = 0
+        # ANSI escape code pattern (color codes at line start)
+        ansi = "(\033[[][0-9;]*m)*"
     }
 
     # Detect hunk header
-    /^(\033\[[0-9;]*m)*@@/ {
+    $0 ~ "^" ansi "@@" {
         if (in_hunk && hunk_count > 0) {
             flush_hunk()
         }
@@ -116,7 +118,7 @@ show_compact_diff() {
 
     # Collect hunk lines (additions/deletions)
     # Collect hunk lines (additions/deletions) - skip ANSI color codes at line start
-    in_hunk && /^(\033\[[0-9;]*m)*[+\-]/ {
+    in_hunk && $0 ~ "^" ansi "[+-]" {
         hunk_count++
         hunk_lines[hunk_count] = $0
         next
@@ -125,7 +127,7 @@ show_compact_diff() {
     # Non-hunk line encountered - flush if needed
     # Context lines within diff (do not flush, just print and continue)
     # Match space or ANSI codes followed by space
-    in_hunk && /^(\033\[[0-9;]*m)*[[:space:]]/ {
+    in_hunk && $0 ~ "^" ansi "[[:space:]]" {
         # First flush any accumulated changes
         if (hunk_count > 0) {
             flush_hunk()
