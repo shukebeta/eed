@@ -3,5 +3,4 @@ cp -v commit ~/bin
 cp -v lib/* ~/bin/lib
 cp -v tests/* ~/bin/tests
 chmod  +x ~/bin/eed
-chmod  +x ~/bin/commit
 cp docs/eed-comprehensive-guide.md ~/.claude
