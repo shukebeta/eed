@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-# Test suite for eed local history system (--undo and WIP auto-save functionality)
+# Test suite for eed local history system (WIP auto-save functionality)
 
 # Constants
 readonly TEST_EMAIL="test@example.com"
@@ -129,68 +129,6 @@ EOF
     verify_file_contains "test.txt" "$test_content"
 
     verify_git_commit_message "$commit_msg"
-}
-
-
-@test "eed --undo reverts last eed-history commit completely" {
-    # Purpose: Verify undo functionality restores exact previous state
-    local test_content="# Line added for undo test"
-    local commit_msg="test undo functionality"
-
-    # Record initial state
-    local initial_line_count
-    initial_line_count=$(wc -l < test.txt)
-
-    # Use -m flag for auto-commit
-    run "$EED_SCRIPT" -m "$commit_msg" "test.txt" - <<EOF
-1a
-$test_content
-.
-w
-q
-EOF
-    assert_success
-    verify_file_contains "test.txt" "$test_content"
-
-    # Perform undo
-    run "$EED_SCRIPT" --undo
-    assert_success
-    assert_output_contains "Last eed-history commit undone"
-
-    # Verify complete reversion
-    verify_file_not_contains "test.txt" "$test_content"
-    verify_file_contains "test.txt" "$INITIAL_CONTENT"
-
-    # Verify line count restored
-    local final_line_count
-    final_line_count=$(wc -l < test.txt)
-    [ "$final_line_count" -eq "$initial_line_count" ]
-}
-
-@test "eed --undo fails gracefully outside git repository" {
-    # Purpose: Verify undo command properly enforces git dependency
-    local nogit_dir
-    create_non_git_environment nogit_dir
-    
-    run "$EED_SCRIPT" --undo
-    assert_failure
-    assert_output_contains "Not in a git repository"
-    
-    cleanup_non_git_environment "$nogit_dir"
-}
-
-@test "eed --undo protects against undoing non-eed commits" {
-    # Purpose: Verify safety mechanism when no eed-history commits exist
-    echo "manual change" >> test.txt
-    git add test.txt
-    git commit -m "manual commit without eed-history prefix"
-
-    run "$EED_SCRIPT" --undo
-    assert_failure
-    assert_output_contains "No eed-history commit found to undo"
-
-    # Verify file unchanged (safety preserved)
-    verify_file_contains "test.txt" "manual change"
 }
 
 

@@ -39,8 +39,8 @@ Non-git directories:
 Features:
 - Automatic WIP saves before new edits
 - All edits auto-commit in git repos (no manual commit needed)
-- Use `eed --undo` to revert last eed-history commit
 - All commits use "eed-history:" prefix for easy management
+- Use git to revert changes when needed
 
 ## Overview
 
@@ -63,7 +63,6 @@ OPTIONS:
   -m, --message <msg>  Auto-commit with custom message (default: "Quick edit on <file> at HH:MM")
   --debug              Show detailed debugging information
   --disable-auto-reorder  Disable automatic command reordering
-  --undo               Undo last eed-history commit
   --help               Show help message
 ```
 
@@ -109,7 +108,6 @@ Note: `eed` also supports a forgiving mode — if you pipe but omit the `-`, eed
 **Options:**
 - `--debug` — Show detailed execution info, preserve temp files
 - `--disable-auto-reorder` — Disable automatic script reordering (expert mode)
-- `--undo` — Undo last eed-history commit (git revert)
 
 ## The Preview-Confirm Workflow
 
@@ -155,7 +153,7 @@ eed provides automatic git integration for seamless version control:
 1. **Auto-save WIP**: Before each edit, eed automatically commits any uncommitted work
 2. **Direct editing**: Changes are applied directly to files (no preview files)
 3. **Auto-commit**: All changes are automatically committed with descriptive messages
-4. **Easy undo**: Use `eed --undo` to revert last eed-history commit
+4. **Easy revert**: Use standard git commands to revert changes
 
 ### Example with Custom Message
 ```bash
@@ -169,8 +167,8 @@ q
 EOF
 # Automatically commits as "eed-history: add header comment"
 
-# Later, undo if needed
-eed --undo
+# Later, revert if needed
+git revert HEAD
 ```
 
 ### Example with Quick Edit
@@ -185,15 +183,14 @@ q
 EOF
 # Automatically commits as "eed-history: Quick edit on file.js at HH:MM"
 
-# Undo if needed
-eed --undo
+# Revert if needed
+git revert HEAD
 ```
 
 ### Features
 - **Fast**: No manual commit steps required
 - **Safe**: Original files protected by git
 - **Atomic**: All-or-nothing commits with "eed-history:" prefix
-- **Reversible**: Easy undo with `--undo` flag
 - **Flexible**: Use custom messages or auto-generated quick edit messages
 
 ### View Operations Execute Directly
@@ -393,7 +390,7 @@ EOF
 Practical tips
 - **For git repositories**: Use auto-commit mode (`-m "message"`) for quick iterations
 - **For non-git directories**: Use option (2) or (3) for reliable preview workflows
-- When using multiple edits, leverage git's automatic WIP saves and undo functionality
+- When using multiple edits, leverage git's automatic WIP saves for safety
 - If you must nest, ensure all markers are unique and simple (e.g., `EOF1`, `EOF2`) and run the command locally once to verify parsing.
 - For reproducibility in CI, prefer explicit `-` (stdin) or temp script files rather than relying on the forgiving stdin auto-detection.
 
@@ -472,7 +469,7 @@ mv yourfile.eed.preview yourfile.txt
 git checkout -- yourfile.txt
 ```
 
-**Best practice**: In git repositories, eed automatically commits all changes. Use `eed --undo` to revert if needed.
+**Best practice**: In git repositories, eed automatically commits all changes. Use standard git commands to revert if needed.
 
 ## Advanced Usage
 
@@ -494,8 +491,8 @@ q
 EOF
 # Auto-commits as "eed-history: replace old with new"
 
-# Undo if needed
-eed --undo
+# Revert if needed
+git revert HEAD
 ```
 
 ### Preview Mode (Non-Git Directories)
@@ -582,12 +579,12 @@ EOF
 ```
 
 ### Easy Recovery
-Multiple options for undoing changes:
+Use git to revert changes when needed:
 ```bash
-# Undo last eed-history commit (recommended)
-eed --undo
+# Revert last commit
+git revert HEAD
 
-# Or use git directly
+# Or revert specific commit
 git revert <commit-hash>
 ```
 

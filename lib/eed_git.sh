@@ -48,47 +48,6 @@ auto_save_work_in_progress() {
     fi
 }
 
-# Handle --undo command: Revert last eed-history commit
-handle_undo_command() {
-    # Find git repository root from current directory
-    local repo_root=""
-    if ! repo_root=$(git rev-parse --show-toplevel 2>/dev/null); then
-        echo "Error: Not in a git repository" >&2
-        exit 1
-    fi
-    repo_root=$(normalize_git_root "$repo_root")
-
-    # Find the most recent eed-history commit
-    local last_eed_commit_hash=""
-    last_eed_commit_hash=$(git -C "$repo_root" log --grep="eed-history:" --format=%H -n 1)
-
-    if [ -z "$last_eed_commit_hash" ]; then
-        echo "Error: No eed-history commit found to undo" >&2
-        echo "Use 'git log --grep=\"eed-history:\"' to see all eed commits" >&2
-        exit 1
-    fi
-
-    # Show what will be reverted
-    echo "Found eed-history commit to revert:"
-    git -C "$repo_root" log --oneline -1 "$last_eed_commit_hash"
-    echo
-
-    # Perform the revert
-    if git -C "$repo_root" revert --no-edit "$last_eed_commit_hash"; then
-        echo "Last eed-history commit undone"
-        echo "   Original commit preserved in history for audit trail."
-        echo "   To undo this revert (restore the changes), run:"
-        echo "     git revert HEAD"
-    else
-        echo "❌ git revert failed. This may be due to merge conflicts." >&2
-        echo "   Please resolve conflicts manually and complete the revert:" >&2
-        echo "     git revert --continue  (after resolving conflicts)" >&2
-        echo "     git revert --abort     (to cancel the revert)" >&2
-        exit 1
-    fi
-    exit 0
-}
-
 # Show compact diff: summarize large hunks to focus on boundaries
 show_compact_diff() {
     local repo_root="${1:-.}"
@@ -265,7 +224,4 @@ execute_git_mode() {
         echo "$other_staged_files" | sed 's/^/   /'
         echo "   (This may indicate external tools modified the staging area)"
     fi
-
-    echo
-    echo "To undo these changes, run: eed --undo"
 }

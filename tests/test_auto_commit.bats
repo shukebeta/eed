@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 # Auto-Commit Feature Tests
-# Tests git mode, auto-commit, manual commit mode, and integration with --undo
+# Tests git mode, auto-commit, and manual commit mode
 
 setup() {
     # Determine repository root using BATS_TEST_DIRNAME
@@ -297,53 +297,6 @@ q"
     run git ls-files newfile.txt
     [ "$status" -eq 0 ]
     [[ "$output" == "newfile.txt" ]]
-}
-
-@test "git repo - integration with --undo functionality" {
-    # Initialize git repo
-    run git init .
-    [ "$status" -eq 0 ]
-    run git config user.email "test@example.com"
-    [ "$status" -eq 0 ]
-    run git config user.name "Test User"
-    [ "$status" -eq 0 ]
-
-    # Add file to git tracking
-    run git add .
-    [ "$status" -eq 0 ]
-    run git commit -m "Initial commit"
-    [ "$status" -eq 0 ]
-
-    # Make change with auto-commit
-    run "$SCRIPT_UNDER_TEST" app.py -m "Test change for undo" "2c
-    print('Change to be undone')
-.
-w
-q"
-    [ "$status" -eq 0 ]
-
-    # Verify change was committed
-    run git log --oneline -1
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Test change for undo"* ]]
-
-    # Test --undo functionality
-    run "$SCRIPT_UNDER_TEST" --undo
-    [ "$status" -eq 0 ]
-
-    # Should show undo success message
-    [[ "$output" == *"Last eed-history commit undone"* ]]
-
-    # File should be reverted
-    run grep -q "Hello World" app.py
-    [ "$status" -eq 0 ]
-    run grep -q "Change to be undone" app.py
-    [ "$status" -ne 0 ]
-
-    # Git log should show the revert commit as most recent
-    run git log --oneline -1
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Revert"* ]]
 }
 
 @test "git repo detection - target file directory not cwd" {

@@ -56,9 +56,6 @@ while [[ $# -gt 0 ]]; do
             COMMIT_MESSAGE="$2"
             shift 2
             ;;
-        --undo)
-            handle_undo_command
-            ;;
         --help|-h)
             show_help
             exit 0

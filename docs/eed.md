@@ -42,9 +42,9 @@ EOF
 # Automatically commits as "eed-history: Quick edit on file.js at HH:MM"
 ```
 
-Revert when needed:
+Use git to revert changes when needed:
 ```bash
-eed --undo
+git revert HEAD
 ```
 
 ### In a non-git repository - **Preview workflow**
@@ -69,4 +69,4 @@ mv file.txt.eed.preview file.txt
 - **Unix paths**: Always use forward slashes
 - **Save explicitly**: Never forget `w` and `q`
 - **Avoid nested heredocs**: Nested heredocs are fragile and prone to parsing errors.
-- **Easy recovery**: Use `eed --undo` to revert mistakes
+- **Easy recovery**: Use git to revert changes when needed

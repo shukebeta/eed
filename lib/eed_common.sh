@@ -63,10 +63,9 @@ AI-oriented text editor with bulletproof safety guarantees
 
 OPTIONS:
   -m, --message <msg>  Auto-commit with custom message (default: "Quick edit on <file> at HH:MM")
-  --debug         Show detailed debugging information
+  --debug              Show detailed debugging information
   --disable-auto-reorder  Disable automatic command reordering
-  --undo          Undo last eed-history commit (git revert)
-  --help          Show this help message
+  --help               Show this help message
 
 ARGUMENTS:
   file            Target file to edit (will be created if it doesn't exist)
